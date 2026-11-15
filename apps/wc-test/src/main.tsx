@@ -110,12 +110,25 @@ function App() {
   const log = useCallback((s: string) => setLines((l) => [...l, `${new Date().toLocaleTimeString()}  ${s}`]), []);
 
   const scan = useCallback(async () => {
-    if (!wc.manager) return;
+    log('Scanning…');
+    if (!wc.manager) {
+      log('❌ No WizardConnect manager (state: ' + wc.state + '). Disconnect and connect again.');
+      return;
+    }
+    const sessionPaths = wc.manager.getSessionPaths();
+    log(`Session paths: ${JSON.stringify(sessionPaths.map((p) => p.name))}`);
+    log(`hasPath child 0..7: ${[0, 1, 2, 3, 4, 5, 6, 7].map((c) => `${c}=${wc.manager!.hasPath(c)}`).join(' ')}`);
     const a = deriveAddresses(wc.manager);
     setAddrs(a);
+    log(`Derived ${a.length} addresses; receive/0 = ${a.find((x) => x.path === 'receive' && x.index === 0)?.address ?? 'NONE'}`);
     const found: WalletUtxo[] = [];
-    for (const addr of a) {
-      for (const u of await provider.getUtxos(addr.address)) if (!u.token) found.push({ ...u, addr });
+    log(`Looking up ${a.length} addresses on Chipnet…`);
+    const results = await Promise.all(
+      a.map(async (addr) => ({ addr, utxos: await provider.getUtxos(addr.address) })),
+    );
+    for (const { addr, utxos: us } of results) {
+      if (us.length) log(`  ${addr.path}/${addr.index} ${addr.address}: ${us.length} UTXOs`);
+      for (const u of us) if (!u.token) found.push({ ...u, addr });
     }
     setUtxos(found);
     const paths = wc.manager.getSessionPaths();
