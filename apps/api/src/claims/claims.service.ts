@@ -159,18 +159,22 @@ export class ClaimsService {
 
   async claim(envelopeId: string, body: unknown, ip: string): Promise<ClaimApproval> {
     const req = validate(ClaimRequestSchema, body);
-    const env = await this.loadClaimable(envelopeId);
-    const ipHash = this.rate.ipHash(ip);
-    await this.rate.hit(`claim:${env.id}:${ipHash}`, LIMITS.claim);
     const recipientLB = this.recipientLockingBytecode(req.recipientAddress);
 
-    // Same recipient again: hand back the live approval (retry after a network blip keeps the
-    // claimer's place), or refuse if they already received their share.
+    // Same recipient again: refuse if they already received their share — checked before the
+    // empty/expired checks so a returning claimer hears "you already grabbed one", not "too slow".
     const existing = await this.db.claim.findUnique({
-      where: { envelopeId_recipientLockingBytecode: { envelopeId: env.id, recipientLockingBytecode: recipientLB } },
+      where: { envelopeId_recipientLockingBytecode: { envelopeId, recipientLockingBytecode: recipientLB } },
       include: { share: true },
     });
     if (existing?.status === 'BROADCAST' || existing?.status === 'CONFIRMED') throw new AppError('ALREADY_CLAIMED');
+
+    const env = await this.loadClaimable(envelopeId);
+    const ipHash = this.rate.ipHash(ip);
+    await this.rate.hit(`claim:${env.id}:${ipHash}`, LIMITS.claim);
+
+    // A live approval for this recipient: hand it back (a retry after a network blip keeps the
+    // claimer's place).
     if (existing?.status === 'APPROVED' && existing.share?.status === 'RESERVED') {
       const share = await this.db.share.update({
         where: { id: existing.share.id },

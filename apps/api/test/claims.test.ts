@@ -67,6 +67,9 @@ describe('parallel claims and exhaustion', () => {
     expect(fourth.body.error).toEqual({ code: 'ENVELOPE_EMPTY', message: 'Too slow! All the red envelopes have been grabbed.' });
     expect((await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } })).status).toBe('EXHAUSTED');
     expect((await t.http().get(`/envelopes/${env.id}`)).body.status).toBe('EXHAUSTED');
+    // Someone who already got a share is told so, not "too slow".
+    const back = await claimReq(t, env.id, { recipientAddress: addressOf('a', false) });
+    expect([back.status, back.body.error.code]).toEqual([409, 'ALREADY_CLAIMED']);
   });
 
   it('8 simultaneous claimers on 3 shares: exactly 3 approvals, never a shared share', async () => {
