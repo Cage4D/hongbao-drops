@@ -125,3 +125,59 @@ export interface HealthResponse {
   priceUsd: number | null;
   time: string;
 }
+
+// ------------------------------------------------------------------ claims (Phase 4)
+
+export const HoldRequestSchema = z
+  .object({ fingerprint: z.string().regex(/^[0-9a-f]{16,64}$/, 'hex wallet fingerprint').optional() })
+  .strict();
+export type HoldRequest = z.infer<typeof HoldRequestSchema>;
+
+export interface HoldResponse {
+  holdToken: string;
+  heldUntil: string; // ISO
+}
+
+export const ClaimRequestSchema = z
+  .object({
+    /** Token-aware (z…) or plain (q…/p…) cashaddr. Uniqueness is per locking bytecode. */
+    recipientAddress: z.string().min(10).max(120),
+    /** sha256 of the WizardConnect receive xpub (hex). Never the xpub itself. */
+    walletFingerprint: z.string().regex(/^[0-9a-f]{16,64}$/, 'hex wallet fingerprint').optional(),
+    holdToken: z.string().max(100).optional(),
+    answer: z.string().max(200).optional(),
+  })
+  .strict();
+export type ClaimRequest = z.infer<typeof ClaimRequestSchema>;
+
+export interface ClaimApproval {
+  claimId: string;
+  /** The share this approval is bound to. */
+  share: {
+    index: number;
+    outpointTxid: string;
+    outpointIndex: number;
+    sats: number;
+    tokenCategory: string | null;
+    nftCommitment: string | null;
+  };
+  /** Gate datasig over recipientLockingBytecode ‖ outpoint (hex, 64-byte Schnorr). */
+  gateSig: string;
+  recipientLockingBytecode: string;
+  contractLockingBytecode: string;
+  constructorArgs: { linkPk: string; gatePk: string; refundLockingBytecode: string; expiry: number; maxFee: number };
+  /** Broadcast before this, or the share may go to someone else. */
+  reservedUntil: string;
+  /** True when this address had no on-chain history before the claim (null if unknown). */
+  isNewWallet: boolean | null;
+}
+
+export const BroadcastRequestSchema = z.object({ rawTx: z.string().regex(/^[0-9a-f]+$/).max(20_000) }).strict();
+export type BroadcastRequest = z.infer<typeof BroadcastRequestSchema>;
+
+export interface BroadcastResponse {
+  txid: string;
+  amountSats: number;
+  amountUsd: number | null;
+  stamp: { category: string; commitment: string; imageUrl: string; alt: string } | null;
+}
