@@ -18,3 +18,6 @@ export const FULCRUM_HOSTS = (process.env.FULCRUM_URLS ?? 'wss://chipnet.imagina
 export const PUBLIC_API_URL = process.env.PUBLIC_API_URL ?? 'http://localhost:3000';
 export const EXPLORER_TX = 'https://chipnet.imaginary.cash/tx/';
 export const STATE_DIR = fileURLToPath(new URL('../../.state/', import.meta.url));
+
+// `pnpm <script> -- --flag` forwards the literal "--"; drop it so node:util parseArgs works.
+process.argv = process.argv.filter((arg, i) => !(i >= 2 && arg === '--'));
