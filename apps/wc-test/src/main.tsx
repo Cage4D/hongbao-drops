@@ -68,6 +68,34 @@ function deriveAddresses(m: DappConnectionManager): WalletAddr[] {
   return out;
 }
 
+type WcObj = ReturnType<TransactionBuilder['generateWcTransactionObject']>;
+
+/** Relay-safe form of CashScript's WC object (mirrors @wizardconnect/core sourceOutputToRelay). */
+function toRelayRequest(wc: WcObj) {
+  return {
+    transaction: binToHex(encodeTransaction(wc.transaction)),
+    sourceOutputs: wc.sourceOutputs.map((so) => ({
+      outpointTransactionHash: binToHex(so.outpointTransactionHash),
+      outpointIndex: so.outpointIndex,
+      unlockingBytecode: binToHex(so.unlockingBytecode),
+      sequenceNumber: so.sequenceNumber,
+      valueSatoshis: `<bigint: ${so.valueSatoshis}n>`,
+      lockingBytecode: binToHex(so.lockingBytecode),
+      ...(so.token && {
+        token: {
+          category: binToHex(so.token.category),
+          amount: `<bigint: ${so.token.amount}n>`,
+          ...(so.token.nft && {
+            nft: { capability: so.token.nft.capability, commitment: binToHex(so.token.nft.commitment) },
+          }),
+        },
+      }),
+    })),
+    broadcast: false,
+    userPrompt: wc.userPrompt,
+  };
+}
+
 /** Build → WC request object → wallet signs → broadcast. Change goes to receive/0. */
 async function signAndSend(
   m: DappConnectionManager,
@@ -91,8 +119,10 @@ async function signAndSend(
 
   log(`Requesting signature (${inputs.length} inputs, ${outputs.length + 1} outputs, ~${size} B)… check your wallet`);
   const res = await m.signTransaction({
-    // @bch-wc2/interfaces types the same libauth structure CashScript produced.
-    transaction: wcObj as never,
+    // The relay sends JSON, which can't hold BigInt/Uint8Array. WizardConnect's convention
+    // (core/protocols/hdwalletv1-serialize, not exported from the package index): transaction as
+    // hex, source outputs with hex bytes and `<bigint: Xn>` strings.
+    transaction: toRelayRequest(wcObj) as never,
     inputPaths: inputs.map((u, i) => [i, u.addr.path, u.addr.index]),
   });
   if (res.error) throw new Error(`wallet refused: ${res.error}`);
