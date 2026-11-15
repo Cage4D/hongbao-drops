@@ -11,7 +11,8 @@
     "claim": "tsx src/claim.ts",
     "refund": "tsx src/refund.ts",
     "inspect": "tsx src/inspect.ts",
-    "send": "tsx src/send.ts"
+    "send": "tsx src/send.ts",
+    "api-e2e": "tsx src/api-e2e.ts"
   },
   "dependencies": {
     "@electrum-cash/network": "^4.4.8",
