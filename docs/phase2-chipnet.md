@@ -33,6 +33,25 @@ Test wallet funded with 1,017,000 Chipnet sats (faucet) on 2026-11-15. All txs p
 | **Early refund attempt** | rejected | `refund --force` before median-time-past passed expiry → node replied `bad-txns-nonfinal, non-final transaction (code 64)`. **On-chain proof nobody can refund early** (the mock network can't check this) |
 | Batch refund (2 stamped shares) | _pending_ | |
 
+## WizardConnect wallet test (`apps/wc-test`) — stamp go/no-go: **GO**
+
+A real wallet, paired by QR over WizardConnect, signed every request on the first try (one input each, `SIGHASH_ALL|FORKID|UTXOS`). The page broadcast the results.
+
+| Tx | What the wallet signed |
+|---|---|
+| [b74f1d9a…fbca](https://chipnet.imaginary.cash/tx/b74f1d9ad8a3fd87511b7c7d65cc74c09dd3fa550bb8db8a479adbea29f2fbca) | BCH-only funding: 3 × 2,500-sat shares to a P2SH32 contract + change |
+| [dfeffbe9…f774](https://chipnet.imaginary.cash/tx/dfeffbe9ded82dc9b2a47d97f638eee1a85cc058709aa1eda3df5590fae8f774) | Prep tx (1-in/1-out self-send → vout-0 outpoint) |
+| [8e4afb15…b997](https://chipnet.imaginary.cash/tx/8e4afb151f3464ce7d2d865d2344bfc666aeddbdda66df6e3555d036ec04b997) | **Genesis funding**: identity output, 3 shares each minting an immutable stamp (category `dfeffbe9…`, commitments `fafa0a0001…03`), BCMR OP_RETURN, change |
+| [6857cc88…0b19](https://chipnet.imaginary.cash/tx/6857cc886bd800906bb8c13cfd33aec0afb86abf81fc10439088c98fe9a50b19) | Second prep (2 inputs) |
+
+**Decision: `ENABLE_STAMPS=true`.** Stamps stay in the core scope.
+
+What the frontend must do (learned the hard way):
+- **Serialize sign requests in the relay format**: transaction as hex, source outputs with hex bytes and `<bigint: Xn>` amounts. `@wizardconnect/core` has `sourceOutputToRelay()` but doesn't export it from the package index. Passing CashScript's `generateWcTransactionObject()` result directly throws `Do not know how to serialize a BigInt`.
+- **Pairing can silently fail** (`Key exchange timed out` in the console) while a saved session still makes the page look connected. Show real wallet status, and offer "reconnect".
+- Wallet sent paths `receive`, `change`, `defi` (child 0, 1, 7). Deriving `bchtest:` addresses from the `receive` xpub matched where the wallet holds its Chipnet coins.
+- The test page sent the identity output to the wallet's own address, and the next prep tx consolidated (spent) it. In the product the identity output goes to the **treasury**, which never spends it, for exactly this reason.
+
 ## Observations
 
 - **Genesis + BCMR + P2SH32 token outputs relay fine on Chipnet** when signed locally. The open question for `ENABLE_STAMPS` is only whether a WizardConnect *wallet* will sign it (`apps/wc-test`).

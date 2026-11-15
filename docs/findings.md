@@ -20,7 +20,7 @@ pnpm --filter @hongbao/scripts probe:fulcrum  # live Fulcrum probe
 | Loops / `refundBatch()`? | **Yes.** `do…while` compiles to `OP_BEGIN … OP_UNTIL` and passes VM validation for 1, 5, 10 and 20 shares. This is the "built on Layla" feature |
 | `minShareSats` | **2,000** with stamps, **1,500** without (≈ $0.004 / $0.003) |
 | `maxFee` (per input) | **1,000 sats** (claim tx ≈ 483 B, refund ≈ 341 B per share, so about 2 sat/B of headroom) |
-| Stamp go/no-go | **Still open.** Decided in Phase 2 after a real Paytaca/Cashonize sign test (spec §5.1) |
+| Stamp go/no-go | **GO** (Phase 2): a real WizardConnect wallet signed the genesis funding tx on Chipnet, see docs/phase2-chipnet.md |
 | Fulcrum | Chipnet: `chipnet.imaginary.cash`, `chipnet.bch.ninja`. Mainnet: `bch.imaginary.cash`, `fulcrum.greyh.at`. All on WSS port 50004 with `get_history` working |
 | Hosting | **Decided: Vercel for frontend, API and DB** (Neon Postgres via the Vercel Marketplace). Keeper runs from an external per-minute cron (approved 2026-11-15), see §7 |
 | `stampCategory` on `POST /envelopes` | **Approved** (builder, 2026-11-15) |
