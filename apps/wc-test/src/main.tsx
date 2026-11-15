@@ -180,7 +180,7 @@ function App() {
   };
 
   const receive0 = addrs.find((a) => a.path === 'receive' && a.index === 0);
-  const vout0 = utxos.find((u) => u.vout === 0 && u.satoshis >= 12_000n);
+  const vout0 = utxos.find((u) => u.vout === 0 && u.satoshis >= 9_500n);
 
   const prep = run(async () => {
     const total = utxos.reduce((s, u) => s + u.satoshis, 0n);
@@ -292,7 +292,7 @@ function App() {
               token-aware: <code>{receive0.tokenAddress}</code>
             </p>
           )}
-          <p>Balance: {total.toString()} sats in {utxos.length} UTXOs (need ≥ 12,000 incl. fees)</p>
+          <p>Balance: {total.toString()} sats in {utxos.length} UTXOs (stamped funding needs a vout-0 UTXO ≥ 9,500)</p>
           <ol>
             <li>
               <button onClick={fund(false)} disabled={busy || !receive0 || total < 10_000n}>
@@ -303,7 +303,7 @@ function App() {
               <button onClick={prep} disabled={busy || !receive0 || utxos.length === 0 || !!vout0}>
                 Sign prep tx (only if no vout-0 UTXO)
               </button>{' '}
-              {vout0 ? '✓ vout-0 UTXO available' : 'no vout-0 UTXO ≥ 12,000 sats yet'}
+              {vout0 ? '✓ vout-0 UTXO available' : 'no vout-0 UTXO ≥ 9,500 sats yet'}
             </li>
             <li>
               <button onClick={fund(true)} disabled={busy || !receive0 || !vout0}>
