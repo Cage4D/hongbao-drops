@@ -1,6 +1,6 @@
 // Fulcrum access. Uses CashScript's ElectrumNetworkProvider, trying each configured host in order,
 // and caches the working provider for the life of the (serverless) instance.
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ElectrumNetworkProvider, type NetworkProvider } from 'cashscript';
 import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
 import type { AppConfig } from '../config/config.js';
@@ -15,12 +15,16 @@ export function electrumProviderFactory(config: AppConfig): ProviderFactory {
   return async () => {
     let last: unknown;
     for (const hostname of config.fulcrumHosts) {
-      const provider = new ElectrumNetworkProvider(network, { hostname });
+      // One persistent WSS connection per instance: the auto-managed mode reconnects (TLS
+      // handshake, 1–5 s) on every request, which blew the gate's latency budget on Chipnet.
+      const provider = new ElectrumNetworkProvider(network, { hostname, manualConnectionManagement: true });
       try {
+        await provider.connect();
         await provider.getBlockHeight();
         return { provider, server: hostname };
       } catch (e) {
         last = e;
+        await provider.disconnect().catch(() => {});
       }
     }
     throw new Error(`no Fulcrum server reachable: ${(last as Error)?.message}`);
@@ -28,11 +32,25 @@ export function electrumProviderFactory(config: AppConfig): ProviderFactory {
 }
 
 @Injectable()
-export class ChainService {
+export class ChainService implements OnApplicationBootstrap {
   private readonly log = new Logger('Chain');
   private current?: Promise<{ provider: NetworkProvider; server: string }>;
 
   constructor(@Inject(NETWORK_PROVIDER_FACTORY) private readonly factory: ProviderFactory) {}
+
+  /** Open the Fulcrum connection in the background at startup, so the first claim doesn't wait ~5 s. */
+  onApplicationBootstrap() {
+    this.conn().catch((e) => this.log.warn(`initial Fulcrum connect failed: ${(e as Error).message}`));
+  }
+
+  /** Drop the current connection (closing it) so the next call reconnects, possibly to another host. */
+  private reset() {
+    const old = this.current;
+    this.current = undefined;
+    old
+      ?.then(({ provider }) => (provider instanceof ElectrumNetworkProvider ? provider.disconnect() : undefined))
+      .catch(() => {});
+  }
 
   private async conn() {
     this.current ??= this.factory().catch((e) => {
@@ -48,7 +66,7 @@ export class ChainService {
       return await fn((await this.conn()).provider);
     } catch (e) {
       this.log.warn(`chain call failed: ${(e as Error).message}`);
-      this.current = undefined;
+      this.reset();
       throw new AppError('CHAIN_UNAVAILABLE');
     }
   }
@@ -68,7 +86,7 @@ export class ChainService {
       const msg = (e as Error).message ?? '';
       if (/not found|No such|unknown|missing|Invalid tx/i.test(msg)) return null;
       this.log.warn(`getRawTransaction failed: ${msg}`);
-      this.current = undefined;
+      this.reset();
       throw new AppError('CHAIN_UNAVAILABLE');
     }
   }
@@ -89,12 +107,22 @@ export class ChainService {
       // Test providers: approximate with "has any UTXO".
       return (await provider.getUtxosForLockingBytecode(lockingBytecodeHex)).length > 0;
     })();
-    const timeout = new Promise<null>((r) => setTimeout(() => r(null), timeoutMs));
+    lookup.catch(() => {}); // if the timeout wins, a late rejection must not be unhandled (would crash Node)
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((r) => {
+      timer = setTimeout(() => {
+        this.log.warn(`history lookup timed out after ${timeoutMs} ms`);
+        r(null);
+      }, timeoutMs);
+    });
     try {
       return await Promise.race([lookup, timeout]);
     } catch (e) {
       this.log.warn(`history lookup failed: ${(e as Error).message}`);
+      this.reset();
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -123,7 +151,7 @@ export class ChainService {
         throw new AppError('INVALID_REQUEST', { reasons: [`network rejected the transaction: ${msg.split('\n')[0]}`] });
       }
       this.log.warn(`broadcast failed: ${msg}`);
-      this.current = undefined;
+      this.reset();
       throw new AppError('CHAIN_UNAVAILABLE');
     }
   }
@@ -133,7 +161,7 @@ export class ChainService {
       const c = await this.conn();
       return { ok: true, height: await c.provider.getBlockHeight(), server: c.server };
     } catch {
-      this.current = undefined;
+      this.reset();
       return { ok: false, height: null, server: null };
     }
   }

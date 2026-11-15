@@ -15,7 +15,7 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 
 **Use a different `GATE_MASTER_SEED` per environment.** Gate keys are derived from `(seed, envelope seq)`, and each database starts its sequence at 1.
 
-## Endpoints (Phase 3)
+## Endpoints
 
 | Method & path | What it does |
 |---|---|
@@ -23,6 +23,28 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 | `POST /envelopes/:id/funded` | Fetches the tx from Fulcrum and checks every output (see below). Only then sets the envelope to `ACTIVE` and creates its shares. Idempotent for the same txid |
 | `GET /envelopes/:id`, `GET /s/:slug` | Public view: sats + USD, shares left, expiry countdown, sponsor branding, stamp image and alt text. Never returns keys, quiz answers or the sender address |
 | `GET /health` | DB, Fulcrum (height + server), network, price, keeper heartbeat |
+| `POST /envelopes/:id/holds` | "Hold my share": reserves a share for 15 min and returns a single-use `holdToken` |
+| `POST /envelopes/:id/claims` | The gate. Checks eligibility, reserves a share for 120 s, signs the approval, and records `isNewWallet` (Fulcrum history) |
+| `POST /claims/:id/broadcast` | Checks the claim tx spends exactly the approved share to exactly the approved address (stamp intact, fee ≤ maxFee), relays it, and treats 0-conf acceptance as success |
+
+## The gate (`src/claims/claims.service.ts`)
+
+**What it signs:** a 64-byte Schnorr datasig over `recipientLockingBytecode ‖ outpointTxHash ‖ u32le(vout)` with the envelope's gate key. It's useless without the link secret, and valid only for that share to that address.
+
+**When it signs**, in order:
+1. If this recipient already received a share → `ALREADY_CLAIMED`.
+2. Envelope `ACTIVE` and before expiry, else `NOT_FUNDED`, `ENVELOPE_EXPIRED` or `ENVELOPE_EMPTY`.
+3. Per-IP rate limit: 10 claim attempts per envelope per 10 min (IPs stored only as HMAC hashes).
+4. A live approval for this recipient is returned again, so a retry keeps the claimer's place.
+5. Quiz: salted hash of the normalised answer; 5 wrong tries per IP per 10 min → `RATE_LIMITED`.
+6. Wallet fingerprint not already used by another address. Serialised per (envelope, fingerprint) with an advisory lock.
+7. Reserve a share:
+   - **with a hold token:** that exact HELD share, or `HOLD_EXPIRED`;
+   - **without:** `SELECT … FOR UPDATE SKIP LOCKED` on the next free share (AVAILABLE, or HELD/RESERVED whose time ran out). Parallel claimers never collide.
+   - A timed-out claim loses its share and can no longer broadcast.
+8. Insert the claim. The unique index `(envelope, recipientLockingBytecode)` settles a recipient racing itself.
+
+**Known limit:** a claimer whose 120 s reservation lapsed still holds a valid approval, and could broadcast it themselves outside the API. Whichever spend reaches the network first wins. The Phase 5 watcher reconciles the database from the chain.
 
 Errors always look like `{ "error": { "code", "message", ... } }`, using the catalog in [`errors.ts`](../../packages/shared/src/errors.ts) (spec §8.6). Codes added beyond the spec: `INVALID_REQUEST` (400, with `issues`), `NOT_FOUND` (404), `FUNDING_MISMATCH` (422, with `reasons`) and `UNAUTHORIZED` (401).
 
