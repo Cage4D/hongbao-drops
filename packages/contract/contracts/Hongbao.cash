@@ -1,0 +1,79 @@
+pragma cashscript ^0.14.0;
+
+// Hongbao — one contract instance per red envelope.
+//
+// The funding tx creates N "share" UTXOs locked to this contract (each optionally carrying one
+// immutable stamp NFT). Each share is claimed on its own, so claims never race on one UTXO.
+//
+// Security model (see contracts/README.md for a line-by-line walkthrough):
+//  - claim needs BOTH the link secret (lives only in the share URL fragment) AND a per-claim
+//    approval from the server's gate key, bound to this exact share and this exact recipient.
+//    Server alone can't drain (no link secret); a link holder alone can't drain (no approvals).
+//  - after expiry ANYONE may batch-refund shares, but only to the sender's refund script.
+//  - nobody, including the sender, can take funds back before expiry.
+//
+// Deployed as P2SH32: at 222 bytes with constructor args it exceeds the 201-byte P2S limit
+// (docs/findings.md §1). Layla is used via the do…while loop in refundBatch (OP_BEGIN/OP_UNTIL).
+contract Hongbao(
+    pubkey linkPk,                // public key of the link secret (#k= in the share URL)
+    pubkey gatePk,                // per-envelope gate key (server, derived from GATE_MASTER_SEED)
+    bytes refundLockingBytecode,  // sender's refund destination (locking bytecode)
+    int expiry,                   // unix timestamp (>= 500,000,000) after which refunds open
+    int maxFee                    // max sats each spent share may pay in network fee
+) {
+    // Claim exactly one share to exactly one recipient.
+    function claim(sig linkSig, datasig gateSig) {
+        // One share in, one output out: no batching several shares, no skimming outputs.
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+
+        // Proof of holding the link secret. Signs the whole tx (SIGHASH_ALL|UTXOS by default).
+        require(checkSig(linkSig, linkPk));
+
+        // Gate approval: datasig over  recipientLockingBytecode ‖ outpointTxHash ‖ u32le(vout).
+        // outpointTransactionHash is in internal byte order (reverse of the displayed txid).
+        // Binding the outpoint stops replaying one approval against another share.
+        bytes recipient = tx.outputs[0].lockingBytecode;
+        bytes outpoint = tx.inputs[0].outpointTransactionHash + toPaddedBytes(tx.inputs[0].outpointIndex, 4);
+        require(checkDataSig(gateSig, recipient + outpoint, gatePk));
+
+        // The share pays its own network fee (claimer needs zero BCH); claimer gets the rest.
+        require(tx.outputs[0].value >= tx.inputs[0].value - maxFee);
+
+        // The stamp NFT (if any) must go to the claimer unchanged. tokenCategory includes the
+        // capability byte, so capability changes are caught too. Token-less shares compare
+        // empty == empty and 0 == 0, so the recipient output must be token-less as well.
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+    }
+
+    // After expiry, anyone (the keeper) can refund up to ~20 shares in one tx.
+    // Input i is refunded by output i, so every share's stamp stays separate.
+    function refundBatch() {
+        // tx.time compiles to OP_CHECKLOCKTIMEVERIFY: tx locktime must be >= expiry and the
+        // input sequence non-final; the network only accepts it once median time passes locktime.
+        require(tx.time >= expiry);
+
+        int inputCount = tx.inputs.length;
+        require(tx.outputs.length == inputCount);
+
+        bytes self = tx.inputs[this.activeInputIndex].lockingBytecode;
+        int i = 0;
+        do {
+            // Every input is a share of THIS envelope (no mixing in other UTXOs).
+            require(tx.inputs[i].lockingBytecode == self);
+            // Every output goes to the sender, and loses at most maxFee.
+            require(tx.outputs[i].lockingBytecode == refundLockingBytecode);
+            require(tx.outputs[i].value >= tx.inputs[i].value - maxFee);
+            // Stamp i goes back unchanged on output i.
+            require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+            require(tx.outputs[i].nftCommitment == tx.inputs[i].nftCommitment);
+            require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);
+            i = i + 1;
+        } while (i < inputCount);
+
+        // cashc requires a function to end with require(); also documents loop completion.
+        require(i == inputCount);
+    }
+}
