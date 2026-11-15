@@ -1,0 +1,19 @@
+{
+  "name": "@hongbao/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "probe:fulcrum": "tsx src/probe-fulcrum.ts"
+  },
+  "dependencies": {
+    "@electrum-cash/network": "^4.4.8",
+    "@electrum-cash/web-socket": "^4.2.0",
+    "@hongbao/contract": "workspace:*",
+    "@hongbao/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0"
+  }
+}

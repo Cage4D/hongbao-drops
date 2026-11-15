@@ -1,0 +1,41 @@
+// SPIKE ONLY (Phase 0): the spec §5.3 draft, ported to CashScript 0.14 syntax, used to measure
+// compiled size for the P2S decision. The real contract is written and tested in Phase 1.
+pragma cashscript ^0.14.0;
+
+contract DraftHongbao(
+    pubkey linkPk,
+    pubkey gatePk,
+    bytes refundLockingBytecode,
+    int expiry,
+    int maxFee
+) {
+    function claim(sig linkSig, datasig gateSig) {
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+        require(checkSig(linkSig, linkPk));
+        bytes recipient = tx.outputs[0].lockingBytecode;
+        bytes outpoint = tx.inputs[0].outpointTransactionHash + toPaddedBytes(tx.inputs[0].outpointIndex, 4);
+        require(checkDataSig(gateSig, recipient + outpoint, gatePk));
+        require(tx.outputs[0].value >= tx.inputs[0].value - maxFee);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+    }
+
+    function refundBatch() {
+        require(tx.time >= expiry);
+        require(tx.outputs.length == tx.inputs.length);
+        bytes self = tx.inputs[this.activeInputIndex].lockingBytecode;
+        int i = 0;
+        do {
+            require(tx.inputs[i].lockingBytecode == self);
+            require(tx.outputs[i].lockingBytecode == refundLockingBytecode);
+            require(tx.outputs[i].value >= tx.inputs[i].value - maxFee);
+            require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+            require(tx.outputs[i].nftCommitment == tx.inputs[i].nftCommitment);
+            require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);
+            i = i + 1;
+        } while (i < tx.inputs.length);
+        require(i == tx.inputs.length); // cashc: final statement must be require()
+    }
+}

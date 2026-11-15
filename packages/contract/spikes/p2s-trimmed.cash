@@ -1,0 +1,38 @@
+// SPIKE ONLY (Phase 0): how small can the §5.3 logic get for P2S (201-byte limit)?
+// Trims vs draft: refund destination as a 20-byte pubkey hash (P2PKH rebuilt in-script),
+// maxFee as a compile-time constant, claim reuses input/output 0 directly.
+pragma cashscript ^0.14.0;
+
+int constant MAX_FEE = 2000;
+
+contract TrimmedHongbao(pubkey linkPk, pubkey gatePk, bytes20 refundPkh, int expiry) {
+    function claim(sig linkSig, datasig gateSig) {
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+        require(checkSig(linkSig, linkPk));
+        require(checkDataSig(gateSig, tx.outputs[0].lockingBytecode + tx.inputs[0].outpointTransactionHash + toPaddedBytes(tx.inputs[0].outpointIndex, 4), gatePk));
+        require(tx.outputs[0].value >= tx.inputs[0].value - MAX_FEE);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+    }
+
+    function refundBatch() {
+        require(tx.time >= expiry);
+        int n = tx.inputs.length;
+        require(tx.outputs.length == n);
+        bytes self = tx.inputs[this.activeInputIndex].lockingBytecode;
+        bytes refund = new LockingBytecodeP2PKH(refundPkh);
+        int i = 0;
+        do {
+            require(tx.inputs[i].lockingBytecode == self);
+            require(tx.outputs[i].lockingBytecode == refund);
+            require(tx.outputs[i].value >= tx.inputs[i].value - MAX_FEE);
+            require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+            require(tx.outputs[i].nftCommitment == tx.inputs[i].nftCommitment);
+            require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);
+            i = i + 1;
+        } while (i < n);
+        require(i == n);
+    }
+}

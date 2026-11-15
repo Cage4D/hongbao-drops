@@ -1,0 +1,36 @@
+// SPIKE ONLY (Phase 0): one tiny function per §15 question, exercised by test/spikes.test.ts.
+pragma cashscript ^0.14.0;
+
+contract Semantics(pubkey pk) {
+    // Q: what bytes does outpointTransactionHash + toPaddedBytes(outpointIndex, 4) produce?
+    function outpoint(bytes expected) {
+        require(tx.inputs[0].outpointTransactionHash + toPaddedBytes(tx.inputs[0].outpointIndex, 4) == expected);
+    }
+
+    // Q: does token equality hold for token-less in/out, and catch capability/commitment changes?
+    function tokenPassthrough() {
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+    }
+
+    // Q: what message format does checkDataSig verify? (expect: Schnorr/ECDSA over sha256(msg))
+    function dataSig(datasig s, bytes msg) {
+        require(checkDataSig(s, msg, pk));
+    }
+
+    // Q: do do...while loops execute on the BCH_2026_05 VM?
+    function loop() {
+        int i = 0;
+        do {
+            require(tx.outputs[i].value >= 1000);
+            i = i + 1;
+        } while (i < tx.outputs.length);
+        require(i == tx.outputs.length);
+    }
+
+    // Q: tx.time compiles to CHECKLOCKTIMEVERIFY against tx.locktime
+    function afterTime(int t) {
+        require(tx.time >= t);
+    }
+}
