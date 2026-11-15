@@ -1,0 +1,177 @@
+// Hongbao Drops data model (spec §8.4, plus Phase 0–2 decisions noted inline).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Network {
+  CHIPNET
+  MAINNET
+}
+
+enum Mode {
+  EQUAL
+  LUCKY
+  QUIZ
+}
+
+enum EnvelopeStatus {
+  PENDING_FUNDING
+  ACTIVE
+  EXHAUSTED
+  EXPIRED
+  REFUNDED
+}
+
+enum ShareStatus {
+  AVAILABLE
+  HELD
+  RESERVED
+  CLAIMED
+  REFUNDED
+}
+
+enum ClaimStatus {
+  APPROVED
+  BROADCAST
+  CONFIRMED
+  EXPIRED
+}
+
+enum LedgerKind {
+  FUND
+  CLAIMED
+  REFUNDED
+  FEE
+}
+
+model Sponsor {
+  id         String     @id @default(cuid())
+  name       String
+  logoUrl    String?
+  brandColor String? // hex
+  ctaLabel   String?
+  ctaUrl     String?
+  adminToken String     @unique // sha256 of the token; the raw token is shown once
+  createdAt  DateTime   @default(now())
+  campaigns  Campaign[]
+}
+
+model Campaign {
+  id        String     @id @default(cuid())
+  sponsorId String
+  sponsor   Sponsor    @relation(fields: [sponsorId], references: [id])
+  name      String
+  createdAt DateTime   @default(now())
+  envelopes Envelope[]
+}
+
+model Envelope {
+  id                    String         @id @default(cuid())
+  seq                   Int            @unique @default(autoincrement()) // gate key index + stamp commitment prefix
+  slug                  String         @unique
+  network               Network
+  senderAddress         String
+  refundLockingBytecode String // hex
+  linkPk                String // hex, 33 bytes
+  gatePk                String // hex, derived from GATE_MASTER_SEED at index seq
+  contractAddress       String // token-aware P2SH32 cashaddr
+  contractLockingBytecode String // hex
+  expiry                Int // unix seconds
+  maxFee                Int
+  mode                  Mode
+  quizQuestion          String?
+  quizAnswerHashes      String[]
+  quizSalt              String?
+  withStamps            Boolean        @default(true)
+  stampCategory         String? // Phase 0 decision: txid of the vout-0 outpoint input 0 spends
+  bcmrRegistry          String? // exact registry bytes committed on-chain (served verbatim)
+  bcmrHash              String? // hex sha256(bcmrRegistry)
+  totalSats             BigInt
+  shareCount            Int
+  message               String?
+  theme                 String // classic-red | gold | christmas | lunar
+  campaignId            String?
+  campaign              Campaign?      @relation(fields: [campaignId], references: [id])
+  feeBps                Int            @default(0)
+  sponsorFeeSats        BigInt         @default(0)
+  parentEnvelopeId      String?
+  parent                Envelope?      @relation("Lineage", fields: [parentEnvelopeId], references: [id])
+  children              Envelope[]     @relation("Lineage")
+  fundingTxid           String?        @unique
+  fundedAt              DateTime?
+  status                EnvelopeStatus @default(PENDING_FUNDING)
+  ctaClicks             Int            @default(0)
+  createdAt             DateTime       @default(now())
+  shares                Share[]
+  claims                Claim[]
+
+  @@index([network, status])
+  @@index([campaignId])
+}
+
+model Share {
+  id            String      @id @default(cuid())
+  envelopeId    String
+  envelope      Envelope    @relation(fields: [envelopeId], references: [id])
+  index         Int // 1-based, matches the stamp commitment's last byte
+  outpointTxid  String
+  outpointIndex Int
+  sats          BigInt
+  nftCommitment String?
+  status        ShareStatus @default(AVAILABLE)
+  reservedUntil DateTime?
+  holdToken     String?     @unique
+  spendTxid     String?
+
+  @@unique([outpointTxid, outpointIndex])
+  @@unique([envelopeId, index])
+  @@index([envelopeId, status])
+}
+
+model Claim {
+  id                String      @id @default(cuid())
+  envelopeId        String
+  envelope          Envelope    @relation(fields: [envelopeId], references: [id])
+  shareId           String?     @unique
+  recipientAddress  String
+  walletFingerprint String?
+  ipHash            String?
+  isNewWallet       Boolean? // fresh wallet: no on-chain history before the claim
+  activatedWithin7d Boolean?
+  suspectedFarm     Boolean     @default(false)
+  farmReasons       String[]
+  claimTxid         String?
+  amountSats        BigInt?
+  status            ClaimStatus
+  createdAt         DateTime    @default(now())
+
+  @@unique([envelopeId, recipientAddress])
+  @@index([envelopeId, createdAt])
+}
+
+model LedgerEntry {
+  // §10.1 spend ledger (MAINNET only)
+  id         String     @id @default(cuid())
+  kind       LedgerKind
+  sats       BigInt
+  usd        Decimal    @db.Decimal(12, 4)
+  txid       String
+  envelopeId String?
+  createdAt  DateTime   @default(now())
+
+  @@index([kind])
+}
+
+model Setting {
+  // Small key/value store shared by serverless instances: last BCH price, keeper heartbeat, …
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

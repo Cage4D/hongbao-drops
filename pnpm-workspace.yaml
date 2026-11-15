@@ -4,3 +4,6 @@ packages:
   - scripts
 allowBuilds:
   esbuild: true
+  '@swc/core': true
+  '@prisma/engines': true
+  prisma: true
