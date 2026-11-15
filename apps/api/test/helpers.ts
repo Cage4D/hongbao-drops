@@ -1,8 +1,9 @@
 // Test harness: real Nest app + real Postgres (hongbao_test) + MockNetworkProvider as "Fulcrum".
 import request from 'supertest';
 import { MockNetworkProvider, SignatureTemplate, TransactionBuilder, randomUtxo, type Output } from 'cashscript';
-import { binToHex, hash160, hexToBin, secp256k1, sha256 } from '@bitauth/libauth';
-import type { CreateEnvelopeResponse } from '@hongbao/shared';
+import { binToHex, encodeCashAddress, hash160, hexToBin, secp256k1, sha256 } from '@bitauth/libauth';
+import { buildClaimTx } from '@hongbao/contract';
+import type { ClaimApproval, CreateEnvelopeResponse } from '@hongbao/shared';
 import { createApp } from '../src/app.js';
 import { loadConfig, type AppConfig } from '../src/config/config.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -86,4 +87,48 @@ export function createBody(over: Record<string, unknown> = {}) {
     withStamps: false,
     ...over,
   };
+}
+
+// ------------------------------------------------------------------ claim helpers (Phase 4)
+
+export const linkPriv = key('link');
+
+/** bchtest cashaddr (plain or token-aware) for a test key label. */
+export function addressOf(label: string, tokenAware = true) {
+  return encodeCashAddress({
+    prefix: 'bchtest',
+    type: tokenAware ? 'p2pkhWithTokens' : 'p2pkh',
+    payload: hash160(pub(key(label))),
+  }).address;
+}
+
+type T = Awaited<ReturnType<typeof makeApp>>;
+
+/** Create + fund an envelope through the API; returns the create response. */
+export async function fundedEnvelope(t: T, over: Record<string, unknown> = {}) {
+  const stamps = over.withStamps === true;
+  const utxo = addSenderUtxo(t.provider);
+  const res = await t.http().post('/envelopes').send(createBody({ ...over, ...(stamps && { stampCategory: utxo.txid }) }));
+  if (res.status !== 201) throw new Error(`create failed: ${JSON.stringify(res.body)}`);
+  const created = res.body as CreateEnvelopeResponse;
+  const txid = await fundFromTemplate(t.provider, created, utxo);
+  const f = await t.http().post(`/envelopes/${created.id}/funded`).send({ txid });
+  if (f.status !== 200) throw new Error(`fund failed: ${JSON.stringify(f.body)}`);
+  return created;
+}
+
+export const claimReq = (t: T, envelopeId: string, body: Record<string, unknown>, ip = '203.0.113.1') =>
+  t.http().post(`/envelopes/${envelopeId}/claims`).set('x-forwarded-for', ip).send(body);
+
+/** Build the claim tx exactly like the frontend will (link key + gate sig) and broadcast via the API. */
+export function broadcastReq(t: T, approval: ClaimApproval, opts: { recipientLockingBytecode?: string } = {}) {
+  const { hex } = buildClaimTx({
+    provider: t.provider,
+    constructorArgs: approval.constructorArgs,
+    share: approval.share,
+    recipientLockingBytecode: opts.recipientLockingBytecode ?? approval.recipientLockingBytecode,
+    linkPrivateKey: linkPriv,
+    gateSig: approval.gateSig,
+  });
+  return t.http().post(`/claims/${approval.claimId}/broadcast`).send({ rawTx: hex });
 }

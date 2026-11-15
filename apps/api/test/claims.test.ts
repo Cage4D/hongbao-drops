@@ -1,0 +1,246 @@
+// Gate tests: every claim here is broadcast as a real claim tx that the mock network validates
+// against Hongbao.cash — so a passing test means the gate's signature really unlocks the share.
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { binToHex } from '@bitauth/libauth';
+import type { ClaimApproval } from '@hongbao/shared';
+import { addressOf, broadcastReq, claimReq, fundedEnvelope, key, makeApp, p2pkh, pub, resetDb } from './helpers.js';
+
+let t: Awaited<ReturnType<typeof makeApp>>;
+beforeAll(async () => (t = await makeApp()));
+afterAll(async () => t.app.close());
+beforeEach(async () => resetDb(t.db));
+
+describe('claim → broadcast (happy path)', () => {
+  it('approves, signs, and the claim tx unlocks the share on-chain (stamped)', async () => {
+    const env = await fundedEnvelope(t, { withStamps: true });
+    const r = await claimReq(t, env.id, { recipientAddress: addressOf('alice') });
+    expect(r.status).toBe(201);
+    const a = r.body as ClaimApproval;
+    expect(a.gateSig).toMatch(/^[0-9a-f]{128}$/);
+    expect(a.share.tokenCategory).toBe(env.fundingTemplate[1]!.token!.category);
+    expect(a.isNewWallet).toBe(true);
+    expect(new Date(a.reservedUntil).getTime()).toBeGreaterThan(Date.now() + 100_000);
+
+    const b = await broadcastReq(t, a);
+    expect(b.status).toBe(200);
+    expect(b.body.amountSats).toBeGreaterThan(9_000);
+    expect(b.body.amountUsd).toBe(0.02);
+    expect(b.body.stamp).toMatchObject({ commitment: a.share.nftCommitment });
+    expect(b.body.stamp.alt).toMatch(/Hongbao stamp/);
+
+    const [got] = await t.provider.getUtxosForLockingBytecode(a.recipientLockingBytecode);
+    expect(got?.token?.nft?.commitment).toBe(a.share.nftCommitment);
+    const share = await t.db.share.findFirstOrThrow({
+      where: { outpointTxid: a.share.outpointTxid, outpointIndex: a.share.outpointIndex },
+    });
+    expect(share.status).toBe('CLAIMED');
+
+    const view = await t.http().get(`/envelopes/${env.id}`);
+    expect(view.body.shares).toEqual({ total: 3, claimed: 1, left: 2 });
+    expect(view.body.recentClaims[0]).toMatchObject({ isNewWallet: true });
+    expect(view.body.recentClaims[0].address).toMatch(/^bchtest:z\w{3}…\w{4}$/);
+  });
+
+  it('flags wallets with prior history as not new', async () => {
+    const env = await fundedEnvelope(t);
+    t.provider.addUtxo(binToHex(p2pkh(pub(key('old-timer')))), { txid: 'cd'.repeat(32), vout: 0, satoshis: 5_000n });
+    const r = await claimReq(t, env.id, { recipientAddress: addressOf('old-timer', false) });
+    expect(r.body.isNewWallet).toBe(false);
+  });
+});
+
+describe('parallel claims and exhaustion', () => {
+  it('3 parallel claims on a 3-share envelope get 3 different shares; the 4th is too slow', async () => {
+    const env = await fundedEnvelope(t);
+    const rs = await Promise.all(
+      ['a', 'b', 'c'].map((n, i) => claimReq(t, env.id, { recipientAddress: addressOf(n) }, `198.51.100.${i}`)),
+    );
+    expect(rs.map((r) => r.status)).toEqual([201, 201, 201]);
+    const outpoints = new Set(rs.map((r) => `${r.body.share.outpointTxid}:${r.body.share.outpointIndex}`));
+    expect(outpoints.size).toBe(3);
+
+    const bs = await Promise.all(rs.map((r) => broadcastReq(t, r.body)));
+    expect(bs.map((b) => b.status)).toEqual([200, 200, 200]);
+
+    const fourth = await claimReq(t, env.id, { recipientAddress: addressOf('d') });
+    expect(fourth.status).toBe(410);
+    expect(fourth.body.error).toEqual({ code: 'ENVELOPE_EMPTY', message: 'Too slow! All the red envelopes have been grabbed.' });
+    expect((await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } })).status).toBe('EXHAUSTED');
+    expect((await t.http().get(`/envelopes/${env.id}`)).body.status).toBe('EXHAUSTED');
+  });
+
+  it('8 simultaneous claimers on 3 shares: exactly 3 approvals, never a shared share', async () => {
+    const env = await fundedEnvelope(t);
+    const rs = await Promise.all(
+      Array.from({ length: 8 }, (_, i) => claimReq(t, env.id, { recipientAddress: addressOf(`racer${i}`) }, `192.0.2.${i}`)),
+    );
+    const ok = rs.filter((r) => r.status === 201);
+    expect(ok).toHaveLength(3);
+    expect(rs.filter((r) => r.status === 410)).toHaveLength(5);
+    expect(new Set(ok.map((r) => r.body.share.index)).size).toBe(3);
+  });
+});
+
+describe('one claim per recipient / fingerprint', () => {
+  it('retrying before broadcast returns the same approval; after broadcast it is ALREADY_CLAIMED', async () => {
+    const env = await fundedEnvelope(t);
+    const first = await claimReq(t, env.id, { recipientAddress: addressOf('bob') });
+    const retry = await claimReq(t, env.id, { recipientAddress: addressOf('bob') });
+    expect(retry.body.claimId).toBe(first.body.claimId);
+    expect(retry.body.share).toEqual(first.body.share);
+
+    await broadcastReq(t, first.body);
+    const again = await claimReq(t, env.id, { recipientAddress: addressOf('bob') });
+    expect(again.status).toBe(409);
+    expect(again.body.error.code).toBe('ALREADY_CLAIMED');
+    // The plain (q…) form of the same key is the same wallet.
+    const plain = await claimReq(t, env.id, { recipientAddress: addressOf('bob', false) });
+    expect(plain.body.error.code).toBe('ALREADY_CLAIMED');
+  });
+
+  it('same wallet fingerprint with a different address is refused', async () => {
+    const env = await fundedEnvelope(t);
+    const fp = 'ab'.repeat(16);
+    expect((await claimReq(t, env.id, { recipientAddress: addressOf('carol'), walletFingerprint: fp })).status).toBe(201);
+    const r = await claimReq(t, env.id, { recipientAddress: addressOf('carol2'), walletFingerprint: fp });
+    expect(r.status).toBe(409);
+    expect(r.body.error.code).toBe('ALREADY_CLAIMED');
+  });
+
+  it('a recipient racing itself in parallel gets one claim', async () => {
+    const env = await fundedEnvelope(t);
+    const rs = await Promise.all(Array.from({ length: 4 }, () => claimReq(t, env.id, { recipientAddress: addressOf('dup') })));
+    const ids = new Set(rs.filter((r) => r.status === 201).map((r) => r.body.claimId));
+    expect(ids.size).toBe(1);
+    expect(await t.db.claim.count({ where: { envelopeId: env.id } })).toBe(1);
+    expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'RESERVED' } })).toBe(1);
+  });
+});
+
+describe('hold my share', () => {
+  it('hold → claim with the token gets the held share; the token is single-use', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 2, totalSats: 20_000 });
+    const h = await t.http().post(`/envelopes/${env.id}/holds`).send({});
+    expect(h.status).toBe(201);
+    expect(new Date(h.body.heldUntil).getTime()).toBeGreaterThan(Date.now() + 14 * 60_000);
+    const held = await t.db.share.findFirstOrThrow({ where: { holdToken: h.body.holdToken } });
+    expect(held.status).toBe('HELD');
+
+    const c = await claimReq(t, env.id, { recipientAddress: addressOf('newbie'), holdToken: h.body.holdToken });
+    expect(c.status).toBe(201);
+    expect(c.body.share.index).toBe(held.index);
+    expect((await broadcastReq(t, c.body)).status).toBe(200);
+
+    const reuse = await claimReq(t, env.id, { recipientAddress: addressOf('newbie2'), holdToken: h.body.holdToken });
+    expect(reuse.status).toBe(410);
+    expect(reuse.body.error.code).toBe('HOLD_EXPIRED');
+  });
+
+  it('a held share is not given to anyone else; an expired hold is', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 1, totalSats: 10_000 });
+    const h = await t.http().post(`/envelopes/${env.id}/holds`).send({ fingerprint: 'cd'.repeat(16) });
+    expect((await claimReq(t, env.id, { recipientAddress: addressOf('other') })).body.error.code).toBe('ENVELOPE_EMPTY');
+    // Same device asking again gets the same hold.
+    const again = await t.http().post(`/envelopes/${env.id}/holds`).send({ fingerprint: 'cd'.repeat(16) });
+    expect(again.body.holdToken).toBe(h.body.holdToken);
+
+    await t.db.share.updateMany({ where: { holdToken: h.body.holdToken }, data: { reservedUntil: new Date(Date.now() - 1000) } });
+    const late = await claimReq(t, env.id, { recipientAddress: addressOf('late'), holdToken: h.body.holdToken });
+    expect(late.body.error.code).toBe('HOLD_EXPIRED');
+    expect((await claimReq(t, env.id, { recipientAddress: addressOf('other') })).status).toBe(201);
+  });
+});
+
+describe('quiz', () => {
+  it('wrong answers count down, the right one (normalised) unlocks, 5 wrong → rate limited', async () => {
+    const env = await fundedEnvelope(t, {
+      mode: 'QUIZ',
+      quiz: { question: 'Which chain is this?', answers: ['Bitcoin Cash', 'BCH'] },
+    });
+    const w = await claimReq(t, env.id, { recipientAddress: addressOf('q1'), answer: 'ethereum' }, '10.0.0.1');
+    expect(w.status).toBe(403);
+    expect(w.body.error).toMatchObject({ code: 'WRONG_ANSWER', message: 'Not quite — try again.', attemptsLeft: 4 });
+    expect((await claimReq(t, env.id, { recipientAddress: addressOf('q1') }, '10.0.0.1')).body.error.attemptsLeft).toBe(3);
+
+    const ok = await claimReq(t, env.id, { recipientAddress: addressOf('q1'), answer: '  bitcoin   CASH ' }, '10.0.0.1');
+    expect(ok.status).toBe(201);
+
+    for (let i = 0; i < 5; i++) await claimReq(t, env.id, { recipientAddress: addressOf('q2'), answer: 'nope' }, '10.0.0.2');
+    const limited = await claimReq(t, env.id, { recipientAddress: addressOf('q2'), answer: 'BCH' }, '10.0.0.2');
+    expect(limited.status).toBe(429);
+    expect(limited.body.error.code).toBe('RATE_LIMITED');
+  });
+});
+
+describe('refusals', () => {
+  it('NOT_FUNDED before funding, ENVELOPE_EXPIRED after expiry', async () => {
+    const pending = await t.http().post('/envelopes').send({
+      senderAddress: 'bchtest:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwgw2cltjwn',
+      linkPk: binToHex(pub(key('link'))),
+      shareCount: 2,
+      mode: 'EQUAL',
+      totalSats: 10_000,
+      expiry: Math.floor(Date.now() / 1000) + 1800,
+      withStamps: false,
+    });
+    const r1 = await claimReq(t, pending.body.id, { recipientAddress: addressOf('x') });
+    expect([r1.status, r1.body.error.code]).toEqual([409, 'NOT_FUNDED']);
+
+    const env = await fundedEnvelope(t);
+    await t.db.envelope.update({ where: { id: env.id }, data: { expiry: Math.floor(Date.now() / 1000) - 1 } });
+    const r2 = await claimReq(t, env.id, { recipientAddress: addressOf('x') });
+    expect([r2.status, r2.body.error.code]).toEqual([410, 'ENVELOPE_EXPIRED']);
+  });
+
+  it('rejects addresses for the wrong network', async () => {
+    const env = await fundedEnvelope(t);
+    const r = await claimReq(t, env.id, { recipientAddress: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0' });
+    expect(r.body.error.code).toBe('INVALID_REQUEST');
+  });
+
+  it('rate limits claim attempts per IP per envelope', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 1, totalSats: 10_000 });
+    const codes: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      codes.push((await claimReq(t, env.id, { recipientAddress: addressOf(`spam${i}`) }, '10.9.9.9')).status);
+    }
+    expect(codes.slice(0, 10).every((c) => c !== 429)).toBe(true);
+    expect(codes[10]).toBe(429);
+  });
+});
+
+describe('reservations and broadcast safety', () => {
+  it('an abandoned reservation frees its share after 120 s; the old approval can no longer broadcast', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 1, totalSats: 10_000 });
+    const slow = (await claimReq(t, env.id, { recipientAddress: addressOf('slow') })).body as ClaimApproval;
+    await t.db.share.updateMany({ where: { envelopeId: env.id }, data: { reservedUntil: new Date(Date.now() - 1000) } });
+
+    const fast = await claimReq(t, env.id, { recipientAddress: addressOf('fast') });
+    expect(fast.status).toBe(201);
+    expect(fast.body.share.index).toBe(slow.share.index);
+
+    const r = await broadcastReq(t, slow);
+    expect([r.status, r.body.error.code]).toEqual([410, 'HOLD_EXPIRED']);
+    expect((await t.db.claim.findUniqueOrThrow({ where: { id: slow.claimId } })).status).toBe('EXPIRED');
+    expect((await broadcastReq(t, fast.body)).status).toBe(200);
+  });
+
+  it('refuses to relay a tx paying someone other than the approved recipient', async () => {
+    const env = await fundedEnvelope(t);
+    const a = (await claimReq(t, env.id, { recipientAddress: addressOf('honest') })).body as ClaimApproval;
+    const evil = binToHex(p2pkh(pub(key('evil'))));
+    const r = await broadcastReq(t, a, { recipientLockingBytecode: evil });
+    expect(r.status).toBe(400);
+    expect(r.body.error.reasons).toContain('the transaction must have exactly one output, to the approved address');
+    expect(await t.provider.getUtxosForLockingBytecode(evil)).toHaveLength(0);
+  });
+
+  it('broadcast is idempotent for the same tx', async () => {
+    const env = await fundedEnvelope(t);
+    const a = (await claimReq(t, env.id, { recipientAddress: addressOf('twice') })).body as ClaimApproval;
+    const first = await broadcastReq(t, a);
+    const second = await broadcastReq(t, a);
+    expect(second.status).toBe(200);
+    expect(second.body.txid).toBe(first.body.txid);
+  });
+});
