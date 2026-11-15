@@ -54,7 +54,7 @@ What the frontend must do (learned the hard way):
 
 ## Observations
 
-- **Genesis + BCMR + P2SH32 token outputs relay fine on Chipnet** when signed locally. The open question for `ENABLE_STAMPS` is only whether a WizardConnect *wallet* will sign it (`apps/wc-test`).
+- **Genesis + BCMR + P2SH32 token outputs relay fine on Chipnet** both when signed locally and when signed by a real WizardConnect wallet (above).
 - **Fees as measured:** claim 485 sats; funding 351–610 sats. That matches Phase 0's size estimates, and `maxFee = 1,000` has 2× headroom.
 - **Refunds open ~1 h after expiry.** A timestamp locktime is final only once median-time-past (median of the last 11 block times) passes it, and MTP trails wall-clock by about an hour. With `MIN_EXPIRY_SECONDS = 600`, the real refund delay is about 70 min. The UI copy should say "returns within about an hour after expiry", and the keeper must retry, not assume.
 - **BCMR URI** in these txs points at `localhost:3000` (placeholder). Phase 6 serves the real registry at `PUBLIC_API_URL`.
