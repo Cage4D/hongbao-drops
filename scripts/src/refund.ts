@@ -1,5 +1,5 @@
 // Batch-refund an envelope's unclaimed shares on Chipnet after expiry (spec §6.4, keyless).
-// Usage: pnpm --filter @hongbao/scripts refund -- --name demo1
+// Usage: pnpm --filter @hongbao/scripts refund -- --name demo1 [--force]
 import { parseArgs } from 'node:util';
 import { hexToBin } from '@bitauth/libauth';
 import { TransactionBuilder } from 'cashscript';
@@ -9,7 +9,10 @@ import { chipnetProvider, medianTimePast } from './lib/chain.js';
 import { FEE_RATE, envelopeContract, txSize } from './lib/envelope.js';
 import { loadEnvelope, saveEnvelope } from './lib/state.js';
 
-const { values: a } = parseArgs({ options: { name: { type: 'string' } } });
+const { values: a } = parseArgs({
+  // --force skips the MTP check: used once to prove the network rejects early refunds.
+  options: { name: { type: 'string' }, force: { type: 'boolean', default: false } },
+});
 const env = loadEnvelope(a.name!);
 const provider = await chipnetProvider();
 const contract = envelopeContract(env, provider);
@@ -17,7 +20,7 @@ const contract = envelopeContract(env, provider);
 // Nodes accept a timestamp locktime only once median-time-past (of the last 11 blocks) > locktime.
 // MTP trails wall-clock by ~1 hour, so refunds open roughly an hour after expiry.
 const mtp = await medianTimePast(provider);
-if (mtp <= env.expiry) {
+if (mtp <= env.expiry && !a.force) {
   const mins = Math.ceil((env.expiry - mtp) / 60);
   console.log(`Not refundable yet: median-time-past is ${mins} min before expiry. Try again later.`);
   process.exit(2);
