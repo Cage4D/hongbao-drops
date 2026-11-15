@@ -2,7 +2,7 @@
 // and caches the working provider for the life of the (serverless) instance.
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ElectrumNetworkProvider, type NetworkProvider } from 'cashscript';
-import { CONFIG, type AppConfig } from '../config/config.js';
+import type { AppConfig } from '../config/config.js';
 import { AppError } from '../common/app-error.js';
 
 /** DI token: tests inject a MockNetworkProvider here. */
