@@ -35,7 +35,7 @@ Test wallet funded with 1,017,000 Chipnet sats (faucet) on 2026-11-15. All txs p
 
 ## WizardConnect wallet test (`apps/wc-test`) — stamp go/no-go: **GO**
 
-A real wallet, paired by QR over WizardConnect, signed every request on the first try (one input each, `SIGHASH_ALL|FORKID|UTXOS`). The page broadcast the results.
+**Paytaca** (Chipnet mode), paired by QR over WizardConnect, signed every request on the first try (one input each, `SIGHASH_ALL|FORKID|UTXOS`). The page broadcast the results.
 
 | Tx | What the wallet signed |
 |---|---|
