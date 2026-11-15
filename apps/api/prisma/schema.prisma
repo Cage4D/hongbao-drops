@@ -129,6 +129,7 @@ model Share {
   status        ShareStatus @default(AVAILABLE)
   reservedUntil DateTime?
   holdToken     String?     @unique
+  holdFingerprint String? // wallet fingerprint given when the hold was taken (if any)
   spendTxid     String?
 
   @@unique([outpointTxid, outpointIndex])
@@ -142,6 +143,8 @@ model Claim {
   envelope          Envelope    @relation(fields: [envelopeId], references: [id])
   shareId           String?     @unique
   recipientAddress  String
+  // Uniqueness is on the locking bytecode: q… and z… (token-aware) cashaddrs of one key are one wallet.
+  recipientLockingBytecode String
   walletFingerprint String?
   ipHash            String?
   isNewWallet       Boolean? // fresh wallet: no on-chain history before the claim
@@ -153,7 +156,8 @@ model Claim {
   status            ClaimStatus
   createdAt         DateTime    @default(now())
 
-  @@unique([envelopeId, recipientAddress])
+  @@unique([envelopeId, recipientLockingBytecode])
+  @@index([envelopeId, walletFingerprint])
   @@index([envelopeId, createdAt])
 }
 
@@ -175,4 +179,13 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model RateEvent {
+  // Sliding-window rate limits shared across serverless instances (spec §8.2). Pruned by the keeper.
+  id        BigInt   @id @default(autoincrement())
+  key       String // e.g. "claim:<envelopeId>:<ipHash>", "wrong:<envelopeId>:<ipHash>"
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }
