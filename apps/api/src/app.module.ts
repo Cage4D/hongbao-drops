@@ -8,6 +8,9 @@ import { BudgetService } from './budget/budget.service.js';
 import { EnvelopesService } from './envelopes/envelopes.service.js';
 import { EnvelopesController } from './envelopes/envelopes.controller.js';
 import { HealthController } from './health/health.controller.js';
+import { RateLimitService } from './ratelimit/rate-limit.service.js';
+import { ClaimsService } from './claims/claims.service.js';
+import { ClaimsController } from './claims/claims.controller.js';
 
 export interface AppModuleOptions {
   config?: AppConfig;
@@ -21,7 +24,7 @@ export class AppModule {
     const config = opts.config ?? loadConfig();
     return {
       module: AppModule,
-      controllers: [EnvelopesController, HealthController],
+      controllers: [EnvelopesController, ClaimsController, HealthController],
       providers: [
         { provide: CONFIG, useValue: config },
         { provide: NETWORK_PROVIDER_FACTORY, useValue: opts.providerFactory ?? electrumProviderFactory(config) },
@@ -31,6 +34,8 @@ export class AppModule {
         PriceService,
         BudgetService,
         EnvelopesService,
+        RateLimitService,
+        ClaimsService,
       ],
     };
   }

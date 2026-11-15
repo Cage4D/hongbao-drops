@@ -1,0 +1,3 @@
+-- AddForeignKey
+ALTER TABLE "Claim" ADD CONSTRAINT "Claim_shareId_fkey" FOREIGN KEY ("shareId") REFERENCES "Share"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

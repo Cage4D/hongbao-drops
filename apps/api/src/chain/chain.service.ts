@@ -2,6 +2,7 @@
 // and caches the working provider for the life of the (serverless) instance.
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ElectrumNetworkProvider, type NetworkProvider } from 'cashscript';
+import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
 import type { AppConfig } from '../config/config.js';
 import { AppError } from '../common/app-error.js';
 
@@ -67,6 +68,61 @@ export class ChainService {
       const msg = (e as Error).message ?? '';
       if (/not found|No such|unknown|missing|Invalid tx/i.test(msg)) return null;
       this.log.warn(`getRawTransaction failed: ${msg}`);
+      this.current = undefined;
+      throw new AppError('CHAIN_UNAVAILABLE');
+    }
+  }
+
+  /**
+   * Has this script ever appeared on-chain (spec §6.2 "fresh wallet" check)? Uses Fulcrum's
+   * blockchain.scripthash.get_history. Returns null if the lookup fails or times out — the claim
+   * must never be blocked by analytics.
+   */
+  async hasHistory(lockingBytecodeHex: string, timeoutMs = 1_500): Promise<boolean | null> {
+    const lookup = (async () => {
+      const provider = await this.provider();
+      if (provider instanceof ElectrumNetworkProvider) {
+        const scripthash = binToHex(sha256.hash(hexToBin(lockingBytecodeHex)).reverse());
+        const history = (await provider.performRequest('blockchain.scripthash.get_history', scripthash)) as unknown[];
+        return history.length > 0;
+      }
+      // Test providers: approximate with "has any UTXO".
+      return (await provider.getUtxosForLockingBytecode(lockingBytecodeHex)).length > 0;
+    })();
+    const timeout = new Promise<null>((r) => setTimeout(() => r(null), timeoutMs));
+    try {
+      return await Promise.race([lookup, timeout]);
+    } catch (e) {
+      this.log.warn(`history lookup failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Broadcast a raw tx. Already-known txs count as success (safe client retries). Node rejections
+   * become INVALID_REQUEST with the node's reason; connectivity problems become CHAIN_UNAVAILABLE.
+   */
+  async broadcast(rawTxHex: string): Promise<string> {
+    const txid = binToHex(sha256.hash(sha256.hash(hexToBin(rawTxHex))).reverse());
+    let provider: NetworkProvider;
+    try {
+      provider = await this.provider();
+    } catch {
+      throw new AppError('CHAIN_UNAVAILABLE');
+    }
+    try {
+      await provider.sendRawTransaction(rawTxHex);
+      return txid;
+    } catch (e) {
+      const msg = (e as Error).message ?? String(e);
+      if (/already known|already in (the )?mempool|txn-already|transaction already in block chain/i.test(msg)) return txid;
+      if (/missing ?inputs|missingorspent|txn-mempool-conflict|double spend/i.test(msg)) {
+        throw new AppError('INVALID_REQUEST', { reasons: ['this share was already spent'] });
+      }
+      if (/rejected|failed|non-final|bad-txns|script|dust|fee|scriptsig/i.test(msg)) {
+        throw new AppError('INVALID_REQUEST', { reasons: [`network rejected the transaction: ${msg.split('\n')[0]}`] });
+      }
+      this.log.warn(`broadcast failed: ${msg}`);
       this.current = undefined;
       throw new AppError('CHAIN_UNAVAILABLE');
     }

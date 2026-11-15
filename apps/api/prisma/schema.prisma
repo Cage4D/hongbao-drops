@@ -131,6 +131,7 @@ model Share {
   holdToken     String?     @unique
   holdFingerprint String? // wallet fingerprint given when the hold was taken (if any)
   spendTxid     String?
+  claim         Claim?
 
   @@unique([outpointTxid, outpointIndex])
   @@unique([envelopeId, index])
@@ -142,6 +143,7 @@ model Claim {
   envelopeId        String
   envelope          Envelope    @relation(fields: [envelopeId], references: [id])
   shareId           String?     @unique
+  share             Share?      @relation(fields: [shareId], references: [id])
   recipientAddress  String
   // Uniqueness is on the locking bytecode: q… and z… (token-aware) cashaddrs of one key are one wallet.
   recipientLockingBytecode String
