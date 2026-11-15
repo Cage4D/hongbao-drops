@@ -93,6 +93,7 @@ model Envelope {
   stampCategory         String? // Phase 0 decision: txid of the vout-0 outpoint input 0 spends
   bcmrRegistry          String? // exact registry bytes committed on-chain (served verbatim)
   bcmrHash              String? // hex sha256(bcmrRegistry)
+  bcmrUri               String? // URI committed in the OP_RETURN (no protocol = https)
   totalSats             BigInt
   shareCount            Int
   message               String?
