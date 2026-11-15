@@ -43,7 +43,8 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
   // 1. Genesis: input 0 must spend <stampCategory>:0 (CashTokens rule; the node enforces it too).
   if (e.withStamps) {
     const in0 = tx.inputs[0];
-    const in0Txid = in0 ? binToHex(Uint8Array.from(in0.outpointTransactionHash).reverse()) : '';
+    // libauth decodes outpointTransactionHash in UI (display) byte order, same as our txid strings.
+    const in0Txid = in0 ? binToHex(in0.outpointTransactionHash) : '';
     if (!in0 || in0Txid !== e.stampCategory || in0.outpointIndex !== 0) {
       reasons.push(`input 0 must spend ${e.stampCategory}:0 (stamp genesis)`);
     }
