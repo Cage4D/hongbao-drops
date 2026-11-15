@@ -22,7 +22,9 @@ pnpm --filter @hongbao/scripts probe:fulcrum  # live Fulcrum probe
 | `maxFee` (per input) | **1,000 sats** (claim tx ≈ 483 B, refund ≈ 341 B per share, so about 2 sat/B of headroom) |
 | Stamp go/no-go | **Still open.** Decided in Phase 2 after a real Paytaca/Cashonize sign test (spec §5.1) |
 | Fulcrum | Chipnet: `chipnet.imaginary.cash`, `chipnet.bch.ninja`. Mainnet: `bch.imaginary.cash`, `fulcrum.greyh.at`. All on WSS port 50004 with `get_history` working |
-| Hosting | Proposal: Koyeb free web service + Neon Postgres + 5-min uptime ping. **Needs your decision** (§7) |
+| Hosting | **Decided: Vercel for frontend, API and DB** (Neon Postgres via the Vercel Marketplace). Keeper runs from an external per-minute cron, see §7 |
+| `stampCategory` on `POST /envelopes` | **Approved** (builder, 2026-11-15) |
+| Funding output 0 = identity output to treasury | **Approved** (builder, 2026-11-15) |
 
 ---
 
@@ -89,10 +91,10 @@ Source: [CHIP-BCMR](https://github.com/bitjson/chip-bcmr).
 
 - **Publication output:** `OP_RETURN <'BCMR'> <sha256(registry bytes)> <uri>…`, prefix `6a 04 42434d52`. The hash is in **VM byte order** (raw `sha256` output, not reversed). URIs are UTF-8 and may omit `https://`. Several URIs are allowed, but at most one BCMR output per tx.
 - **Identity:** the authbase is the tx whose output 0 the authchain follows. For a token, that is the **category id = txid of the outpoint spent by input 0**. That txid is known *before* the funding tx is built, so the registry JSON (keyed by the category) and its hash can be computed first. There is no self-reference problem.
-- **Authchain gotcha:** the authchain follows **output 0** of each tx. The funding tx spends the authbase's output 0, so the funding tx becomes the authhead and carries the publication. If funding **output 0 were a share**, the first claim would move the authhead to a claim tx with no publication, and wallets might lose the metadata. **Proposal:** make funding output 0 a small (546-sat) **identity output to the treasury address** that is never spent, followed by the shares, the BCMR OP_RETURN and change. Cost ≈ $0.001 per envelope, recoverable later.
+- **Authchain gotcha:** the authchain follows **output 0** of each tx. The funding tx spends the authbase's output 0, so the funding tx becomes the authhead and carries the publication. If funding **output 0 were a share**, the first claim would move the authhead to a claim tx with no publication, and wallets might lose the metadata. **Approved:** funding output 0 is a small (546-sat) **identity output to the treasury address** that is never spent, followed by the shares, the BCMR OP_RETURN and change. Cost ≈ $0.001 per envelope, recoverable later.
 - **Commitment encoding gotcha:** BCMR sequential NFTs read the commitment as a **VM number**. With `commitment = envelopeIndex(4 bytes) ‖ shareIndex(1 byte)`, the share byte is the most significant byte. `shareIndex = 0` would be a non-minimal number, and anything ≥ `0x80` flips the sign. **Use 1-based share indexes (1…10).** Then `nfts.parse.types` is keyed by the commitment hex.
 - **Registry must be byte-stable:** the API must store the exact registry JSON it hashed and serve those bytes from `/bcmr/:category.json`, never re-serialize them.
-- **API flow impact (deviation, needs your OK):** the API can't compute the BCMR hash until it knows the category. So `POST /envelopes` needs an extra optional field, **`stampCategory`** (the txid of the vout-0 UTXO the browser will spend as input 0), whenever `withStamps` is on.
+- **API flow impact (deviation, approved):** the API can't compute the BCMR hash until it knows the category. So `POST /envelopes` needs an extra optional field, **`stampCategory`** (the txid of the vout-0 UTXO the browser will spend as input 0), whenever `withStamps` is on.
 - **Wallet pickup:** most CashTokens wallets resolve metadata through Paytaca's indexer (`bcmr.paytaca.com`), which watches chain for BCMR publications. Cashonize's resolver isn't documented. Verified for real in Phase 6 with a Chipnet stamp.
 
 ## 6. Fulcrum servers [tested 2026-11-15]
@@ -110,17 +112,19 @@ Source: [CHIP-BCMR](https://github.com/bitjson/chip-bcmr).
 
 Two working servers per network is enough for the fallback list (`FULCRUM_URLS`). Re-run the probe before Phase 8.
 
-## 7. Hosting (API + keeper + SSE, outbound WSS)
+## 7. Hosting — decided: Vercel (frontend, API, DB)
 
-Research only, from vendor docs and blog posts (no account created):
+Builder's decision (2026-11-15): host everything on Vercel. Limits that shape the design, from Vercel docs ([cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing), [function limits](https://vercel.com/docs/functions/limitations)):
 
-- **Koyeb free:** 1 web service (≈ 512 MB) plus a small Postgres. It **scales to zero after 1 h without traffic** (not configurable), with a 1–5 s cold start ([Koyeb docs](https://www.koyeb.com/docs/run-and-scale/scale-to-zero)). A 5-minute pinger on `GET /health` keeps it awake, which also keeps the in-process keeper running. Some sources say a card is now required.
-- **Render free:** sleeps after ≈ 15 min with tens of seconds to wake (spec §10 already flags this). Usable only with a pinger, and the wake is slower.
-- **Fly.io:** free/trial status in 2026 is unclear from sources.
-- **Oracle Cloud Always Free VM:** truly always-on, but more ops work (systemd, TLS) and needs a card.
-- **Postgres:** Neon or Supabase free tier. Neon is the fallback if Koyeb's Postgres is too small.
+| Vercel Hobby limit | Impact | Plan |
+|---|---|---|
+| Cron jobs **once per day**, ±59 min | Keeper can't run every minute from Vercel Cron | Keeper becomes a stateless `POST /internal/keeper/tick` (protected by a `KEEPER_TOKEN` bearer). An **external free cron** (cron-job.org) calls it every minute. A daily Vercel Cron runs as a backstop |
+| Function max duration **300 s** (streamed responses included) | SSE streams get cut at 5 min | `EventSource` reconnects automatically. Events are read from Postgres (an event table + `Last-Event-ID`), never kept in memory, so any instance can serve them |
+| No long-lived process | No permanent Fulcrum subscription | Each request or tick opens or reuses a cached WSS client (Fluid compute reuses warm instances). Confirmations are polled by the keeper tick instead of pushed |
+| No cold-start guarantee | First judge click may be slower | Fluid compute cold starts are short; the per-minute keeper cron also keeps an instance warm |
+| Postgres | Vercel Postgres is now Neon via the Marketplace | Prisma with the **pooled** connection string; migrations use the direct URL |
 
-**Proposal:** Koyeb (API + keeper) + Neon + cron-job.org pinging `/health` every 5 min from submission until 28 Nov, with Oracle as the fallback. **Decision needed:** are you OK with a provider that may need a card on file?
+Consequences for later phases: Phase 3 builds the NestJS app so it can run as a Vercel function (verify NestJS-on-Vercel support then). Phase 5's keeper and SSE follow the table above. New env vars: `KEEPER_TOKEN`, `DIRECT_DATABASE_URL`. Spec §10's uptime-monitor requirement is covered by the per-minute keeper cron.
 
 ## 8. Pre-kick-off rule
 
