@@ -5,13 +5,19 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "probe:fulcrum": "tsx src/probe-fulcrum.ts"
+    "probe:fulcrum": "tsx src/probe-fulcrum.ts",
+    "wallet": "tsx src/wallet.ts",
+    "fund": "tsx src/fund.ts",
+    "claim": "tsx src/claim.ts",
+    "refund": "tsx src/refund.ts"
   },
   "dependencies": {
     "@electrum-cash/network": "^4.4.8",
     "@electrum-cash/web-socket": "^4.2.0",
     "@hongbao/contract": "workspace:*",
-    "@hongbao/shared": "workspace:*"
+    "@hongbao/shared": "workspace:*",
+    "@bitauth/libauth": "^3.1.0-next.8",
+    "cashscript": "0.14.0"
   },
   "devDependencies": {
     "tsx": "^4.20.0"

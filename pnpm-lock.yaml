@@ -221,6 +221,9 @@ importers:
 
   scripts:
     dependencies:
+      '@bitauth/libauth':
+        specifier: ^3.1.0-next.8
+        version: 3.1.0-next.8
       '@electrum-cash/network':
         specifier: ^4.4.8
         version: 4.4.8(supports-color@7.2.0)
@@ -233,6 +236,9 @@ importers:
       '@hongbao/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      cashscript:
+        specifier: 0.14.0
+        version: 0.14.0(supports-color@7.2.0)
     devDependencies:
       tsx:
         specifier: ^4.20.0
