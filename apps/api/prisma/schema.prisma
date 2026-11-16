@@ -27,6 +27,7 @@ enum EnvelopeStatus {
   EXHAUSTED
   EXPIRED
   REFUNDED
+  FAILED // funding tx vanished (double-spent / dropped) after activation
 }
 
 enum ShareStatus {
@@ -111,6 +112,10 @@ model Envelope {
   ctaClicks             Int            @default(0)
   refundedSats          BigInt         @default(0)
   refundedAt            DateTime?
+  // Keeper rotation: each step takes the least-recently-checked envelopes, so one bad envelope
+  // can't starve the rest (review #1).
+  reconciledAt          DateTime?
+  refundCheckedAt       DateTime?
   createdAt             DateTime       @default(now())
   shares                Share[]
   claims                Claim[]
@@ -163,6 +168,10 @@ model Claim {
   activationCheckedAt DateTime? // last time the 7-day activation watcher looked at this claim
   activatedAt       DateTime? // claimed coins moved again, or the claimer passed it on
   sweptTo           String[] // locking bytecodes (hex) the claimed coins were sent to (COMMON_SWEEP heuristic)
+  // Every share id the gate ever signed an approval for, for this recipient. Approvals stay valid
+  // on-chain forever, so the gate never signs a second outpoint while an earlier one is unspent (review #6).
+  approvedShareIds  String[]
+  confirmCheckedAt  DateTime? // rotation for the confirmations step (review #15)
   status            ClaimStatus
   createdAt         DateTime    @default(now())
 
