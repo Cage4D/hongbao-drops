@@ -181,3 +181,32 @@ export interface BroadcastResponse {
   amountUsd: number | null;
   stamp: { category: string; commitment: string; imageUrl: string; alt: string } | null;
 }
+
+// ------------------------------------------------------------------ pass-it-on tree (Phase 5)
+
+export interface TreeNode {
+  id: string;
+  slug: string;
+  parentId: string | null;
+  generation: number; // root = 0
+  status: string;
+  theme: Theme;
+  shareCount: number;
+  totalSats: number;
+  claims: number;
+  newWallets: number;
+  createdAt: string;
+}
+
+export interface TreeResponse {
+  rootId: string;
+  focusId: string;
+  nodes: TreeNode[];
+  generations: number;
+  /** Claims across the whole tree = people reached. */
+  totalReach: number;
+  /** Envelopes spawned by passing it on (every node except the root). */
+  passOnEnvelopes: number;
+  /** Envelopes spawned per claim — the viral coefficient. */
+  viralCoefficient: number;
+}

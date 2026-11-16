@@ -22,6 +22,11 @@ export class EnvelopesController {
     return this.envelopes.publicView({ id });
   }
 
+  @Get('envelopes/:id/tree')
+  tree(@Param('id') id: string) {
+    return this.envelopes.tree(id);
+  }
+
   @Get('s/:slug')
   bySlug(@Param('slug') slug: string) {
     return this.envelopes.publicView({ slug });

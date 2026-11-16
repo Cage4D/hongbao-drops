@@ -23,7 +23,7 @@ const EnvSchema = z
     MAX_SHARES: num.int().min(1).max(127).default(10),
     MAX_ACTIVE_MAINNET_SATS: num.int().positive().default(600_000),
     DAILY_MAINNET_SATS: num.int().positive().default(400_000),
-    MIN_EXPIRY_SECONDS: num.int().min(60).default(600),
+    MIN_EXPIRY_SECONDS: num.int().min(1).default(600),
     MAX_EXPIRY_SECONDS: num.int().default(30 * 24 * 3600),
     BUDGET_TOTAL_USD: num.positive().default(5),
     PORT: num.int().default(3000),

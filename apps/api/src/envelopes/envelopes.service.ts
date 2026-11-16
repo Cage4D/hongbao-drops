@@ -25,6 +25,8 @@ import {
   type PublicEnvelopeView,
   type RequiredOutput,
   type Theme,
+  type TreeNode,
+  type TreeResponse,
 } from '@hongbao/shared';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -415,6 +417,74 @@ export class EnvelopesService {
       })),
       fundingTxid: e.fundingTxid,
       parentEnvelopeId: e.parentEnvelopeId,
+    };
+  }
+
+  // ---------------------------------------------------------------- GET /envelopes/:id/tree
+
+  /** Pass-it-on lineage: the whole tree this envelope belongs to (funded envelopes only). */
+  async tree(id: string): Promise<TreeResponse> {
+    const focus = await this.db.envelope.findUnique({ where: { id }, select: { id: true, parentEnvelopeId: true } });
+    if (!focus) throw new AppError('NOT_FOUND');
+
+    // Walk up to the root (bounded, in case of bad data).
+    let rootId = focus.id;
+    let parent = focus.parentEnvelopeId;
+    for (let i = 0; parent && i < 100; i++) {
+      const p = await this.db.envelope.findUnique({ where: { id: parent }, select: { id: true, parentEnvelopeId: true } });
+      if (!p) break;
+      rootId = p.id;
+      parent = p.parentEnvelopeId;
+    }
+
+    const select = {
+      id: true,
+      slug: true,
+      parentEnvelopeId: true,
+      status: true,
+      theme: true,
+      shareCount: true,
+      totalSats: true,
+      createdAt: true,
+      claims: { where: { status: { in: ['BROADCAST', 'CONFIRMED'] } }, select: { isNewWallet: true } },
+    } satisfies Prisma.EnvelopeSelect;
+    const toNode = (e: Prisma.EnvelopeGetPayload<{ select: typeof select }>, generation: number): TreeNode => ({
+      id: e.id,
+      slug: e.slug,
+      parentId: e.parentEnvelopeId,
+      generation,
+      status: e.status,
+      theme: e.theme as Theme,
+      shareCount: e.shareCount,
+      totalSats: toNum(e.totalSats),
+      claims: e.claims.length,
+      newWallets: e.claims.filter((c) => c.isNewWallet).length,
+      createdAt: e.createdAt.toISOString(),
+    });
+
+    const root = await this.db.envelope.findUniqueOrThrow({ where: { id: rootId }, select });
+    const nodes: TreeNode[] = [toNode(root, 0)];
+    let frontier = [root.id];
+    for (let gen = 1; frontier.length && gen < 50 && nodes.length < 1000; gen++) {
+      const kids = await this.db.envelope.findMany({
+        where: { parentEnvelopeId: { in: frontier }, status: { not: 'PENDING_FUNDING' } },
+        select,
+        orderBy: { createdAt: 'asc' },
+      });
+      nodes.push(...kids.map((k) => toNode(k, gen)));
+      frontier = kids.map((k) => k.id);
+    }
+
+    const totalReach = nodes.reduce((a, n) => a + n.claims, 0);
+    const passOnEnvelopes = nodes.length - 1;
+    return {
+      rootId,
+      focusId: id,
+      nodes,
+      generations: Math.max(...nodes.map((n) => n.generation)) + 1,
+      totalReach,
+      passOnEnvelopes,
+      viralCoefficient: totalReach ? Math.round((passOnEnvelopes / totalReach) * 100) / 100 : 0,
     };
   }
 }

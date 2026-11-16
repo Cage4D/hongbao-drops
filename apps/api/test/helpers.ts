@@ -49,8 +49,8 @@ export async function resetDb(db: PrismaService, priceUsd = 200) {
 }
 
 /** A sender UTXO at vout 0 (its txid becomes the stamp category). */
-export function addSenderUtxo(provider: MockNetworkProvider, sats = 200_000n, vout = 0) {
-  return provider.addUtxo(binToHex(sender), randomUtxo({ satoshis: sats, vout }));
+export function addSenderUtxo(provider: MockNetworkProvider, sats = 200_000n, vout = 0, ownerPriv = senderPriv) {
+  return provider.addUtxo(binToHex(p2pkh(pub(ownerPriv))), randomUtxo({ satoshis: sats, vout }));
 }
 
 /** Build + "broadcast" the funding tx from the API's fundingTemplate, optionally tampered. */
@@ -59,6 +59,7 @@ export async function fundFromTemplate(
   res: CreateEnvelopeResponse,
   utxo: Awaited<ReturnType<typeof addSenderUtxo>>,
   tamper: (outs: Output[]) => Output[] = (o) => o,
+  signerPriv = senderPriv,
 ) {
   const outs: Output[] = tamper(
     res.fundingTemplate.map((o) => ({
@@ -69,9 +70,9 @@ export async function fundFromTemplate(
   );
   const spent = outs.reduce((a, o) => a + o.amount, 0n);
   const sent = await new TransactionBuilder({ provider })
-    .addInput(utxo, new SignatureTemplate(senderPriv).unlockP2PKH())
+    .addInput(utxo, new SignatureTemplate(signerPriv).unlockP2PKH())
     .addOutputs(outs)
-    .addOutput({ to: sender, amount: utxo.satoshis - spent - 2_000n })
+    .addOutput({ to: p2pkh(pub(signerPriv)), amount: utxo.satoshis - spent - 2_000n })
     .send();
   return sent.txid;
 }
@@ -105,16 +106,22 @@ export function addressOf(label: string, tokenAware = true) {
 type T = Awaited<ReturnType<typeof makeApp>>;
 
 /** Create + fund an envelope through the API; returns the create response. */
-export async function fundedEnvelope(t: T, over: Record<string, unknown> = {}) {
+export async function fundedEnvelope(t: T, over: Record<string, unknown> = {}, ownerLabel?: string) {
   const stamps = over.withStamps === true;
-  const utxo = addSenderUtxo(t.provider);
-  const res = await t.http().post('/envelopes').send(createBody({ ...over, ...(stamps && { stampCategory: utxo.txid }) }));
+  const ownerPriv = ownerLabel ? key(ownerLabel) : senderPriv;
+  const utxo = addSenderUtxo(t.provider, 200_000n, 0, ownerPriv);
+  const body = createBody({
+    ...(ownerLabel && { senderAddress: addressOf(ownerLabel, false) }),
+    ...over,
+    ...(stamps && { stampCategory: utxo.txid }),
+  });
+  const res = await t.http().post('/envelopes').send(body);
   if (res.status !== 201) throw new Error(`create failed: ${JSON.stringify(res.body)}`);
   const created = res.body as CreateEnvelopeResponse;
-  const txid = await fundFromTemplate(t.provider, created, utxo);
+  const txid = await fundFromTemplate(t.provider, created, utxo, (o) => o, ownerPriv);
   const f = await t.http().post(`/envelopes/${created.id}/funded`).send({ txid });
   if (f.status !== 200) throw new Error(`fund failed: ${JSON.stringify(f.body)}`);
-  return created;
+  return Object.assign(created, { fundingTxid: txid });
 }
 
 export const claimReq = (t: T, envelopeId: string, body: Record<string, unknown>, ip = '203.0.113.1') =>
