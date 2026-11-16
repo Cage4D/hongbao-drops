@@ -28,6 +28,9 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 | `GET /envelopes/:id/events` | Server-Sent Events: `claimed`, `held`, `refunded`, `exhausted`, `passedOn`. Replays the last 10, then streams live. Resume with `Last-Event-ID`. Each stream ends after ~280 s (Vercel limit) and `EventSource` reconnects |
 | `GET /envelopes/:id/tree` | Pass-it-on lineage of the whole tree: nodes, generations, total reach, viral coefficient |
 | `POST /internal/keeper/tick` | Keeper (Bearer `KEEPER_TOKEN`). Steps: cleanup → reconcile from chain → batch refunds → confirmations → 7-day activation → farm flags → heartbeat. Called every minute by an external cron |
+| `GET /og/:idOrSlug.png` | 1200×630 link-preview card (theme, sponsor colour, message incl. CJK, shares left, USD) |
+| `GET /stamps/:category/:file` | Stamp art: `<commitment>.svg|png` per share, `collection.svg|png` |
+| `GET /bcmr/:category.json` | The BCMR registry, byte-for-byte as committed on-chain |
 | `POST /claims/:id/broadcast` | Checks the claim tx spends exactly the approved share to exactly the approved address (stamp intact, fee ≤ maxFee), relays it, and treats 0-conf acceptance as success |
 
 ## The gate (`src/claims/claims.service.ts`)
