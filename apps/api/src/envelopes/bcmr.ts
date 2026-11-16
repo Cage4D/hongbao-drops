@@ -26,8 +26,9 @@ export function buildBcmrRegistry(i: BcmrInput): { json: string; hash: string; u
       name: `${brand}Hongbao Stamp #${i.envelopeSeq}-${s}`,
       description: `Share ${s} of ${i.shareCount}, caught from red envelope #${i.envelopeSeq}.`,
       uris: {
-        icon: `${api}/stamps/${i.category}/${commitment}.svg`,
-        image: `${api}/stamps/${i.category}/${commitment}.svg`,
+        // PNG: not every wallet renders SVG icons (Phase 6). /stamps/…/*.svg is served too.
+        icon: `${api}/stamps/${i.category}/${commitment}.png`,
+        image: `${api}/stamps/${i.category}/${commitment}.png`,
       },
     };
   }
@@ -54,7 +55,7 @@ export function buildBcmrRegistry(i: BcmrInput): { json: string; hash: string; u
               parse: { types },
             },
           },
-          uris: { icon: `${api}/stamps/${i.category}/collection.svg`, web: api },
+          uris: { icon: `${api}/stamps/${i.category}/collection.png`, web: api },
         },
       },
     },

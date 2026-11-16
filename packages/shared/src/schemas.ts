@@ -111,6 +111,8 @@ export interface PublicEnvelopeView {
   secondsLeft: number;
   withStamps: boolean;
   stamp: { category: string; imageUrl: string; alt: string } | null;
+  /** Link-preview card (set as og:image / twitter:image) with alt text. */
+  og: { imageUrl: string; alt: string; width: 1200; height: 630 };
   recentClaims: { address: string; sats: number; usd: number | null; luckiest: boolean; isNewWallet: boolean | null; at: string }[];
   fundingTxid: string | null;
   parentEnvelopeId: string | null;

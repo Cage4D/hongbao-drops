@@ -32,6 +32,7 @@ import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { hashAnswer } from '../envelopes/envelopes.service.js';
 import { EventsService } from '../events/events.service.js';
+import { stampAlt } from '../media/stamp.js';
 import type { Claim, Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
 export const RESERVATION_MS = 120_000;
@@ -426,8 +427,8 @@ export class ClaimsService {
           ? {
               category: env.stampCategory,
               commitment: share.nftCommitment,
-              imageUrl: `${api}/stamps/${env.stampCategory}/${share.nftCommitment}.svg`,
-              alt: `Hongbao stamp #${env.seq}-${share.index}: a ${env.theme.replace('-', ' ')} red envelope`,
+              imageUrl: `${api}/stamps/${env.stampCategory}/${share.nftCommitment}.png`,
+              alt: stampAlt({ theme: env.theme, seq: env.seq, index: share.index, shareCount: env.shareCount }),
             }
           : null,
     };

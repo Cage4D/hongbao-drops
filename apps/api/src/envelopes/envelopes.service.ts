@@ -39,6 +39,8 @@ import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { EventsService } from '../events/events.service.js';
+import { stampAlt } from '../media/stamp.js';
+import { ogAlt } from '../media/og.js';
 import { LIMITS, RateLimitService } from '../ratelimit/rate-limit.service.js';
 import { buildBcmrRegistry } from './bcmr.js';
 import { randomSlug } from './slug.js';
@@ -411,10 +413,27 @@ export class EnvelopesService {
       stamp: e.stampCategory
         ? {
             category: e.stampCategory,
-            imageUrl: `${api}/stamps/${e.stampCategory}/collection.svg`,
-            alt: `Hongbao stamp: a ${e.theme.replace('-', ' ')} red envelope${sponsor ? ` from ${sponsor.name}` : ''}`,
+            imageUrl: `${api}/stamps/${e.stampCategory}/collection.png`,
+            alt: stampAlt({ theme: e.theme, seq: e.seq, index: null, shareCount: e.shareCount, sponsorName: sponsor?.name ?? null }),
           }
         : null,
+      og: {
+        imageUrl: `${api}/og/${e.slug}.png`,
+        alt: ogAlt({
+          seq: e.seq,
+          theme: e.theme,
+          status,
+          mode: e.mode,
+          message: e.message,
+          sponsor: sponsor ? { name: sponsor.name, brandColor: sponsor.brandColor } : null,
+          sharesLeft: e.status === 'PENDING_FUNDING' ? e.shareCount : unclaimed.length,
+          sharesTotal: e.shareCount,
+          remainingUsd: null,
+          remainingSats: 0,
+        }),
+        width: 1200,
+        height: 630,
+      },
       recentClaims: e.claims.map((c) => ({
         address: truncateAddress(c.recipientAddress),
         sats: toNum(c.amountSats ?? 0n),
