@@ -31,6 +31,9 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 | `GET /og/:idOrSlug.png` | 1200×630 link-preview card (theme, sponsor colour, message incl. CJK, shares left, USD) |
 | `GET /stamps/:category/:file` | Stamp art: `<commitment>.svg|png` per share, `collection.svg|png` |
 | `GET /bcmr/:category.json` | The BCMR registry, byte-for-byte as committed on-chain |
+| `POST /sponsors`, `POST /campaigns` | Sponsors (token shown once, stored hashed) and campaigns (Bearer sponsor token) |
+| `GET /campaigns/:id/stats` · `/export.csv` · `/public` | Funnel → cost per activated new wallet, CSV with txids (sponsor only), public proof of reach. See docs/phase7-analytics.md |
+| `GET /stats/global`, `POST /envelopes/:id/cta-click` | Landing totals; deduped CTA clicks |
 | `POST /claims/:id/broadcast` | Checks the claim tx spends exactly the approved share to exactly the approved address (stamp intact, fee ≤ maxFee), relays it, and treats 0-conf acceptance as success |
 
 ## The gate (`src/claims/claims.service.ts`)

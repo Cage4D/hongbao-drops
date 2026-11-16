@@ -176,6 +176,15 @@ describe('POST /envelopes/:id/funded', () => {
       await expectMismatch(created.id, txid, /output 5 carries a token of the stamp category/);
     });
 
+    it('small sponsored drops pay at least the 546-sat dust minimum as fee', async () => {
+      const token = 'small-sponsor-token';
+      await t.db.sponsor.create({ data: { name: 'Tiny', adminToken: binToHex(sha256.hash(new TextEncoder().encode(token))) } });
+      const created = (await create({ sponsorToken: token, totalSats: 9_000 })).body as CreateEnvelopeResponse; // 3% = 270
+      expect(created.requiredOutputs).toEqual([expect.objectContaining({ purpose: 'SPONSOR_FEE', sats: 546 })]);
+      const txid = await fundFromTemplate(t.provider, created, addSenderUtxo(t.provider));
+      expect((await t.http().post(`/envelopes/${created.id}/funded`).send({ txid })).body.status).toBe('ACTIVE');
+    });
+
     it('a sponsored drop without the treasury fee output', async () => {
       const token = 'sponsor-secret-token';
       await t.db.sponsor.create({

@@ -47,6 +47,9 @@ import { randomSlug } from './slug.js';
 import { verifyFundingTx } from './funding-verifier.js';
 import type { Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
+/** Treasury fee output must be at least P2PKH dust. */
+export const MIN_SPONSOR_FEE_SATS = 546n;
+
 /** Quiz answers are compared after trim, lowercase and collapsing whitespace (spec §8.2). */
 export const normalizeAnswer = (a: string) => a.trim().toLowerCase().replace(/\s+/g, ' ');
 export const hashAnswer = (salt: string, answer: string) =>
@@ -135,7 +138,10 @@ export class EnvelopesService {
       feeBps = c.SPONSOR_FEE_BPS;
       sponsorName = sponsor.name;
     }
-    const sponsorFeeSats = (totalSats * BigInt(feeBps) + 9_999n) / 10_000n; // ceil
+    // ceil(total × bps) but never below dust: a sub-dust fee output can't exist, which made small
+    // sponsored envelopes unfundable (found in the Phase 7 Chipnet run).
+    const pctFee = (totalSats * BigInt(feeBps) + 9_999n) / 10_000n;
+    const sponsorFeeSats = feeBps > 0 ? (pctFee > MIN_SPONSOR_FEE_SATS ? pctFee : MIN_SPONSOR_FEE_SATS) : 0n;
 
     if (req.parentEnvelopeId) {
       const parent = await this.db.envelope.findUnique({ where: { id: req.parentEnvelopeId }, select: { id: true } });

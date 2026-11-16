@@ -18,7 +18,8 @@ export function apiClient(base: string) {
       headers: { 'content-type': 'application/json', ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
-    return { status: res.status, body: await res.json() };
+    const text = await res.text(); // 204 No Content has no JSON body
+    return { status: res.status, body: text ? JSON.parse(text) : null };
   };
 }
 
