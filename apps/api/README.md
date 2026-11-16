@@ -25,6 +25,9 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 | `GET /health` | DB, Fulcrum (height + server), network, price, keeper heartbeat |
 | `POST /envelopes/:id/holds` | "Hold my share": reserves a share for 15 min and returns a single-use `holdToken` |
 | `POST /envelopes/:id/claims` | The gate. Checks eligibility, reserves a share for 120 s, signs the approval, and records `isNewWallet` (Fulcrum history) |
+| `GET /envelopes/:id/events` | Server-Sent Events: `claimed`, `held`, `refunded`, `exhausted`, `passedOn`. Replays the last 10, then streams live. Resume with `Last-Event-ID`. Each stream ends after ~280 s (Vercel limit) and `EventSource` reconnects |
+| `GET /envelopes/:id/tree` | Pass-it-on lineage of the whole tree: nodes, generations, total reach, viral coefficient |
+| `POST /internal/keeper/tick` | Keeper (Bearer `KEEPER_TOKEN`). Steps: cleanup → reconcile from chain → batch refunds → confirmations → 7-day activation → farm flags → heartbeat. Called every minute by an external cron |
 | `POST /claims/:id/broadcast` | Checks the claim tx spends exactly the approved share to exactly the approved address (stamp intact, fee ≤ maxFee), relays it, and treats 0-conf acceptance as success |
 
 ## The gate (`src/claims/claims.service.ts`)

@@ -3,7 +3,7 @@ import { binToHex, generatePrivateKey, hexToBin, secp256k1 } from '@bitauth/liba
 import { SignatureTemplate, TransactionBuilder, type ElectrumNetworkProvider, type Output, type SpendableUtxo } from 'cashscript';
 import type { CreateEnvelopeResponse } from '@hongbao/shared';
 import { EXPLORER_TX } from './env.js';
-import { walletKey } from './keys.js';
+import { walletKey, type KeyPair } from './keys.js';
 import { FEE_RATE, txSize } from './envelope.js';
 
 export interface ApiResult {
@@ -35,8 +35,8 @@ export async function createAndFund(
   call: ReturnType<typeof apiClient>,
   provider: ElectrumNetworkProvider,
   over: Record<string, unknown>,
+  wallet: KeyPair = walletKey(),
 ): Promise<{ env: CreateEnvelopeResponse; linkPriv: Uint8Array; fundingTxid: string }> {
-  const wallet = walletKey();
   const signer = new SignatureTemplate(wallet.priv);
   const withStamps = over.withStamps !== false;
   let utxos: SpendableUtxo[] = (await provider.getUtxos(wallet.address)).filter((u) => !u.token);
