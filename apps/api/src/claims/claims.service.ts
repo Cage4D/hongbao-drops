@@ -178,8 +178,14 @@ export class ClaimsService {
     await this.rate.hit(`claim:${env.id}:${ipHash}`, LIMITS.claim);
 
     // A live approval for this recipient: hand it back (a retry after a network blip keeps the
-    // claimer's place).
-    if (existing?.status === 'APPROVED' && existing.share?.status === 'RESERVED') {
+    // claimer's place) — only while the reservation is still running and the share unspent (review #10).
+    if (
+      existing?.status === 'APPROVED' &&
+      existing.share?.status === 'RESERVED' &&
+      !existing.share.spendTxid &&
+      existing.share.reservedUntil &&
+      existing.share.reservedUntil > new Date()
+    ) {
       const share = await this.db.share.update({
         where: { id: existing.share.id },
         data: { reservedUntil: new Date(Date.now() + RESERVATION_MS) },
@@ -218,41 +224,89 @@ export class ClaimsService {
         if (dup) throw new AppError('ALREADY_CLAIMED');
       }
 
-      let share: Share | null;
-      if (req.holdToken) {
+      // Serialise the same recipient (parallel retries) so the pinning below sees a stable state.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${env.id}:${recipientLB}`}))`;
+      const mine = await tx.claim.findUnique({
+        where: { envelopeId_recipientLockingBytecode: { envelopeId: env.id, recipientLockingBytecode: recipientLB } },
+      });
+      if (mine?.status === 'BROADCAST' || mine?.status === 'CONFIRMED') throw new AppError('ALREADY_CLAIMED');
+
+      // Approvals stay valid on-chain forever. If this recipient was ever approved for a share
+      // that is still unspent, they may only get THAT share again — never a second outpoint,
+      // or they could broadcast both approvals and take two shares (review #6).
+      const now = new Date();
+      let share: Share | null = null;
+      const pinnedIds = mine?.approvedShareIds ?? [];
+      if (pinnedIds.length) {
+        const pinned = await tx.$queryRaw<Share[]>`
+          SELECT * FROM "Share" WHERE id = ANY(${pinnedIds}) AND status IN ('AVAILABLE', 'HELD', 'RESERVED')
+          ORDER BY index FOR UPDATE`;
+        if (pinned.length) {
+          share =
+            pinned.find(
+              (sh) =>
+                sh.status === 'AVAILABLE' ||
+                (sh.reservedUntil !== null && sh.reservedUntil < now) ||
+                (sh.status === 'HELD' && req.holdToken && sh.holdToken === req.holdToken) ||
+                (sh.status === 'RESERVED' && mine?.shareId === sh.id),
+            ) ?? null;
+          if (!share) {
+            throw new AppError('ALREADY_CLAIMED', {
+              reason: 'An earlier approval for this address is still open. Try again in a couple of minutes.',
+            });
+          }
+        }
+      }
+      if (!share && req.holdToken) {
         const rows = await tx.$queryRaw<{ id: string }[]>`
           SELECT id FROM "Share" WHERE "holdToken" = ${req.holdToken} AND "envelopeId" = ${env.id} FOR UPDATE`;
         share = rows[0] ? await tx.share.findUnique({ where: { id: rows[0].id } }) : null;
-        if (!share || share.status !== 'HELD' || !share.reservedUntil || share.reservedUntil < new Date()) {
+        if (!share || share.status !== 'HELD' || !share.reservedUntil || share.reservedUntil < now) {
           throw new AppError('HOLD_EXPIRED');
         }
-      } else {
+      }
+      if (!share) {
         share = await this.pickFreeShare(tx, env.id);
         if (!share) throw new AppError('ENVELOPE_EMPTY');
       }
-      await this.releaseStaleClaim(tx, share.id);
-      if (existing) await tx.claim.delete({ where: { id: existing.id } }); // an old EXPIRED attempt
+      // Any other claimer whose reservation on this share lapsed loses it.
+      await tx.claim.updateMany({
+        where: { shareId: share.id, status: 'APPROVED', ...(mine && { NOT: { id: mine.id } }) },
+        data: { status: 'EXPIRED', shareId: null },
+      });
 
       const reserved = await tx.share.update({
         where: { id: share.id },
         data: { status: 'RESERVED', holdToken: null, reservedUntil: new Date(Date.now() + RESERVATION_MS) },
       });
+      const approvedShareIds = [...new Set([...(mine?.approvedShareIds ?? []), reserved.id])];
       try {
-        const claim = await tx.claim.create({
-          data: {
-            envelopeId: env.id,
-            shareId: reserved.id,
-            recipientAddress: req.recipientAddress,
-            recipientLockingBytecode: recipientLB,
-            walletFingerprint: req.walletFingerprint ?? null,
-            ipHash,
-            isNewWallet: hadHistory === null ? null : !hadHistory,
-            status: 'APPROVED',
-          },
-        });
+        const claim = mine
+          ? await tx.claim.update({
+              where: { id: mine.id },
+              data: {
+                status: 'APPROVED',
+                shareId: reserved.id,
+                approvedShareIds,
+                walletFingerprint: req.walletFingerprint ?? mine.walletFingerprint,
+                ipHash,
+              },
+            })
+          : await tx.claim.create({
+              data: {
+                envelopeId: env.id,
+                shareId: reserved.id,
+                recipientAddress: req.recipientAddress,
+                recipientLockingBytecode: recipientLB,
+                walletFingerprint: req.walletFingerprint ?? null,
+                ipHash,
+                isNewWallet: hadHistory === null ? null : !hadHistory,
+                status: 'APPROVED',
+                approvedShareIds,
+              },
+            });
         return { claim, share: reserved };
       } catch (e) {
-        // Same recipient racing itself in parallel: the unique index decides, the loser rolls back.
         if ((e as { code?: string }).code === 'P2002') throw new AppError('ALREADY_CLAIMED');
         throw e;
       }
@@ -307,8 +361,16 @@ export class ClaimsService {
     const amount = output!.valueSatoshis;
     const price = await this.price.bchUsd();
 
-    await this.db.$transaction(async (db) => {
-      await db.claim.update({ where: { id: claim.id }, data: { status: 'BROADCAST', claimTxid: txid, amountSats: amount } });
+    const recorded = await this.db.$transaction(async (db) => {
+      // One envelope at a time: parallel broadcasts each see the others' CLAIMED shares, so the
+      // last one reliably marks the envelope EXHAUSTED (this was a flaky race in testing).
+      await db.$queryRaw`SELECT id FROM "Envelope" WHERE id = ${env.id} FOR UPDATE`;
+      // Only the first of several identical requests (double tap, retry) records anything (review #8).
+      const won = await db.claim.updateMany({
+        where: { id: claim.id, status: 'APPROVED', shareId: share.id },
+        data: { status: 'BROADCAST', claimTxid: txid, amountSats: amount },
+      });
+      if (won.count === 0) return false;
       await db.share.update({ where: { id: share.id }, data: { status: 'CLAIMED', spendTxid: txid, reservedUntil: null } });
       const left = await db.share.count({ where: { envelopeId: env.id, status: { in: ['AVAILABLE', 'HELD', 'RESERVED'] } } });
       const prevMax = await db.claim.aggregate({
@@ -340,7 +402,13 @@ export class ClaimsService {
           data: { kind: 'CLAIMED', sats: share.sats, usd: this.price.toUsd(share.sats, price) ?? 0, txid, envelopeId: env.id },
         });
       }
+      return true;
     });
+    if (!recorded) {
+      const now = await this.db.claim.findUniqueOrThrow({ where: { id: claim.id } });
+      if (now.claimTxid !== txid) throw new AppError('HOLD_EXPIRED');
+      return this.broadcastResponse(env, share, txid, now.amountSats ?? amount, price);
+    }
     this.log.log(`broadcast claim=${claim.id} txid=${txid} amount=${amount}`);
     return this.broadcastResponse(env, share, txid, amount, price);
   }

@@ -1,6 +1,6 @@
 // Gate tests: every claim here is broadcast as a real claim tx that the mock network validates
 // against Hongbao.cash — so a passing test means the gate's signature really unlocks the share.
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { binToHex } from '@bitauth/libauth';
 import type { ClaimApproval } from '@hongbao/shared';
 import { addressOf, broadcastReq, claimReq, fundedEnvelope, key, makeApp, p2pkh, pub, resetDb } from './helpers.js';
@@ -213,7 +213,9 @@ describe('refusals', () => {
 });
 
 describe('reservations and broadcast safety', () => {
-  it('an abandoned reservation frees its share after 120 s; the old approval can no longer broadcast', async () => {
+  it('an abandoned reservation frees its share after 120 s; the API refuses to relay the old approval', async () => {
+    // Note: the old approval itself stays valid on-chain — the keeper's reconcile step records it if
+    // its holder broadcasts it elsewhere and wins the race (see lifecycle tests).
     const env = await fundedEnvelope(t, { shareCount: 1, totalSats: 10_000 });
     const slow = (await claimReq(t, env.id, { recipientAddress: addressOf('slow') })).body as ClaimApproval;
     await t.db.share.updateMany({ where: { envelopeId: env.id }, data: { reservedUntil: new Date(Date.now() - 1000) } });
@@ -232,10 +234,12 @@ describe('reservations and broadcast safety', () => {
     const env = await fundedEnvelope(t);
     const a = (await claimReq(t, env.id, { recipientAddress: addressOf('honest') })).body as ClaimApproval;
     const evil = binToHex(p2pkh(pub(key('evil'))));
+    const relay = vi.spyOn(t.provider, 'sendRawTransaction');
     const r = await broadcastReq(t, a, { recipientLockingBytecode: evil });
     expect(r.status).toBe(400);
     expect(r.body.error.reasons).toContain('the transaction must have exactly one output, to the approved address');
-    expect(await t.provider.getUtxosForLockingBytecode(evil)).toHaveLength(0);
+    expect(relay).not.toHaveBeenCalled(); // refused by the API itself, not by the network
+    relay.mockRestore();
   });
 
   it('broadcast is idempotent for the same tx', async () => {
@@ -245,5 +249,70 @@ describe('reservations and broadcast safety', () => {
     const second = await broadcastReq(t, a);
     expect(second.status).toBe(200);
     expect(second.body.txid).toBe(first.body.txid);
+  });
+});
+
+describe('review fixes: one outpoint per recipient, idempotency, atomic limits', () => {
+  const lapse = (envelopeId: string) =>
+    t.db.share.updateMany({ where: { envelopeId, status: { in: ['RESERVED', 'HELD'] } }, data: { reservedUntil: new Date(Date.now() - 1000) } });
+
+  it('#6: a recipient never gets approvals for two different shares', async () => {
+    const env = await fundedEnvelope(t);
+    const x1 = (await claimReq(t, env.id, { recipientAddress: addressOf('x') })).body as ClaimApproval;
+    await lapse(env.id);
+    const y = await claimReq(t, env.id, { recipientAddress: addressOf('y') }, '203.0.113.2');
+    expect(y.body.share.index).toBe(x1.share.index); // Y takes X's lapsed share
+
+    // X comes back while Y holds X's share: refused instead of signing a second outpoint.
+    const x2 = await claimReq(t, env.id, { recipientAddress: addressOf('x') });
+    expect([x2.status, x2.body.error.code]).toEqual([409, 'ALREADY_CLAIMED']);
+    // A hold doesn't help either: the hold lands on another share, X stays pinned to the first.
+    const h = await t.http().post(`/envelopes/${env.id}/holds`).set('x-forwarded-for', '203.0.113.1').send({});
+    const x3 = await claimReq(t, env.id, { recipientAddress: addressOf('x'), holdToken: h.body.holdToken });
+    expect(x3.body.error.code).toBe('ALREADY_CLAIMED');
+
+    // Once Y's reservation lapses, X gets the SAME share again.
+    await lapse(env.id);
+    const x4 = (await claimReq(t, env.id, { recipientAddress: addressOf('x') })).body as ClaimApproval;
+    expect(x4.share).toEqual(x1.share);
+    const row = await t.db.claim.findUniqueOrThrow({ where: { id: x4.claimId } });
+    expect(row.approvedShareIds).toHaveLength(1);
+    expect((await broadcastReq(t, x4)).status).toBe(200);
+  });
+
+  it('#10: a lapsed retry is re-reserved on the same outpoint with a fresh timer', async () => {
+    const env = await fundedEnvelope(t);
+    const a = (await claimReq(t, env.id, { recipientAddress: addressOf('r') })).body as ClaimApproval;
+    await lapse(env.id);
+    const b = (await claimReq(t, env.id, { recipientAddress: addressOf('r') })).body as ClaimApproval;
+    expect(b.share).toEqual(a.share);
+    expect(new Date(b.reservedUntil).getTime()).toBeGreaterThan(Date.now() + 60_000);
+  });
+
+  it('#8: two identical broadcasts at once record the claim exactly once', async () => {
+    const env = await fundedEnvelope(t);
+    const a = (await claimReq(t, env.id, { recipientAddress: addressOf('tap') })).body as ClaimApproval;
+    const [r1, r2] = await Promise.all([broadcastReq(t, a), broadcastReq(t, a)]);
+    expect([r1.status, r2.status]).toEqual([200, 200]);
+    expect(r1.body.txid).toBe(r2.body.txid);
+    expect(await t.db.event.count({ where: { envelopeId: env.id, type: 'claimed' } })).toBe(1);
+  });
+
+  it('#7: 12 parallel wrong quiz answers from one IP — exactly 5 are judged, the rest are rate-limited', async () => {
+    const env = await fundedEnvelope(t, { mode: 'QUIZ', quiz: { question: 'q?', answers: ['right'] } });
+    const rs = await Promise.all(
+      Array.from({ length: 12 }, (_, i) => claimReq(t, env.id, { recipientAddress: addressOf(`g${i}`), answer: `wrong${i}` }, '10.3.3.3')),
+    );
+    expect(rs.filter((r) => r.body.error.code === 'WRONG_ANSWER')).toHaveLength(5);
+    expect(rs.filter((r) => r.body.error.code === 'RATE_LIMITED')).toHaveLength(7);
+  });
+
+  it('#7: parallel holds from one IP respect the hold limit', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 10, totalSats: 100_000 });
+    const rs = await Promise.all(
+      Array.from({ length: 8 }, () => t.http().post(`/envelopes/${env.id}/holds`).set('x-forwarded-for', '10.4.4.4').send({})),
+    );
+    expect(rs.filter((r) => r.status === 201)).toHaveLength(5);
+    expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'HELD' } })).toBe(5);
   });
 });
