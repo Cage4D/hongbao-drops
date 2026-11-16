@@ -2,13 +2,24 @@
 // and caches the working provider for the life of the (serverless) instance.
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ElectrumNetworkProvider, type NetworkProvider } from 'cashscript';
-import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
+import { binToHex, decodeTransaction, hexToBin, sha256, type TransactionCommon } from '@bitauth/libauth';
 import type { AppConfig } from '../config/config.js';
 import { AppError } from '../common/app-error.js';
 
 /** DI token: tests inject a MockNetworkProvider here. */
 export const NETWORK_PROVIDER_FACTORY = Symbol('NETWORK_PROVIDER_FACTORY');
 export type ProviderFactory = () => Promise<{ provider: NetworkProvider; server: string }>;
+
+/**
+ * Optional hooks a test provider (MockNetworkProvider) can carry for what it can't simulate:
+ * block times and address history.
+ */
+export interface ChainTestHooks {
+  medianTimePast?: () => Promise<number>;
+  history?: (lockingBytecodeHex: string) => Promise<{ tx_hash: string; height: number }[]>;
+}
+
+const scripthashOf = (lockingBytecodeHex: string) => binToHex(sha256.hash(hexToBin(lockingBytecodeHex)).reverse());
 
 export function electrumProviderFactory(config: AppConfig): ProviderFactory {
   const network = config.NETWORK === 'MAINNET' ? 'mainnet' : 'chipnet';
@@ -100,7 +111,7 @@ export class ChainService implements OnApplicationBootstrap {
     const lookup = (async () => {
       const provider = await this.provider();
       if (provider instanceof ElectrumNetworkProvider) {
-        const scripthash = binToHex(sha256.hash(hexToBin(lockingBytecodeHex)).reverse());
+        const scripthash = scripthashOf(lockingBytecodeHex);
         const history = (await provider.performRequest('blockchain.scripthash.get_history', scripthash)) as unknown[];
         return history.length > 0;
       }
@@ -154,6 +165,53 @@ export class ChainService implements OnApplicationBootstrap {
       this.reset();
       throw new AppError('CHAIN_UNAVAILABLE');
     }
+  }
+
+  /**
+   * Median of the last 11 block timestamps. A timestamp-locktime tx (our refundBatch) is only
+   * accepted once MTP > locktime, which trails wall-clock by ~1 h (measured on Chipnet, Phase 2).
+   */
+  async medianTimePast(): Promise<number> {
+    return this.use(async (p) => {
+      const hooks = p as NetworkProvider & ChainTestHooks;
+      if (hooks.medianTimePast) return hooks.medianTimePast();
+      if (!(p instanceof ElectrumNetworkProvider)) return Math.floor(Date.now() / 1000);
+      const tip = await p.getBlockHeight();
+      const res = (await p.performRequest('blockchain.block.headers', tip - 10, 11)) as { hex: string; count: number };
+      const bytes = hexToBin(res.hex);
+      const times: number[] = [];
+      for (let i = 0; i < res.count; i++) {
+        const o = i * 80 + 68; // header timestamp: u32 LE at byte 68
+        times.push(bytes[o]! | (bytes[o + 1]! << 8) | (bytes[o + 2]! << 16) | (bytes[o + 3]! * 2 ** 24));
+      }
+      return times.sort((x, y) => x - y)[Math.floor(times.length / 2)]!;
+    });
+  }
+
+  /** Current UTXOs of a locking bytecode (includes 0-conf). */
+  utxos(lockingBytecodeHex: string) {
+    return this.use((p) => p.getUtxosForLockingBytecode(lockingBytecodeHex));
+  }
+
+  /** Confirmed + mempool history (Electrum: height ≤ 0 means unconfirmed). */
+  async history(lockingBytecodeHex: string): Promise<{ tx_hash: string; height: number }[]> {
+    return this.use(async (p) => {
+      const hooks = p as NetworkProvider & ChainTestHooks;
+      if (hooks.history) return hooks.history(lockingBytecodeHex);
+      if (!(p instanceof ElectrumNetworkProvider)) return [];
+      return (await p.performRequest('blockchain.scripthash.get_history', scripthashOf(lockingBytecodeHex))) as {
+        tx_hash: string;
+        height: number;
+      }[];
+    });
+  }
+
+  /** Decoded transaction, or null if unknown to the server. */
+  async getTransaction(txid: string): Promise<TransactionCommon | null> {
+    const raw = await this.getRawTransaction(txid);
+    if (!raw) return null;
+    const tx = decodeTransaction(hexToBin(raw));
+    return typeof tx === 'string' ? null : tx;
   }
 
   async status(): Promise<{ ok: boolean; height: number | null; server: string | null }> {
