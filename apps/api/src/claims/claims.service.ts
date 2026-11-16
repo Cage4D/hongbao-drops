@@ -29,7 +29,9 @@ import { RateLimitService, LIMITS } from '../ratelimit/rate-limit.service.js';
 import { AppError } from '../common/app-error.js';
 import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
+import { truncateAddress } from '../common/address.js';
 import { hashAnswer } from '../envelopes/envelopes.service.js';
+import { EventsService } from '../events/events.service.js';
 import type { Claim, Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
 export const RESERVATION_MS = 120_000;
@@ -48,6 +50,7 @@ export class ClaimsService {
     @Inject(ChainService) private readonly chain: ChainService,
     @Inject(PriceService) private readonly price: PriceService,
     @Inject(RateLimitService) private readonly rate: RateLimitService,
+    @Inject(EventsService) private readonly events: EventsService,
   ) {}
 
   // ------------------------------------------------------------------ helpers
@@ -152,6 +155,7 @@ export class ClaimsService {
       });
     });
     this.log.log(`hold envelope=${env.id} share=${share.index} until=${share.reservedUntil!.toISOString()}`);
+    await this.events.emit(env.id, 'held', { shareIndex: share.index, heldUntil: share.reservedUntil!.toISOString() });
     return { holdToken: share.holdToken!, heldUntil: share.reservedUntil!.toISOString() };
   }
 
@@ -306,7 +310,30 @@ export class ClaimsService {
       await db.claim.update({ where: { id: claim.id }, data: { status: 'BROADCAST', claimTxid: txid, amountSats: amount } });
       await db.share.update({ where: { id: share.id }, data: { status: 'CLAIMED', spendTxid: txid, reservedUntil: null } });
       const left = await db.share.count({ where: { envelopeId: env.id, status: { in: ['AVAILABLE', 'HELD', 'RESERVED'] } } });
-      if (left === 0) await db.envelope.updateMany({ where: { id: env.id, status: 'ACTIVE' }, data: { status: 'EXHAUSTED' } });
+      const prevMax = await db.claim.aggregate({
+        _max: { amountSats: true },
+        where: { envelopeId: env.id, status: { in: ['BROADCAST', 'CONFIRMED'] }, NOT: { id: claim.id } },
+      });
+      await this.events.emit(
+        env.id,
+        'claimed',
+        {
+          shareIndex: share.index,
+          address: truncateAddress(claim.recipientAddress),
+          sats: toNum(amount),
+          usd: this.price.toUsd(amount, price),
+          isNewWallet: claim.isNewWallet,
+          luckiest: env.mode === 'LUCKY' && amount > (prevMax._max.amountSats ?? 0n),
+          txid,
+          stamp: share.nftCommitment,
+          sharesLeft: left,
+        },
+        db,
+      );
+      if (left === 0) {
+        await db.envelope.updateMany({ where: { id: env.id, status: 'ACTIVE' }, data: { status: 'EXHAUSTED' } });
+        await this.events.emit(env.id, 'exhausted', { claimed: env.shareCount }, db);
+      }
       if (env.network === 'MAINNET') {
         await db.ledgerEntry.create({
           data: { kind: 'CLAIMED', sats: share.sats, usd: this.price.toUsd(share.sats, price) ?? 0, txid, envelopeId: env.id },

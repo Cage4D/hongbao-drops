@@ -35,6 +35,8 @@ import { BudgetService } from '../budget/budget.service.js';
 import { AppError } from '../common/app-error.js';
 import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
+import { truncateAddress } from '../common/address.js';
+import { EventsService } from '../events/events.service.js';
 import { buildBcmrRegistry } from './bcmr.js';
 import { randomSlug } from './slug.js';
 import { verifyFundingTx } from './funding-verifier.js';
@@ -45,10 +47,6 @@ export const normalizeAnswer = (a: string) => a.trim().toLowerCase().replace(/\s
 export const hashAnswer = (salt: string, answer: string) =>
   binToHex(sha256.hash(new TextEncoder().encode(salt + normalizeAnswer(answer))));
 
-const truncateAddress = (a: string) => {
-  const [prefix, body = a] = a.includes(':') ? a.split(':') : ['', a];
-  return `${prefix ? prefix + ':' : ''}${body.slice(0, 4)}…${body.slice(-4)}`;
-};
 
 @Injectable()
 export class EnvelopesService {
@@ -64,6 +62,7 @@ export class EnvelopesService {
     @Inject(ChainService) private readonly chain: ChainService,
     @Inject(PriceService) private readonly price: PriceService,
     @Inject(BudgetService) private readonly budget: BudgetService,
+    @Inject(EventsService) private readonly events: EventsService,
   ) {
     this.addressProvider = new ElectrumNetworkProvider(config.NETWORK === 'MAINNET' ? 'mainnet' : 'chipnet', {
       manualConnectionManagement: true,
@@ -326,6 +325,15 @@ export class EnvelopesService {
           ledger.push({ kind: 'FEE', sats: env.sponsorFeeSats, usd: this.price.toUsd(env.sponsorFeeSats, price) ?? 0, txid, envelopeId: env.id });
         }
         await db.ledgerEntry.createMany({ data: ledger });
+      }
+      // Pass it on: tell the parent envelope's live feed that one of its claimers re-gifted.
+      if (env.parentEnvelopeId) {
+        await this.events.emit(
+          env.parentEnvelopeId,
+          'passedOn',
+          { childId: env.id, childSlug: env.slug, shareCount: env.shareCount, sats: toNum(env.totalSats) },
+          db,
+        );
       }
       return db.envelope.findUniqueOrThrow({ where: { id: env.id }, include: { shares: { orderBy: { index: 'asc' } } } });
     });
