@@ -475,7 +475,8 @@ export class EnvelopesService {
     let frontier = [root.id];
     for (let gen = 1; frontier.length && gen < 50 && nodes.length < 1000; gen++) {
       const kids = await this.db.envelope.findMany({
-        where: { parentEnvelopeId: { in: frontier }, status: { not: 'PENDING_FUNDING' } },
+        // Only funded children count: an unfunded request costs nothing and must not inflate reach (review #2).
+        where: { parentEnvelopeId: { in: frontier }, fundingTxid: { not: null }, status: { not: 'FAILED' } },
         select,
         orderBy: { createdAt: 'asc' },
       });

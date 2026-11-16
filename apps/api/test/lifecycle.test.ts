@@ -1,8 +1,8 @@
 // Phase 5: keeper (refunds, cleanup, reconciliation, activation, farm flags), SSE, pass-it-on tree.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { SignatureTemplate, TransactionBuilder, type MockNetworkProvider } from 'cashscript';
-import { binToHex, decodeTransaction, hexToBin, sha256 } from '@bitauth/libauth';
-import { buildClaimTx } from '@hongbao/contract';
+import { binToHex, decodeTransaction, hash256, hexToBin, sha256 } from '@bitauth/libauth';
+import { buildClaimTx, buildRefundTx, hongbaoContract } from '@hongbao/contract';
 import type { ClaimApproval, CreateEnvelopeResponse, TreeResponse } from '@hongbao/shared';
 import { farmFlags } from '../src/keeper/farm-flags.js';
 import type { TickSummary } from '../src/keeper/keeper.service.js';
@@ -236,15 +236,19 @@ describe('activation watcher and farm flags', () => {
 });
 
 describe('pass it on', () => {
-  it('builds a 3-generation tree, emits passedOn, and counts passing on as activation', async () => {
-    const root = await fundedEnvelope(t, { shareCount: 2, totalSats: 20_000 });
+  /** The claimer's claimed coin (claimTxid:0), to fund a re-gift from. */
+  const claimedCoin = async (who: string, claimTxid: string) =>
+    (await t.provider.getUtxosForLockingBytecode(binToHex(p2pkh(pub(key(who)))))).find((u) => u.txid === claimTxid)!;
+
+  it('builds a 3-generation tree from re-gifts of claimed coins, emits passedOn, counts as activation', async () => {
+    const root = await fundedEnvelope(t, { shareCount: 2, totalSats: 40_000 });
     const alice = await claimAndBroadcast(root.id, 'alice');
-    const child = await fundedEnvelope(t, { shareCount: 2, totalSats: 8_000, parentEnvelopeId: root.id }, 'alice');
+    const child = await fundedEnvelope(t, { shareCount: 2, totalSats: 16_000, parentEnvelopeId: root.id }, 'alice', await claimedCoin('alice', alice.txid));
     const dave = await claimAndBroadcast(child.id, 'dave');
-    const grand = await fundedEnvelope(t, { shareCount: 2, totalSats: 4_000, parentEnvelopeId: child.id }, 'dave');
+    const grand = await fundedEnvelope(t, { shareCount: 2, totalSats: 3_000, parentEnvelopeId: child.id }, 'dave', await claimedCoin('dave', dave.txid));
 
     const ev = await t.db.event.findFirstOrThrow({ where: { envelopeId: root.id, type: 'passedOn' } });
-    expect(ev.payload).toMatchObject({ childId: child.id, shareCount: 2, sats: 8_000 });
+    expect(ev.payload).toMatchObject({ childId: child.id, shareCount: 2, sats: 16_000 });
 
     const tree = (await t.http().get(`/envelopes/${grand.id}/tree`)).body as TreeResponse;
     expect(tree).toMatchObject({ rootId: root.id, focusId: grand.id, generations: 3, totalReach: 2, passOnEnvelopes: 2, viralCoefficient: 1 });
@@ -257,6 +261,25 @@ describe('pass it on', () => {
     await tick();
     for (const c of [alice, dave]) {
       expect((await t.db.claim.findUniqueOrThrow({ where: { id: c.approval.claimId } })).activatedWithin7d).toBe(true);
+    }
+  });
+
+  it('review #2: an unfunded "child" or one paid from other coins neither activates nor counts as reach', async () => {
+    const root = await fundedEnvelope(t, { shareCount: 3, totalSats: 30_000 });
+    const bob = await claimAndBroadcast(root.id, 'bob');
+    const carol = await claimAndBroadcast(root.id, 'carol');
+    // Carol: a free POST /envelopes naming the sponsor's envelope as parent, never funded.
+    const fake = await t.http().post('/envelopes').send(createBody({ senderAddress: addressOf('carol', false), parentEnvelopeId: root.id, expiry: now() + 1 }));
+    expect(fake.status).toBe(201);
+    // Bob: a real child, but funded from unrelated coins — not a re-gift of what he caught.
+    await fundedEnvelope(t, { shareCount: 2, totalSats: 8_000, parentEnvelopeId: root.id }, 'bob');
+    await sleep(1_200);
+    await tick(); // also marks carol's unfunded envelope EXPIRED
+
+    const tree = (await t.http().get(`/envelopes/${root.id}/tree`)).body as TreeResponse;
+    expect(tree.nodes.map((n) => n.id)).not.toContain(fake.body.id);
+    for (const c of [bob, carol]) {
+      expect((await t.db.claim.findUniqueOrThrow({ where: { id: c.approval.claimId } })).activatedWithin7d).toBeNull();
     }
   });
 });
@@ -294,5 +317,136 @@ describe('SSE /envelopes/:id/events', () => {
     const resumed = (await sse(`/envelopes/${env.id}/events?maxSeconds=1`, { 'last-event-id': ids[0]! })).body as string;
     expect(resumed).not.toContain(first.txid);
     expect(resumed).toContain(live.txid);
+  });
+});
+
+describe('review fixes: keeper robustness', () => {
+  const contractOf = (env: CreateEnvelopeResponse) =>
+    hongbaoContract(
+      {
+        linkPk: hexToBin(env.constructorArgs.linkPk),
+        gatePk: hexToBin(env.constructorArgs.gatePk),
+        refundLockingBytecode: hexToBin(env.constructorArgs.refundLockingBytecode),
+        expiry: env.constructorArgs.expiry,
+      },
+      t.provider,
+    );
+  const txidOf = (hex: string) => binToHex(hash256(hexToBin(hex)).reverse());
+
+  it('#1: a dust coin, a broken envelope and an externally refunded one do not block the other refunds', async () => {
+    const dusty = await fundedEnvelope(t, { expiry: now() + 2 });
+    t.provider.addUtxo(dusty.contractLockingBytecode, { txid: 'aa'.repeat(32), vout: 0, satoshis: 600n }); // griefing coin
+    const broken = await fundedEnvelope(t, { expiry: now() + 2 });
+    const external = await fundedEnvelope(t, { expiry: now() + 2 });
+    const healthy = await fundedEnvelope(t, { expiry: now() + 2 });
+    await sleep(2_200);
+    // "broken": DB params no longer match the on-chain contract, so building its refund throws.
+    await t.db.envelope.update({ where: { id: broken.id }, data: { maxFee: 1 } });
+    // "external": someone else already broadcast its refund.
+    const ext = contractOf(external);
+    const { hex } = buildRefundTx({
+      contract: ext,
+      utxos: await t.provider.getUtxosForLockingBytecode(external.contractLockingBytecode),
+      refundLockingBytecode: external.constructorArgs.refundLockingBytecode,
+      expiry: external.constructorArgs.expiry,
+      maxFee: 1000n,
+    });
+    await t.provider.sendRawTransaction(hex);
+
+    const s = await tick();
+    expect(s.refunds!.map((r) => r.envelopeId).sort()).toEqual([dusty.id, healthy.id].sort());
+    expect(s.dustSkipped).toBe(1);
+    expect(s.errors.some((e) => e.includes(broken.id))).toBe(true);
+    // The externally refunded one was reconciled instead of occupying a slot forever.
+    expect(await t.db.share.count({ where: { envelopeId: external.id, status: 'REFUNDED', spendTxid: txidOf(hex) } })).toBe(3);
+    expect((await t.provider.getUtxosForLockingBytecode(dusty.contractLockingBytecode)).map((u) => u.satoshis)).toEqual([600n]);
+  });
+
+  it('#11: a coin sent to a fully claimed contract is refunded after expiry', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 1, totalSats: 10_000, expiry: now() + 2 });
+    await claimAndBroadcast(env.id, 'only');
+    t.provider.addUtxo(env.contractLockingBytecode, { txid: 'bb'.repeat(32), vout: 1, satoshis: 7_000n }); // sender funded twice
+    await sleep(2_200);
+    const s = await tick();
+    expect(s.refunds).toEqual([expect.objectContaining({ envelopeId: env.id, shares: 1 })]);
+  });
+
+  it('#8: the same refund txid is recorded once even if two ticks broadcast it', async () => {
+    const env = await fundedEnvelope(t, { expiry: now() + 2 });
+    await sleep(2_200);
+    const { hex } = buildRefundTx({
+      contract: contractOf(env),
+      utxos: await t.provider.getUtxosForLockingBytecode(env.contractLockingBytecode),
+      refundLockingBytecode: env.constructorArgs.refundLockingBytecode,
+      expiry: env.constructorArgs.expiry,
+      maxFee: 1000n,
+    });
+    // An earlier (racing) tick already recorded this exact refund.
+    await t.db.event.create({ data: { envelopeId: env.id, type: 'refunded', payload: { txid: txidOf(hex), shares: 3, sats: 1 } } });
+    const s = await tick();
+    expect(s.refunds).toEqual([]);
+    expect(await t.db.event.count({ where: { envelopeId: env.id, type: 'refunded' } })).toBe(1);
+    expect((await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } })).refundedSats).toBe(0n);
+  });
+
+  it("#8: a tick never releases someone else's lease", async () => {
+    const theirs = `${new Date(Date.now() + 60_000).toISOString()}#other-instance`;
+    await t.db.setting.upsert({ where: { key: 'keeper.lease' }, create: { key: 'keeper.lease', value: theirs }, update: { value: theirs } });
+    expect((await tick()).ran).toBe(false);
+    expect((await t.db.setting.findUniqueOrThrow({ where: { key: 'keeper.lease' } })).value).toBe(theirs);
+  });
+
+  it('#10: reconcile records a stale approval that won the race and frees the other claimer', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 2, totalSats: 20_000 });
+    const x = (await claimReq(t, env.id, { recipientAddress: addressOf('x') })).body as ClaimApproval;
+    await t.db.share.updateMany({ where: { envelopeId: env.id }, data: { reservedUntil: new Date(Date.now() - 1000) } });
+    const y = (await claimReq(t, env.id, { recipientAddress: addressOf('y') }, '10.6.6.6')).body as ClaimApproval;
+    expect(y.share).toEqual(x.share);
+    const { hex } = buildClaimTx({ provider: t.provider, constructorArgs: x.constructorArgs, share: x.share, recipientLockingBytecode: x.recipientLockingBytecode, linkPrivateKey: linkPriv, gateSig: x.gateSig });
+    await t.provider.sendRawTransaction(hex); // X's old approval wins on-chain
+
+    const s = await tick();
+    expect(s.errors).toEqual([]);
+    expect((await t.db.claim.findUniqueOrThrow({ where: { id: x.claimId } })).status).toBe('BROADCAST');
+    expect(await t.db.claim.findUniqueOrThrow({ where: { id: y.claimId } })).toMatchObject({ status: 'EXPIRED', shareId: null });
+    const retry = (await claimReq(t, env.id, { recipientAddress: addressOf('y') }, '10.6.6.6')).body as ClaimApproval;
+    expect(retry.share.index).not.toBe(x.share.index); // Y gets the other, unspent share
+  });
+
+  it('#13: an envelope whose funding tx vanished is marked FAILED and refuses claims', async () => {
+    const env = await fundedEnvelope(t);
+    await t.db.envelope.update({ where: { id: env.id }, data: { fundedAt: new Date(Date.now() - 31 * 60_000) } });
+    const getRaw = t.provider.getRawTransaction.bind(t.provider);
+    const getUtxos = t.provider.getUtxosForLockingBytecode.bind(t.provider);
+    t.provider.getRawTransaction = async (txid: string) => (txid === env.fundingTxid ? (undefined as never) : getRaw(txid));
+    t.provider.getUtxosForLockingBytecode = async (lb) => (lb === env.contractLockingBytecode ? [] : getUtxos(lb));
+    try {
+      const s = await tick();
+      expect(s.failedEnvelopes).toBe(1);
+      expect((await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } })).status).toBe('FAILED');
+      expect((await claimReq(t, env.id, { recipientAddress: addressOf('z') })).body.error.code).toBe('NOT_FUNDED');
+    } finally {
+      t.provider.getRawTransaction = getRaw;
+      t.provider.getUtxosForLockingBytecode = getUtxos;
+    }
+  });
+
+  it('#15: a claim tx dropped by the network is expired and its share freed', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 1, totalSats: 10_000 });
+    const c = await claimAndBroadcast(env.id, 'unlucky');
+    await t.db.claim.update({ where: { id: c.approval.claimId }, data: { createdAt: new Date(Date.now() - 31 * 60_000) } });
+    const getRaw = t.provider.getRawTransaction.bind(t.provider);
+    const hist = (t.provider as unknown as { history: (lb: string) => Promise<Hist> }).history;
+    t.provider.getRawTransaction = async (txid: string) => (txid === c.txid ? (undefined as never) : getRaw(txid));
+    Object.assign(t.provider, { history: async (lb: string) => (await hist(lb)).filter((h) => h.tx_hash !== c.txid) });
+    try {
+      const s = await tick();
+      expect(s.dropped).toBe(1);
+      expect((await t.db.claim.findUniqueOrThrow({ where: { id: c.approval.claimId } })).status).toBe('EXPIRED');
+      expect((await t.db.share.findFirstOrThrow({ where: { envelopeId: env.id } })).status).toBe('AVAILABLE');
+    } finally {
+      t.provider.getRawTransaction = getRaw;
+      Object.assign(t.provider, { history: hist });
+    }
   });
 });

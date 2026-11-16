@@ -107,10 +107,16 @@ export function addressOf(label: string, tokenAware = true) {
 type T = Awaited<ReturnType<typeof makeApp>>;
 
 /** Create + fund an envelope through the API; returns the create response. */
-export async function fundedEnvelope(t: T, over: Record<string, unknown> = {}, ownerLabel?: string) {
+export async function fundedEnvelope(
+  t: T,
+  over: Record<string, unknown> = {},
+  ownerLabel?: string,
+  /** Fund from this exact coin (e.g. the owner's claimed share) instead of a fresh test UTXO. */
+  fundingUtxo?: ReturnType<typeof addSenderUtxo>,
+) {
   const stamps = over.withStamps === true;
   const ownerPriv = ownerLabel ? key(ownerLabel) : senderPriv;
-  const utxo = addSenderUtxo(t.provider, 200_000n, 0, ownerPriv);
+  const utxo = fundingUtxo ?? addSenderUtxo(t.provider, 200_000n, 0, ownerPriv);
   const body = createBody({
     ...(ownerLabel && { senderAddress: addressOf(ownerLabel, false) }),
     ...over,

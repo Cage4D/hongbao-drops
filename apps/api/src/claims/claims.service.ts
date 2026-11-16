@@ -59,6 +59,7 @@ export class ClaimsService {
     const env = await this.db.envelope.findUnique({ where: { id: envelopeId } });
     if (!env) throw new AppError('NOT_FOUND');
     if (env.status === 'PENDING_FUNDING') throw new AppError('NOT_FUNDED');
+    if (env.status === 'FAILED') throw new AppError('NOT_FUNDED');
     if (env.status === 'EXPIRED' || env.status === 'REFUNDED' || Date.now() / 1000 >= env.expiry) {
       throw new AppError('ENVELOPE_EXPIRED');
     }
