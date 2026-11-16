@@ -156,8 +156,10 @@ describe('batch refunds', () => {
   });
 
   it('marks never-funded envelopes EXPIRED', async () => {
-    const res = await t.http().post('/envelopes').send(createBody({ expiry: now() + 1 }));
-    await sleep(1_200);
+    // +2 s, not +1: the API's minimum is 1 s, so a clock tick between test and server would reject +1.
+    const res = await t.http().post('/envelopes').send(createBody({ expiry: now() + 2 }));
+    expect(res.status).toBe(201);
+    await sleep(2_200);
     await tick();
     expect((await t.db.envelope.findUniqueOrThrow({ where: { id: res.body.id } })).status).toBe('EXPIRED');
   });
@@ -269,11 +271,11 @@ describe('pass it on', () => {
     const bob = await claimAndBroadcast(root.id, 'bob');
     const carol = await claimAndBroadcast(root.id, 'carol');
     // Carol: a free POST /envelopes naming the sponsor's envelope as parent, never funded.
-    const fake = await t.http().post('/envelopes').send(createBody({ senderAddress: addressOf('carol', false), parentEnvelopeId: root.id, expiry: now() + 1 }));
+    const fake = await t.http().post('/envelopes').send(createBody({ senderAddress: addressOf('carol', false), parentEnvelopeId: root.id, expiry: now() + 2 }));
     expect(fake.status).toBe(201);
     // Bob: a real child, but funded from unrelated coins — not a re-gift of what he caught.
     await fundedEnvelope(t, { shareCount: 2, totalSats: 8_000, parentEnvelopeId: root.id }, 'bob');
-    await sleep(1_200);
+    await sleep(2_200);
     await tick(); // also marks carol's unfunded envelope EXPIRED
 
     const tree = (await t.http().get(`/envelopes/${root.id}/tree`)).body as TreeResponse;
