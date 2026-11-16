@@ -13,6 +13,8 @@ import { ClaimsService } from './claims/claims.service.js';
 import { ClaimsController } from './claims/claims.controller.js';
 import { EventsService } from './events/events.service.js';
 import { EventsController } from './events/events.controller.js';
+import { KeeperService } from './keeper/keeper.service.js';
+import { KeeperController } from './keeper/keeper.controller.js';
 
 export interface AppModuleOptions {
   config?: AppConfig;
@@ -26,7 +28,7 @@ export class AppModule {
     const config = opts.config ?? loadConfig();
     return {
       module: AppModule,
-      controllers: [EnvelopesController, ClaimsController, EventsController, HealthController],
+      controllers: [EnvelopesController, ClaimsController, EventsController, KeeperController, HealthController],
       providers: [
         { provide: CONFIG, useValue: config },
         { provide: NETWORK_PROVIDER_FACTORY, useValue: opts.providerFactory ?? electrumProviderFactory(config) },
@@ -38,6 +40,7 @@ export class AppModule {
         EnvelopesService,
         RateLimitService,
         EventsService,
+        KeeperService,
         ClaimsService,
       ],
     };
