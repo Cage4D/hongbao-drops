@@ -4,7 +4,7 @@ import { MockNetworkProvider, SignatureTemplate, TransactionBuilder, randomUtxo,
 import { binToHex, encodeCashAddress, hash160, hexToBin, secp256k1, sha256 } from '@bitauth/libauth';
 import { buildClaimTx } from '@hongbao/contract';
 import type { ClaimApproval, CreateEnvelopeResponse } from '@hongbao/shared';
-import { createApp } from '../src/app.js';
+import { createApp } from '../src/create-app.js';
 import { loadConfig, type AppConfig } from '../src/config/config.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { TEST_DATABASE_URL } from './global-setup.js';

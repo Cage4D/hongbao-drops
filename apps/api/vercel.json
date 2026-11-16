@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter @hongbao/api... build && pnpm --filter @hongbao/api exec prisma migrate deploy",
+  "functions": {
+    "src/app.ts": {
+      "maxDuration": 300,
+      "includeFiles": "{node_modules/@expo-google-fonts/inter/700Bold/*.ttf,node_modules/@expo-google-fonts/inter/800ExtraBold/*.ttf,node_modules/@expo-google-fonts/noto-sans-sc/700Bold/*.ttf}"
+    }
+  },
+  "crons": [{ "path": "/internal/keeper/tick", "schedule": "0 4 * * *" }]
+}

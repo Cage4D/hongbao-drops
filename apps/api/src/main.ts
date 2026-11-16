@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const envFile = fileURLToPath(new URL('../../../.env', import.meta.url));
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
-const { createApp } = await import('./app.js');
+const { createApp } = await import('./create-app.js');
 const { loadConfig } = await import('./config/config.js');
 const config = loadConfig();
 const app = await createApp({ config });
