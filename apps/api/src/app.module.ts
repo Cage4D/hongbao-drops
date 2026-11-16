@@ -17,6 +17,8 @@ import { KeeperService } from './keeper/keeper.service.js';
 import { KeeperController } from './keeper/keeper.controller.js';
 import { MediaService } from './media/media.service.js';
 import { MediaController } from './media/media.controller.js';
+import { CampaignsService } from './campaigns/campaigns.service.js';
+import { CampaignsController } from './campaigns/campaigns.controller.js';
 
 export interface AppModuleOptions {
   config?: AppConfig;
@@ -30,7 +32,7 @@ export class AppModule {
     const config = opts.config ?? loadConfig();
     return {
       module: AppModule,
-      controllers: [EnvelopesController, ClaimsController, EventsController, KeeperController, MediaController, HealthController],
+      controllers: [EnvelopesController, ClaimsController, EventsController, KeeperController, MediaController, CampaignsController, HealthController],
       providers: [
         { provide: CONFIG, useValue: config },
         { provide: NETWORK_PROVIDER_FACTORY, useValue: opts.providerFactory ?? electrumProviderFactory(config) },
@@ -44,6 +46,7 @@ export class AppModule {
         EventsService,
         KeeperService,
         MediaService,
+        CampaignsService,
         ClaimsService,
       ],
     };

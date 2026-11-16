@@ -212,3 +212,111 @@ export interface TreeResponse {
   /** Envelopes spawned per claim — the viral coefficient. */
   viralCoefficient: number;
 }
+
+// ------------------------------------------------------------------ sponsors & analytics (Phase 7)
+
+const httpsUrl = z.string().url().max(300).refine((u) => u.startsWith('https://'), 'must be an https:// URL');
+
+export const CreateSponsorRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(60),
+    logoUrl: httpsUrl.optional(),
+    brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, '#RRGGBB').optional(),
+    ctaLabel: z.string().trim().min(1).max(40).optional(),
+    ctaUrl: httpsUrl.optional(),
+  })
+  .strict()
+  .refine((s) => !s.ctaLabel === !s.ctaUrl, { message: 'ctaLabel and ctaUrl go together', path: ['ctaUrl'] });
+export type CreateSponsorRequest = z.infer<typeof CreateSponsorRequestSchema>;
+
+export interface CreateSponsorResponse {
+  sponsorId: string;
+  /** Shown once. Stored only as sha256. Send as `Authorization: Bearer <token>`. */
+  sponsorToken: string;
+}
+
+export const CreateCampaignRequestSchema = z.object({ name: z.string().trim().min(1).max(80) }).strict();
+export interface CreateCampaignResponse {
+  campaignId: string;
+}
+
+/**
+ * The funnel (spec §4). Every count is over claims of the campaign's funded envelopes:
+ *  fresh      = recipient had no on-chain history before the claim
+ *  activated  = fresh AND (claimed coins moved within 7 days OR the claimer passed it on)
+ *  notFarm    = activated AND not flagged as a suspected farm   ← the headline denominator
+ */
+export interface CampaignFunnel {
+  claims: number;
+  freshWallets: number;
+  activatedWallets: number;
+  activatedNotFarm: number;
+  /** Fresh wallets whose 7-day window is still open (activation not decided yet). */
+  pendingActivation: number;
+  suspectedFarms: number;
+}
+
+export interface CampaignMoney {
+  /** Value that left the sponsor to claimers (claimed share sats, incl. the claim tx fee each share paid). */
+  givenAwaySats: number;
+  /** Sponsor fees paid to the treasury in funding txs. */
+  feesSats: number;
+  /** givenAway + fees = what the campaign actually cost. */
+  spentSats: number;
+  spentUsd: number | null;
+  feesUsd: number | null;
+  /** Still in contracts (unclaimed, not yet refunded). */
+  lockedSats: number;
+  refundedSats: number;
+  priceUsd: number | null;
+}
+
+export interface CampaignEnvelopeStats {
+  id: string;
+  slug: string;
+  status: string;
+  fundingTxid: string | null;
+  totalSats: number;
+  shareCount: number;
+  claims: number;
+  freshWallets: number;
+  activatedNotFarm: number;
+  ctaClicks: number;
+}
+
+export interface CampaignStats extends CampaignFunnel, CampaignMoney {
+  campaignId: string;
+  name: string;
+  sponsor: { name: string; logoUrl: string | null; brandColor: string | null };
+  costPerActivatedNewWalletUsd: number | null;
+  costPerFreshWalletUsd: number | null;
+  ctaClicks: number;
+  /** CTA clicks per claim. */
+  ctr: number | null;
+  /** Funded envelopes spawned from the campaign's envelopes by passing it on (any depth). */
+  passOnEnvelopes: number;
+  /** Claims across the campaign's envelopes and everything passed on from them. */
+  totalReach: number;
+  perEnvelope: CampaignEnvelopeStats[];
+  /** Every number above can be audited on-chain from these. */
+  fundingTxids: string[];
+  claimTxids: string[];
+  refundTxids: string[];
+  generatedAt: string;
+}
+
+/** GET /campaigns/:id/public — shareable "proof of reach": no addresses, no fingerprints. */
+export type PublicCampaignStats = Omit<CampaignStats, 'perEnvelope'> & {
+  perEnvelope: Omit<CampaignEnvelopeStats, never>[];
+};
+
+export interface GlobalStats {
+  envelopes: number;
+  claims: number;
+  newWalletsOnboarded: number;
+  activatedNewWallets: number;
+  bchGiftedSats: number;
+  bchGiftedUsd: number | null;
+  passOnEnvelopes: number;
+  generatedAt: string;
+}
