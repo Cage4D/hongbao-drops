@@ -47,7 +47,9 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
    - A timed-out claim loses its share and can no longer broadcast.
 8. Insert the claim. The unique index `(envelope, recipientLockingBytecode)` settles a recipient racing itself.
 
-**Known limit:** a claimer whose 120 s reservation lapsed still holds a valid approval, and could broadcast it themselves outside the API. Whichever spend reaches the network first wins. The Phase 5 watcher reconciles the database from the chain.
+**Approvals never expire on-chain.** So the gate remembers every share it approved for a recipient (`approvedShareIds`). While one is unspent, that recipient can only be re-reserved **that** share, never a second outpoint. A lapsed approval broadcast outside the API can still beat a newer claimer to the share; the keeper's reconcile step records the winner and frees the other claimer.
+
+**Client IP:** only the header named in `CLIENT_IP_HEADER` (set by our host, e.g. Vercel's `x-vercel-forwarded-for`) is trusted; otherwise the socket address is used.
 
 Errors always look like `{ "error": { "code", "message", ... } }`, using the catalog in [`errors.ts`](../../packages/shared/src/errors.ts) (spec §8.6). Codes added beyond the spec: `INVALID_REQUEST` (400, with `issues`), `NOT_FOUND` (404), `FUNDING_MISMATCH` (422, with `reasons`) and `UNAUTHORIZED` (401).
 

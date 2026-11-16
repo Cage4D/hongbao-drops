@@ -43,5 +43,9 @@ The claimer re-gifted 6,000 sats of their claimed coins as a LUCKY envelope `ysh
 ## Keeper safety (what to review)
 
 - **No keys.** It can only build `refundBatch`, and the contract only lets that through after expiry (CLTV, and nodes also need MTP > expiry) and only to the refund script baked into the contract. Even a bug or a tampered DB can't refund early or to the wrong place: the network would reject the tx. The Phase 3 e2e showed this on-chain (`bad-txns-nonfinal`).
-- It refunds **every UTXO at an expired contract**, not just the shares in the DB.
+- It refunds **every refundable UTXO at an expired contract**, not just the shares in the DB. Dust coins (value − maxFee below dust) are left behind, since they can't be refunded. Candidates rotate and errors are isolated per envelope; see [review-1-fixes.md](review-1-fixes.md).
 - A lease in `Setting` stops overlapping ticks across instances. Each step is isolated (one failing step doesn't stop the others) and errors appear in the tick summary.
+
+## Review 1
+
+An external review of phases 0–5 found 15 issues (none let anyone take funds or refund early). All are fixed in this phase. See [review-1-fixes.md](review-1-fixes.md).

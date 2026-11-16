@@ -40,6 +40,6 @@
 - quiz countdown, normalisation and rate limit;
 - `NOT_FUNDED` and `ENVELOPE_EXPIRED`;
 - the per-IP claim rate limit;
-- an abandoned 120 s reservation being reused (and the stale approval refused);
+- an abandoned 120 s reservation being reused (the API refuses to relay the stale approval; it stays valid on-chain and the keeper reconciles it if used, see review-1-fixes #6/#10);
 - refusing to relay a tx to a different address;
 - idempotent broadcast.
