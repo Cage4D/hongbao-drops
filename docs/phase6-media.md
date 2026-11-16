@@ -35,7 +35,7 @@ Card states: "Tap to open →" (or "Answer to open →" for quiz), "All grabbed!
 
 ## Wallet check (Paytaca)
 
-The wallet, or Paytaca's BCMR indexer, has to fetch the registry and images over **public HTTPS**. The API so far only runs on localhost, so this check needs a public URL; see the Phase 6 report. Once one is set as `PUBLIC_API_URL`, run:
+**Deferred to Phase 8 (builder decision, 2026-11-16).** The wallet, or Paytaca's BCMR indexer, has to fetch the registry and images over **public HTTPS**, and the API only runs on localhost until it is deployed. After the Vercel deploy, run:
 
 ```bash
 pnpm --filter @hongbao/scripts stamp-to-wallet -- --to <your Paytaca chipnet address> --api <api url>
