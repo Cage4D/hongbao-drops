@@ -49,3 +49,10 @@ The claimer re-gifted 6,000 sats of their claimed coins as a LUCKY envelope `ysh
 ## Review 1
 
 An external review of phases 0–5 found 15 issues (none let anyone take funds or refund early). All are fixed in this phase. See [review-1-fixes.md](review-1-fixes.md).
+
+### Chipnet re-run after the review fixes (2026-11-16)
+
+- `claims-e2e`: all checks pass again: 3 parallel claims, `ENVELOPE_EMPTY`, `ALREADY_CLAIMED`, hold + quiz.
+- `lifecycle-e2e`: the keeper refunded the two envelopes left from the first run, with 0 errors: [11eab2fe…](https://chipnet.imaginary.cash/tx/11eab2fe120c65ff4453f3815989a3f23167f37d5a5cac21e4b78f276ee88e8a) (1 share) and [e6cf3d8d…](https://chipnet.imaginary.cash/tx/e6cf3d8d4d5121185fdbd2fef5a26a94f08e71d7c505e44ad27324795a010b8f) (2 shares).
+- SSE delivered `claimed` + `passedOn`. Tree: 2 generations.
+- The claimer was marked **activated** by the stricter #2 check: the child's funding inputs were looked up on Chipnet and spent the claimer's own claimed coins.
