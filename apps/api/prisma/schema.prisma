@@ -109,11 +109,15 @@ model Envelope {
   fundedAt              DateTime?
   status                EnvelopeStatus @default(PENDING_FUNDING)
   ctaClicks             Int            @default(0)
+  refundedSats          BigInt         @default(0)
+  refundedAt            DateTime?
   createdAt             DateTime       @default(now())
   shares                Share[]
   claims                Claim[]
+  events                Event[]
 
   @@index([network, status])
+  @@index([parentEnvelopeId])
   @@index([campaignId])
 }
 
@@ -155,6 +159,10 @@ model Claim {
   farmReasons       String[]
   claimTxid         String?
   amountSats        BigInt?
+  confirmedAt       DateTime? // claim tx mined (watcher)
+  activationCheckedAt DateTime? // last time the 7-day activation watcher looked at this claim
+  activatedAt       DateTime? // claimed coins moved again, or the claimer passed it on
+  sweptTo           String[] // locking bytecodes (hex) the claimed coins were sent to (COMMON_SWEEP heuristic)
   status            ClaimStatus
   createdAt         DateTime    @default(now())
 
@@ -190,4 +198,17 @@ model RateEvent {
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
+}
+
+model Event {
+  // Live feed for GET /envelopes/:id/events (SSE). Stored, not in memory, so any serverless
+  // instance can stream it and clients resume with Last-Event-ID.
+  id         BigInt   @id @default(autoincrement())
+  envelopeId String
+  envelope   Envelope @relation(fields: [envelopeId], references: [id])
+  type       String // claimed | held | refunded | exhausted | passedOn
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  @@index([envelopeId, id])
 }
