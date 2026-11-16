@@ -27,6 +27,8 @@ const EnvSchema = z
     MAX_EXPIRY_SECONDS: num.int().default(30 * 24 * 3600),
     BUDGET_TOTAL_USD: num.positive().default(5),
     PORT: num.int().default(3000),
+    /** Header carrying the real client IP, set by our host (e.g. x-vercel-forwarded-for). Unset → socket address. */
+    CLIENT_IP_HEADER: z.string().optional(),
     /** >0 runs keeper ticks in-process (local dev). Production: external cron → /internal/keeper/tick. */
     KEEPER_INTERVAL_MS: num.int().min(0).default(0),
   })

@@ -28,6 +28,7 @@ export function testConfig(overrides: Record<string, string> = {}): AppConfig {
     TREASURY_ADDRESS,
     PUBLIC_API_URL: 'https://api.hongbao.test',
     PRICE_API_URL: 'http://127.0.0.1:9/price', // unreachable → falls back to the seeded price
+    CLIENT_IP_HEADER: 'x-forwarded-for', // tests simulate distinct clients with this header
     ...overrides,
   });
 }
@@ -43,7 +44,7 @@ export async function makeApp(overrides: Record<string, string> = {}) {
 
 export async function resetDb(db: PrismaService, priceUsd = 200) {
   await db.$executeRawUnsafe(
-    'TRUNCATE "Claim", "Share", "Envelope", "Campaign", "Sponsor", "LedgerEntry", "Setting" RESTART IDENTITY CASCADE',
+    'TRUNCATE "Event", "RateEvent", "Claim", "Share", "Envelope", "Campaign", "Sponsor", "LedgerEntry", "Setting" RESTART IDENTITY CASCADE',
   );
   await db.setting.create({ data: { key: 'price.bchusd', value: String(priceUsd) } });
 }

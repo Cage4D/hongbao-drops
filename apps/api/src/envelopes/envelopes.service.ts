@@ -39,6 +39,7 @@ import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { EventsService } from '../events/events.service.js';
+import { LIMITS, RateLimitService } from '../ratelimit/rate-limit.service.js';
 import { buildBcmrRegistry } from './bcmr.js';
 import { randomSlug } from './slug.js';
 import { verifyFundingTx } from './funding-verifier.js';
@@ -65,6 +66,7 @@ export class EnvelopesService {
     @Inject(PriceService) private readonly price: PriceService,
     @Inject(BudgetService) private readonly budget: BudgetService,
     @Inject(EventsService) private readonly events: EventsService,
+    @Inject(RateLimitService) private readonly rate: RateLimitService,
   ) {
     this.addressProvider = new ElectrumNetworkProvider(config.NETWORK === 'MAINNET' ? 'mainnet' : 'chipnet', {
       manualConnectionManagement: true,
@@ -95,8 +97,9 @@ export class EnvelopesService {
   }
 
   // ---------------------------------------------------------------- POST /envelopes
-  async create(body: unknown): Promise<CreateEnvelopeResponse> {
+  async create(body: unknown, ip = 'unknown'): Promise<CreateEnvelopeResponse> {
     const req = validate(CreateEnvelopeRequestSchema, body);
+    await this.rate.hit(`create:${this.rate.ipHash(ip)}`, LIMITS.create, 3600_000);
     const c = this.config;
     const bad = (path: string, message: string) => new AppError('INVALID_REQUEST', { issues: [{ path, message }] });
 
@@ -137,12 +140,13 @@ export class EnvelopesService {
       if (!parent) throw bad('parentEnvelopeId', 'unknown envelope');
     }
     if (c.NETWORK !== 'MAINNET' && req.shareCount > 127) throw bad('shareCount', 'max 127');
-    await this.budget.assertCanCreate(totalSats, req.shareCount);
 
     const quizSalt = req.quiz ? binToHex(randomBytes(16)) : null;
     const quizAnswerHashes = req.quiz ? req.quiz.answers.map((a) => hashAnswer(quizSalt!, a)) : [];
 
     const created = await this.db.$transaction(async (tx) => {
+      // Mainnet caps, atomically with the insert (review #5).
+      await this.budget.assertWithinCaps(tx, { totalSats, shareCount: req.shareCount });
       // Insert first to get the sequence number (gate key index), then fill in derived fields.
       let row: Envelope | undefined;
       for (let attempt = 0; !row; attempt++) {
@@ -303,6 +307,9 @@ export class EnvelopesService {
 
     const price = this.config.NETWORK === 'MAINNET' ? await this.price.bchUsd() : null;
     const updated = await this.db.$transaction(async (db) => {
+      // Re-check the mainnet caps before going ACTIVE: an old pending envelope that no longer counts
+      // can't be funded past them (review #5). If refused, it stays PENDING and refunds after expiry.
+      await this.budget.assertWithinCaps(db, { totalSats: env.totalSats, shareCount: env.shareCount, excludeId: env.id });
       // Conditional update: two concurrent /funded calls can't both activate.
       const n = await db.envelope.updateMany({
         where: { id: env.id, status: 'PENDING_FUNDING' },

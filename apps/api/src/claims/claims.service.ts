@@ -25,7 +25,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { KeysService } from '../keys/keys.service.js';
 import { ChainService } from '../chain/chain.service.js';
 import { PriceService } from '../price/price.service.js';
-import { RateLimitService, LIMITS } from '../ratelimit/rate-limit.service.js';
+import { RateLimitService, LIMITS, WINDOW_MS } from '../ratelimit/rate-limit.service.js';
 import { AppError } from '../common/app-error.js';
 import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
@@ -189,14 +189,15 @@ export class ClaimsService {
 
     // Quiz (spec §8.2): salted hashes of normalised answers; 5 wrong tries per IP per 10 min.
     if (env.mode === 'QUIZ') {
-      const wrongKey = `wrong:${env.id}:${ipHash}`;
-      const wrong = await this.rate.count(wrongKey);
-      if (wrong >= LIMITS.wrongAnswer) throw new AppError('RATE_LIMITED');
-      const ok = !!req.answer && env.quizAnswerHashes.includes(hashAnswer(env.quizSalt!, req.answer));
-      if (!ok) {
-        await this.rate.record(wrongKey);
-        throw new AppError('WRONG_ANSWER', { attemptsLeft: Math.max(0, LIMITS.wrongAnswer - wrong - 1) });
-      }
+      // Count, check and record under one lock so parallel guesses can't exceed the limit (review #7).
+      const verdict = await this.rate.locked(`wrong:${env.id}:${ipHash}`, WINDOW_MS, async (wrong, record) => {
+        if (wrong >= LIMITS.wrongAnswer) return { limited: true as const };
+        const ok = !!req.answer && env.quizAnswerHashes.includes(hashAnswer(env.quizSalt!, req.answer));
+        if (!ok) await record();
+        return { limited: false as const, ok, attemptsLeft: Math.max(0, LIMITS.wrongAnswer - wrong - 1) };
+      });
+      if (verdict.limited) throw new AppError('RATE_LIMITED');
+      if (!verdict.ok) throw new AppError('WRONG_ANSWER', { attemptsLeft: verdict.attemptsLeft });
     }
 
     // Fresh-wallet check before reserving (doesn't hold a row lock during a network call).

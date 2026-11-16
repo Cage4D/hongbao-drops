@@ -5,9 +5,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AppError } from '../common/app-error.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 export const WINDOW_MS = 10 * 60 * 1000;
 export const LIMITS = {
+  /** POST /envelopes per IP per hour. */
+  create: 20,
   /** POST /claims attempts per IP per envelope per 10 min. */
   claim: 10,
   /** Wrong quiz answers per IP per envelope per 10 min (spec §8.2). */
@@ -35,13 +38,32 @@ export class RateLimitService {
     return this.db.rateEvent.count({ where: { key, createdAt: { gte: new Date(Date.now() - windowMs) } } });
   }
 
-  async record(key: string): Promise<void> {
-    await this.db.rateEvent.create({ data: { key } });
+  /**
+   * Run `fn` holding a per-key advisory lock, so count-then-record can't be raced by parallel
+   * requests (review #7). `fn` gets the current count and a `record` function; whatever it records
+   * is committed even if the caller then rejects the request.
+   */
+  async locked<T>(
+    key: string,
+    windowMs: number,
+    fn: (count: number, record: () => Promise<void>) => Promise<T>,
+  ): Promise<T> {
+    return this.db.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+      const count = await tx.rateEvent.count({ where: { key, createdAt: { gte: new Date(Date.now() - windowMs) } } });
+      return fn(count, async () => {
+        await tx.rateEvent.create({ data: { key } });
+      });
+    });
   }
 
-  /** Count + record in one call; throws RATE_LIMITED once `limit` events are in the window. */
+  /** Atomic count + record; throws RATE_LIMITED once `limit` events are in the window. */
   async hit(key: string, limit: number, windowMs = WINDOW_MS): Promise<void> {
-    if ((await this.count(key, windowMs)) >= limit) throw new AppError('RATE_LIMITED');
-    await this.record(key);
+    const allowed = await this.locked(key, windowMs, async (count, record) => {
+      if (count >= limit) return false;
+      await record();
+      return true;
+    });
+    if (!allowed) throw new AppError('RATE_LIMITED');
   }
 }
