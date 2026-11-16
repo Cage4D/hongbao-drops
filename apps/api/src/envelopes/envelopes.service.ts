@@ -285,6 +285,7 @@ export class EnvelopesService {
 
     const result = verifyFundingTx(tx, {
       seq: env.seq,
+      mode: env.mode,
       shareCount: env.shareCount,
       totalSats: env.totalSats,
       withStamps: env.withStamps,

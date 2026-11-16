@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
 import type { CreateEnvelopeResponse } from '@hongbao/shared';
 import { KeysService } from '../src/keys/keys.service.js';
-import { addSenderUtxo, createBody, fundFromTemplate, makeApp, resetDb, TREASURY_ADDRESS } from './helpers.js';
+import { addSenderUtxo, createBody, fundFromTemplate, makeApp, resetDb, sender, TREASURY_ADDRESS } from './helpers.js';
 
 let t: Awaited<ReturnType<typeof makeApp>>;
 beforeAll(async () => (t = await makeApp()));
@@ -156,6 +156,24 @@ describe('POST /envelopes/:id/funded', () => {
         o.map((x, i) => (i === 2 ? { ...x, token: { ...x.token!, nft: { capability: 'none' as const, commitment: 'ffffffff7f' } } } : x)),
       );
       await expectMismatch(created.id, txid, /share 2: stamp commitment ffffffff7f/);
+    });
+
+    it('an EQUAL envelope funded with an unequal split (review #12)', async () => {
+      const created = (await create()).body as CreateEnvelopeResponse;
+      const txid = await fundFromTemplate(t.provider, created, addSenderUtxo(t.provider), (o) =>
+        o.map((x, i) => ({ ...x, amount: i === 0 ? 26_000n : 2_000n })),
+      );
+      await expectMismatch(created.id, txid, /EQUAL envelope must split as 10000, 10000, 10000/);
+    });
+
+    it('a stamped funding that also mints a minting NFT for the sender (review #9)', async () => {
+      const utxo = addSenderUtxo(t.provider);
+      const created = (await create({ withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+      const txid = await fundFromTemplate(t.provider, created, utxo, (o) => [
+        ...o,
+        { to: sender, amount: 1_000n, token: { category: utxo.txid, amount: 0n, nft: { capability: 'minting' as const, commitment: '' } } },
+      ]);
+      await expectMismatch(created.id, txid, /output 5 carries a token of the stamp category/);
     });
 
     it('a sponsored drop without the treasury fee output', async () => {

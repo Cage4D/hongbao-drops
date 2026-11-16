@@ -7,6 +7,7 @@ import {
   MIN_SHARE_SATS_NO_STAMP,
   MIN_SHARE_SATS_WITH_STAMP,
   bcmrOpReturn,
+  equalSplit,
   shareOutputIndex,
   stampCommitment,
 } from '@hongbao/contract';
@@ -14,6 +15,7 @@ import { hexToBin } from '@bitauth/libauth';
 
 export interface ExpectedFunding {
   seq: number;
+  mode: 'EQUAL' | 'LUCKY' | 'QUIZ';
   shareCount: number;
   totalSats: bigint;
   withStamps: boolean;
@@ -86,6 +88,11 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
     shares.push({ index: i + 1, vout, sats: o.valueSatoshis, nftCommitment: commitment });
   }
   if (sum !== e.totalSats) reasons.push(`shares sum to ${sum} sats, envelope total is ${e.totalSats}`);
+  // EQUAL means equal: exactly equalSplit (remainder sats on the first shares), review #12.
+  if (e.mode === 'EQUAL') {
+    const want = equalSplit(e.totalSats, e.shareCount);
+    if (shares.some((sh, i) => sh.sats !== want[i])) reasons.push(`EQUAL envelope must split as ${want.join(', ')} sats`);
+  }
 
   // 4. Sponsor fee right after the shares.
   let next = shareOutputIndex(e.shareCount, e.withStamps);
@@ -103,11 +110,15 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
     if (lb(next) !== want) reasons.push(`output ${next} must be the BCMR OP_RETURN for this envelope`);
   }
 
-  // 6. No stray outputs to the contract (every share must be known to the gate and keeper).
+  // 6. No stray outputs to the contract (every share must be known to the gate and keeper), and
+  // no other output may carry the stamp category — e.g. a minting NFT kept on the sender's change
+  // would let them forge "I caught it" stamps later (review #9).
   const known = new Set(shares.map((s) => s.vout));
   out.forEach((o, i) => {
-    if (!known.has(i) && binToHex(o.lockingBytecode) === e.contractLockingBytecode) {
-      reasons.push(`output ${i} pays the contract but isn't a declared share`);
+    if (known.has(i)) return;
+    if (binToHex(o.lockingBytecode) === e.contractLockingBytecode) reasons.push(`output ${i} pays the contract but isn't a declared share`);
+    if (e.withStamps && o.token && binToHex(o.token.category) === e.stampCategory) {
+      reasons.push(`output ${i} carries a token of the stamp category; only the shares may`);
     }
   });
 

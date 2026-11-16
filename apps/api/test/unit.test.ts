@@ -31,6 +31,7 @@ describe('verifyFundingTx: genesis input', () => {
     if (typeof tx === 'string') throw new Error(tx);
     const expected = {
       seq: 1,
+      mode: 'LUCKY' as const,
       shareCount: 1,
       totalSats: 5_000n,
       withStamps: true,
