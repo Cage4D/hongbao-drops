@@ -8,7 +8,7 @@ import type { CreateEnvelopeResponse } from '@hongbao/shared';
 import { EXPLORER_TX } from './lib/env.js';
 import { chipnetProvider } from './lib/chain.js';
 import { walletKey } from './lib/keys.js';
-import { FEE_RATE, txSize } from './lib/envelope.js';
+import { FEE_RATE, draftFee, txSize } from './lib/envelope.js';
 
 const { values: a } = parseArgs({
   options: { api: { type: 'string', default: 'http://localhost:3000' }, 'no-stamps': { type: 'boolean', default: false } },
@@ -46,7 +46,7 @@ if (withStamps && !input0) {
     for (const u of utxos) tb.addInput(u, signer.unlockP2PKH());
     return tb.addOutput({ to: wallet.lockingBytecode, amount: amt });
   };
-  const prepFee = BigInt(txSize(mkPrep(total - 1_000n))) * FEE_RATE;
+  const prepFee = BigInt(txSize(mkPrep(total - draftFee(utxos.length)))) * FEE_RATE;
   const prep = await mkPrep(total - prepFee).send();
   console.log(`   prep tx: ${EXPLORER_TX}${prep.txid}`);
   input0 = { txid: prep.txid, vout: 0, satoshis: total - prepFee, lockingBytecode: binToHex(wallet.lockingBytecode) };
@@ -95,7 +95,7 @@ const mk = (change: bigint) => {
   for (const u of inputs) tb.addInput(u, signer.unlockP2PKH());
   return tb.addOutputs(outs).addOutput({ to: wallet.lockingBytecode, amount: change });
 };
-const fee = BigInt(txSize(mk(inSum - outSum - 1_000n))) * FEE_RATE;
+const fee = BigInt(txSize(mk(inSum - outSum - draftFee(inputs.length)))) * FEE_RATE;
 const sent = await mk(inSum - outSum - fee).send();
 console.log(`   funding tx: ${EXPLORER_TX}${sent.txid}`);
 

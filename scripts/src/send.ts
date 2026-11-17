@@ -5,7 +5,7 @@ import { SignatureTemplate, TransactionBuilder, type SpendableUtxo } from 'cashs
 import { EXPLORER_TX } from './lib/env.js';
 import { chipnetProvider } from './lib/chain.js';
 import { walletKey } from './lib/keys.js';
-import { FEE_RATE, addressToLockingBytecode, txSize } from './lib/envelope.js';
+import { FEE_RATE, addressToLockingBytecode, draftFee, txSize } from './lib/envelope.js';
 
 const { values: a } = parseArgs({ options: { to: { type: 'string' }, sats: { type: 'string' } } });
 if (!a.to || !a.sats) throw new Error('--to and --sats are required');
@@ -32,7 +32,7 @@ const build = (change: bigint) => {
   for (const u of inputs) tb.addInput(u, signer.unlockP2PKH());
   return tb.addOutput({ to, amount }).addOutput({ to: wallet.lockingBytecode, amount: change });
 };
-const fee = BigInt(txSize(build(sum - amount - 1_000n))) * FEE_RATE;
+const fee = BigInt(txSize(build(sum - amount - draftFee(inputs.length)))) * FEE_RATE;
 const sent = await build(sum - amount - fee).send();
 console.log(`Sent ${amount} sats → ${a.to}\n  ${EXPLORER_TX}${sent.txid}  (fee ${fee} sats)`);
 process.exit(0);

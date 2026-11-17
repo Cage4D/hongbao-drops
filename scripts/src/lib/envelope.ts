@@ -27,3 +27,9 @@ export function addressToLockingBytecode(address: string): Uint8Array {
 export const txSize = (tb: TransactionBuilder) => tb.build().length / 2;
 
 export const FEE_RATE = 1n; // sat/byte — Chipnet and mainnet relay minimum
+/**
+ * Fee to assume while building a draft tx just to measure its size. It must cover ≥ 1 sat/byte of
+ * the draft, or CashScript rejects the draft itself: a flat 1,000 sats broke once the script wallet
+ * held ~20 coins (~150 bytes per P2PKH input). Generous on purpose; the real fee is measured.
+ */
+export const draftFee = (inputs: number) => BigInt(inputs) * 200n + 1_000n;

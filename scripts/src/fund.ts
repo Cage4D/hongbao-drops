@@ -18,7 +18,7 @@ import {
 import { EXPLORER_TX, PUBLIC_API_URL } from './lib/env.js';
 import { chipnetProvider } from './lib/chain.js';
 import { treasuryKey, walletKey } from './lib/keys.js';
-import { FEE_RATE, envelopeContract, txSize } from './lib/envelope.js';
+import { FEE_RATE, draftFee, envelopeContract, txSize } from './lib/envelope.js';
 import { nextSeq, saveEnvelope, type EnvelopeState } from './lib/state.js';
 
 const { values: a } = parseArgs({
@@ -59,7 +59,7 @@ let input0 = utxos.find((u) => u.vout === 0 && u.satoshis >= needed);
 if (withStamps && !input0) {
   const prep = new TransactionBuilder({ provider });
   for (const u of utxos) prep.addInput(u, signer.unlockP2PKH());
-  prep.addOutput({ to: wallet.lockingBytecode, amount: balance - 1_000n });
+  prep.addOutput({ to: wallet.lockingBytecode, amount: balance - draftFee(utxos.length) });
   const size = BigInt(txSize(prep));
   const prepTb = new TransactionBuilder({ provider });
   for (const u of utxos) prepTb.addInput(u, signer.unlockP2PKH());
@@ -140,7 +140,7 @@ const build = (change: bigint) => {
   tb.addOutputs(outputs).addOutput({ to: wallet.lockingBytecode, amount: change });
   return tb;
 };
-const fee = BigInt(txSize(build(inSum - outSum - 1_000n))) * FEE_RATE;
+const fee = BigInt(txSize(build(inSum - outSum - draftFee(inputs.length)))) * FEE_RATE;
 const sent = await build(inSum - outSum - fee).send();
 
 const final: EnvelopeState = {

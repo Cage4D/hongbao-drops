@@ -4,7 +4,7 @@ import { SignatureTemplate, TransactionBuilder, type ElectrumNetworkProvider, ty
 import type { CreateEnvelopeResponse } from '@hongbao/shared';
 import { EXPLORER_TX } from './env.js';
 import { walletKey, type KeyPair } from './keys.js';
-import { FEE_RATE, txSize } from './envelope.js';
+import { FEE_RATE, draftFee, txSize } from './envelope.js';
 
 export interface ApiResult {
   status: number;
@@ -56,7 +56,7 @@ export async function createAndFund(
       for (const u of utxos) tb.addInput(u, signer.unlockP2PKH());
       return tb.addOutput({ to: wallet.lockingBytecode, amount: amt });
     };
-    const fee = BigInt(txSize(mk(total - 1_000n))) * FEE_RATE;
+    const fee = BigInt(txSize(mk(total - draftFee(utxos.length)))) * FEE_RATE;
     const prep = await mk(total - fee).send();
     console.log(`   prep tx: ${EXPLORER_TX}${prep.txid}`);
     input0 = { txid: prep.txid, vout: 0, satoshis: total - fee, lockingBytecode: binToHex(wallet.lockingBytecode) };
@@ -91,7 +91,7 @@ export async function createAndFund(
     for (const u of inputs) tb.addInput(u, signer.unlockP2PKH());
     return tb.addOutputs(outs).addOutput({ to: wallet.lockingBytecode, amount: change });
   };
-  const fee = BigInt(txSize(mk(inSum - outSum - 1_000n))) * FEE_RATE;
+  const fee = BigInt(txSize(mk(inSum - outSum - draftFee(inputs.length)))) * FEE_RATE;
   const sent = await mk(inSum - outSum - fee).send();
 
   // The API may look the tx up on a different Fulcrum server than the one we broadcast to, so it can
