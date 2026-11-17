@@ -4,6 +4,7 @@
 // Usage: pnpm --filter @hongbao/scripts stamp-to-wallet -- --to bchtest:q… [--api http://localhost:3000] [--theme lunar]
 // Mainnet (Nov 19 Paytaca check): add --mainnet --yes-mainnet. Defaults to the cheapest stamped
 // envelope (1 share × 2,000 sats ≈ $0.004), funded from the demo wallet; capped at 20,000 sats.
+// --shares 2 --sats 4000 --expiry-minutes 15 also leaves one share for the keeper to batch-refund.
 import { parseArgs } from 'node:util';
 import { cashAddressToLockingBytecode, lockingBytecodeToCashAddress } from '@bitauth/libauth';
 import { buildClaimTx } from '@hongbao/contract';
@@ -19,8 +20,12 @@ const { values: a } = parseArgs({
     theme: { type: 'string', default: 'lunar' },
     shares: { type: 'string', default: MAINNET ? '1' : '2' },
     sats: { type: 'string', default: MAINNET ? '2000' : '10000' },
+    /** Unclaimed shares refund to the sender ~1 h after expiry (median-time-past lag). */
+    'expiry-minutes': { type: 'string', default: MAINNET ? '120' : String(24 * 60) },
   },
 });
+const expiryMinutes = Number(a['expiry-minutes']);
+if (MAINNET && expiryMinutes > 24 * 60) throw new Error('mainnet expiry is at most 24 h');
 if (!isOwnNetworkAddress(a.to)) throw new Error(`--to must be a ${PREFIX}: address`);
 const totalSats = Number(a.sats);
 if (MAINNET && totalSats > 20_000) throw new Error('mainnet stamp checks are capped at 20,000 sats');
@@ -42,8 +47,7 @@ const env = await createAndFund(call, provider, {
   totalSats,
   theme: a.theme,
   message: 'Hongbao stamp check 🧧',
-  // Short on mainnet: anything unclaimed refunds to the demo wallet ~1 h after expiry.
-  expiry: Math.floor(Date.now() / 1000) + (MAINNET ? 2 * 3600 : 24 * 3600),
+  expiry: Math.floor(Date.now() / 1000) + expiryMinutes * 60,
 });
 console.log(`   funded: ${EXPLORER_TX}${env.fundingTxid} (slug ${env.env.slug})`);
 console.log(`   BCMR:   https://${env.env.bcmr!.uri}  (hash ${env.env.bcmr!.hash})`);

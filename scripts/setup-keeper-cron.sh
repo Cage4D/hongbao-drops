@@ -8,6 +8,7 @@
 #
 # Usage:
 #   scripts/setup-keeper-cron.sh [--api https://hongbao-drops-api.vercel.app]   # create or update
+#   scripts/setup-keeper-cron.sh --secrets ~/.local/share/hongbao-drops/mainnet-secrets.env   # after rotating KEEPER_TOKEN
 #   scripts/setup-keeper-cron.sh --status                                       # last runs only
 set -euo pipefail
 
@@ -20,6 +21,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --api) API="$2"; shift 2 ;;
     --status) MODE=status; shift ;;
+    --secrets) SECRETS="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
