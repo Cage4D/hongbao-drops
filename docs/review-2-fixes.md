@@ -55,3 +55,15 @@ Refunds at minimum share sizes; status and `locked` after external refund or cla
 | `FULCRUM_URLS` | | Ports other than 50004 rejected; hosts on the wrong network skipped at connect |
 
 `/admin/budget` response: `networkFeesSats` removed (always 0 once derived from shares); added `budgetWallet`, `priceLive`, `pendingSats`, `ledger`.
+
+## Production re-test on Chipnet (2026-11-17, after deploying `994a5cd`)
+
+- **GET backstop (P1-8):** unauthenticated GET `/internal/keeper/tick` → 401 (was 404). An authenticated GET ran a full tick.
+- **P1-1 seen in production:** that first GET tick refunded two envelopes the old keeper had skipped every minute for hours: this morning's "Bob passes it on" envelopes, 2 shares of exactly **1,500 sats**. They came back as 1,193 sats each (fee 307 per share): [ef06df34…](https://chipnet.imaginary.cash/tx/ef06df342c293b8ca235e81507ec88e38fce9fd709c9e01d8347daee57f24e4d), [b3d62e30…](https://chipnet.imaginary.cash/tx/b3d62e304a420d97b6126e1a821ca160eeeb25181aa2373c9af06a7a9a8ad357).
+- **Stale-connection fix (`b0b11d2`) seen in production:** between 13:30 and 13:38 UTC, cron ticks found the Fulcrum socket dead 5 times (`was stale … reconnecting`) and all returned 200. Without the fix each of those requests would have been a 503.
+- **All four e2e suites pass against production:**
+  - `api-e2e`: `ACTIVE` via [29ac208d…](https://chipnet.imaginary.cash/tx/29ac208d852f9e37dc02e6f25d395c5adc68fb5ac18c2d44f16eb4ec2df4b00d).
+  - `claims-e2e`: 3 parallel stamped claims, `ENVELOPE_EMPTY`, `ALREADY_CLAIMED`, hold + quiz.
+  - `lifecycle-e2e`: SSE `claimed` + `passedOn`, 2-generation tree, activation.
+  - `campaign-e2e --single-ip`: every claim and fee reconciled with the chain; the public page leaks no addresses.
+- **Script fix found by the re-test:** the e2e scripts measured draft txs with a flat 1,000-sat fee placeholder, which broke once the script wallet held ~20 coins. Fixed with `draftFee(inputs)` (`b48ca23`).
