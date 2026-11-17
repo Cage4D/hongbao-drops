@@ -4,14 +4,15 @@ Prepared 2026-11-17 with no mainnet spend. **Every step that moves real BCH is m
 
 ## Budget: $3 (builder's decision, 2026-11-17)
 
-At ~$213/BCH, $3 ≈ **1,410,000 sats**. `BUDGET_TOTAL_USD=3` makes the server enforce it. Only envelopes refunding to the demo wallet count (review-2 Q1).
+At ~$213/BCH, $3 ≈ **1,410,000 sats**. The server cap is set **below** what the wallet holds: **`BUDGET_TOTAL_USD=2.5`**. The API then stops with its own `BUDGET_CAP` message while ~$0.50 is still in the wallet, which covers funding/prep tx fees and BCH price swings, instead of a funding attempt failing for lack of coins. Only envelopes refunding to the demo wallet count (review-2 Q1).
 
 | Use | USD | Notes |
 |---|---|---|
 | Nov 19 checks | ≤ $0.05 | One 2-share stamped envelope of 4,000 sats: one share to your Paytaca, one refunded. Fees ≈ $0.003 |
-| Judges' demo envelopes | $1.20 | Refilled one at a time via `/admin/demo/refill` |
-| "BLAZE Drop" campaign (Phase 9) | $1.00 | |
-| Buffer | ≈ $0.75 | Unused coins stay in the demo wallet |
+| Judges' demo envelopes | $1.10 | Refilled one at a time via `/admin/demo/refill` |
+| "BLAZE Drop" campaign (Phase 9) | $0.90 | |
+| Buffer inside the cap | ≈ $0.45 | |
+| Margin outside the cap | ≈ $0.50 | Network fees and price moves; the API never commits it |
 
 Default caps stay: `MAX_ENVELOPE_USD` 0.50, `MAX_SHARES` 10, `MAX_ACTIVE_MAINNET_SATS` 600,000 (≈ $1.28), `DAILY_MAINNET_SATS` 400,000 (≈ $0.85/day), max expiry 24 h.
 
@@ -52,7 +53,7 @@ The env vars (`DATABASE_URL`, …) stay the same. Migrations are already applied
 | `NETWORK` | `MAINNET` |
 | `TREASURY_ADDRESS` | `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
 | `BUDGET_WALLET_ADDRESS` | `bitcoincash:qr2e5eeur56d4qatra9fsxn230g4v2tsrujqjznd3p` |
-| `BUDGET_TOTAL_USD` | `3` |
+| `BUDGET_TOTAL_USD` | `2.5` (below the wallet's ~$3 on purpose) |
 | `FULCRUM_URLS` | `wss://bch.imaginary.cash:50004,wss://fulcrum.greyh.at:50004` |
 | `GATE_MASTER_SEED`, `ADMIN_TOKEN`, `KEEPER_TOKEN`, `CRON_SECRET` | from `mainnet-secrets.env` |
 | `PUBLIC_API_URL`, `CLIENT_IP_HEADER` | unchanged (`https://hongbao-drops-api.vercel.app`, `x-forwarded-for`) |
