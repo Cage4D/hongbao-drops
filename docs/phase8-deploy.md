@@ -81,6 +81,40 @@ Conclusions:
 
 Check any Chipnet address yourself: `pnpm --filter @hongbao/scripts addr-check -- bchtest:…`
 
+### Keeper, lifecycle and campaign suites against production, 2026-11-17
+
+Run with the production `KEEPER_TOKEN` passed from the secrets file into the script's environment, never printed:
+
+```bash
+KEEPER_TOKEN="$(grep '^KEEPER_TOKEN=' ~/.local/share/hongbao-drops/prod-secrets.env | cut -d= -f2-)" \
+FULCRUM_URLS=wss://chipnet.imaginary.cash:50004,wss://chipnet.bch.ninja:50004 \
+pnpm --filter @hongbao/scripts lifecycle-e2e -- --api https://hongbao-drops-api.vercel.app --allow-no-refunds
+```
+
+**First production keeper run** (06:54 UTC): 0 errors, 4 expired test envelopes refunded, one `refundBatch` tx each: [79b2a484…](https://chipnet.imaginary.cash/tx/79b2a4843f9214e8ba826b55a522b699ae293811bf6cb31cc72de932538b4805) (3 shares), [147601ac…](https://chipnet.imaginary.cash/tx/147601aca78ec59fea4c1785df3ad2ba82aa99c5233060dc59ae637f3657444e) (3), [b21c5fb8…](https://chipnet.imaginary.cash/tx/b21c5fb88302fbb231e53f966750a0aaf2163106c391a526710179665d4d77e7) (1), [cae89fb9…](https://chipnet.imaginary.cash/tx/cae89fb9c1c5af5826dc5601a4e514df0a151d5b711d2cba4b19a2edbe7910a7) (1). `/health` shows the heartbeat.
+
+**`lifecycle-e2e`: all checks pass.**
+- The claim was delivered live over SSE: root [61b69ee0…](https://chipnet.imaginary.cash/tx/61b69ee0d7ee9648265a7be8e60861b3a78c18e791af668e63b6708317900b0a), claim [b39e365b…](https://chipnet.imaginary.cash/tx/b39e365b52b1ffe22e7a67dccde33de6b83714832b6c1750def8232e950d7a7e).
+- The claimer passed it on from their claimed coins: [ae16c4fd…](https://chipnet.imaginary.cash/tx/ae16c4fd4ff7601bf4b6cd5c761bd08b34b569d932782ec7a0cfa1378b70b3e4), and `passedOn` was delivered over SSE.
+- The tree shows 2 generations, viral coefficient 1, and the claimer is marked activated.
+
+**`campaign-e2e` (first run): the client-IP check (review-1 #14) is verified on Vercel.**
+- The script sends 3 CTA clicks with spoofed `X-Forwarded-For` values (2 distinct IPs). Production counted **1**, so Vercel overwrites the header and spoofing doesn't work. `CLIENT_IP_HEADER=x-forwarded-for` is safe on Vercel.
+- All 4 claims came from this machine's one real IP within seconds, so production flagged all 4 as suspected farms (`activatedNotFarm 0`). That's correct.
+- `campaign-e2e --single-ip` now expects exactly this.
+- **Note for Phase 9's BLAZE Drop:** claimers sharing one network (venue Wi-Fi, carrier NAT) will be flagged too. Flags never block a claim, but they lower the headline "activated & not farm" number.
+
+### Bug found in production: stale Fulcrum connection → `CHAIN_UNAVAILABLE`
+
+The second `campaign-e2e` run got **503 `CHAIN_UNAVAILABLE`** on `POST /envelopes/:id/funded`. Vercel log: `getRawTransaction failed: Unable to send request to a disconnected server 'chipnet.imaginary.cash'`. The API keeps one WSS connection per instance. While the instance sat idle, the socket was dropped, and the next request failed. The API reset the connection, so only that one request failed. A judge's first claim after a quiet period would hit it.
+
+**Fix (`b0b11d2`):** `ChainService.withProvider()` recognises dead-connection errors, reconnects (possibly to the next host) and retries the call **once**. It covers lookups, `/funded` verification, broadcasts (safe: a duplicate broadcast is "already known", which counts as success) and the fresh-wallet check. Parallel requests on a dead socket reconnect only once. 4 new unit tests; totals 167 (contract 53, shared 4, API 110).
+
+### Script fixes from these runs
+
+- `createAndFund` retries `/funded` while the API reports "not found on the network yet", and waits for freshly received coins. The scripts default to `chipnet.bch.ninja` and production uses `chipnet.imaginary.cash`, and a tx takes a few seconds to reach the other server. **The frontend should also retry `/funded` on `NOT_FUNDED` with that reason**, because wallets broadcast through their own servers.
+- `lifecycle-e2e --allow-no-refunds` for re-runs after an earlier tick has already refunded everything expired.
+
 ## Still to do
 
 - **Keeper scheduler (builder):** cron-job.org → `POST /internal/keeper/tick` every minute with `Authorization: Bearer KEEPER_TOKEN`. Verify via `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop is configured.
