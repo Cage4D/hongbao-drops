@@ -21,6 +21,7 @@ import {
   pub,
   resetDb,
   sender,
+  SENDER_ADDRESS,
 } from './helpers.js';
 
 const KEEPER_TOKEN = 'k'.repeat(32);
@@ -450,5 +451,92 @@ describe('review fixes: keeper robustness', () => {
       t.provider.getRawTransaction = getRaw;
       Object.assign(t.provider, { history: hist });
     }
+  });
+});
+
+describe('review 2: refunds and envelope status', () => {
+  const txidOf = (hex: string) => binToHex(hash256(hexToBin(hex)).reverse());
+  const contractOf = (env: CreateEnvelopeResponse) =>
+    hongbaoContract(
+      {
+        linkPk: hexToBin(env.constructorArgs.linkPk),
+        gatePk: hexToBin(env.constructorArgs.gatePk),
+        refundLockingBytecode: hexToBin(env.constructorArgs.refundLockingBytecode),
+        expiry: env.constructorArgs.expiry,
+      },
+      t.provider,
+    );
+
+  it('P1-1: refunds no-stamp shares at the 1,500-sat minimum, and the envelope ends REFUNDED', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 3, totalSats: 4_500, expiry: now() + 2 });
+    await sleep(2_200);
+    const s = await tick();
+    expect(s.refunds).toEqual([expect.objectContaining({ envelopeId: env.id, shares: 3 })]);
+    expect(s.dustSkipped).toBe(0);
+    expect(await t.provider.getUtxosForLockingBytecode(env.contractLockingBytecode)).toEqual([]);
+    expect((await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } })).status).toBe('REFUNDED');
+    expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'REFUNDED' } })).toBe(3);
+  });
+
+  it('P1-2: an envelope refunded by someone else before the keeper ends REFUNDED, not EXPIRED forever', async () => {
+    const env = await fundedEnvelope(t, { expiry: now() + 2 });
+    await claimAndBroadcast(env.id, 'early-bird');
+    await sleep(2_200);
+    const { hex } = buildRefundTx({
+      contract: contractOf(env),
+      utxos: await t.provider.getUtxosForLockingBytecode(env.contractLockingBytecode),
+      refundLockingBytecode: env.constructorArgs.refundLockingBytecode,
+      expiry: env.constructorArgs.expiry,
+      maxFee: 1000n,
+    });
+    await t.provider.sendRawTransaction(hex); // keyless: anyone may broadcast it
+    const s = await tick();
+    expect(s.refunds).toEqual([]);
+    const after = await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } });
+    expect(after.status).toBe('REFUNDED');
+    expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'REFUNDED', spendTxid: txidOf(hex) } })).toBe(2);
+  });
+
+  it('P1-2/P1-12: a last share claimed outside the API ends the envelope EXHAUSTED with an `exhausted` event', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 2, totalSats: 10_000 });
+    await claimAndBroadcast(env.id, 'via-api');
+    // The second claimer gets an approval but broadcasts the claim tx themselves.
+    const a = (await claimReq(t, env.id, { recipientAddress: addressOf('direct') }, '10.9.9.9')).body as ClaimApproval;
+    const { hex } = buildClaimTx({
+      provider: t.provider,
+      constructorArgs: a.constructorArgs,
+      share: a.share,
+      recipientLockingBytecode: a.recipientLockingBytecode,
+      linkPrivateKey: linkPriv,
+      gateSig: a.gateSig,
+    });
+    await t.provider.sendRawTransaction(hex);
+    await tick();
+    expect((await t.db.envelope.findUniqueOrThrow({ where: { id: env.id } })).status).toBe('EXHAUSTED');
+    const events = await t.db.event.findMany({ where: { envelopeId: env.id }, orderBy: { id: 'asc' } });
+    const claimed = events.filter((e) => e.type === 'claimed').map((e) => e.payload as Record<string, unknown>);
+    expect(claimed).toHaveLength(2);
+    // Same payload shape whether the API or the keeper recorded the claim.
+    for (const p of claimed) expect(Object.keys(p)).toEqual(expect.arrayContaining(['usd', 'luckiest', 'sharesLeft', 'sats', 'txid']));
+    expect(claimed[1]!.sharesLeft).toBe(0);
+    expect(events.filter((e) => e.type === 'exhausted')).toHaveLength(1);
+  });
+
+  it('P1-11: a sender claiming their own share directly is recorded as a claim, not a refund', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 2, totalSats: 10_000 });
+    const a = (await claimReq(t, env.id, { recipientAddress: SENDER_ADDRESS }, '10.9.9.8')).body as ClaimApproval;
+    const { hex } = buildClaimTx({
+      provider: t.provider,
+      constructorArgs: a.constructorArgs,
+      share: a.share,
+      recipientLockingBytecode: a.recipientLockingBytecode,
+      linkPrivateKey: linkPriv,
+      gateSig: a.gateSig,
+    });
+    await t.provider.sendRawTransaction(hex);
+    await tick();
+    const share = await t.db.share.findFirstOrThrow({ where: { envelopeId: env.id, spendTxid: txidOf(hex) } });
+    expect(share.status).toBe('CLAIMED');
+    expect((await t.db.claim.findUniqueOrThrow({ where: { id: a.claimId } })).status).toBe('BROADCAST');
   });
 });

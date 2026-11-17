@@ -16,28 +16,59 @@ export interface RefundTxInput {
   feeRate?: number; // sat/byte, default 1
 }
 
+export interface RefundPlan<U> {
+  hex: string;
+  feePerInput: bigint;
+  refundedSats: bigint;
+  /** Coins spent by this tx (≤ MAX_REFUND_BATCH). */
+  batch: U[];
+  /** Coins that can never be refunded: value minus the real per-input fee would be below dust. */
+  dust: U[];
+  /** Refundable coins left for a later tx (more than MAX_REFUND_BATCH were waiting). */
+  remaining: U[];
+}
+
 /**
- * Split contract UTXOs into ones worth refunding and dust: a coin whose value minus the worst-case
- * fee would be below the dust limit can't be refunded (the whole tx would be invalid). Anyone can
- * send such a coin to a contract, so the keeper must leave it behind instead of failing (review #1).
+ * Choose what to refund from an expired contract's coins and build the tx (review #1, review-2 P1-1).
+ *
+ * Uses the fee buildRefundTx actually measures (~340 sat per input at 1 sat/B), not the worst-case
+ * maxFee — judging by maxFee stranded every no-stamp share under 1,546 sats, although the API
+ * accepts shares from 1,500. Largest coins first; if the smallest coin in the batch can't cover its
+ * share of the fee, it's dropped as dust and the batch is rebuilt. (A smaller batch only raises the
+ * per-input fee, so a dropped coin could never be refunded on its own either.) Anyone can send dust
+ * to a contract, so the keeper must leave it behind instead of failing. Returns null if nothing can
+ * be refunded.
  */
-export function refundableUtxos<U extends Utxo>(utxos: U[], refundLockingBytecode: string, maxFee: bigint) {
-  const refundable: U[] = [];
-  const dust: U[] = [];
-  for (const u of utxos) {
-    const min = dustLimit(refundLockingBytecode.length / 2, u.token) + maxFee;
-    (u.satoshis >= min ? refundable : dust).push(u);
+export function planRefund<U extends Utxo>(i: Omit<RefundTxInput, 'utxos'> & { utxos: U[] }): RefundPlan<U> | null {
+  const toLen = i.refundLockingBytecode.length / 2;
+  const dust = i.utxos.filter((u) => u.satoshis <= dustLimit(toLen, u.token));
+  const pool = i.utxos.filter((u) => u.satoshis > dustLimit(toLen, u.token)).sort((a, b) => Number(b.satoshis - a.satoshis));
+  const batch = pool.slice(0, MAX_REFUND_BATCH);
+  const remaining = pool.slice(MAX_REFUND_BATCH);
+  while (batch.length > 0) {
+    try {
+      return { ...buildRefundTx({ ...i, utxos: batch }), batch, dust, remaining };
+    } catch (e) {
+      if (!/too small to refund/.test((e as Error).message)) throw e;
+      dust.push(batch.pop()!);
+    }
   }
-  return { refundable, dust };
+  return null;
 }
 
 export function buildRefundTx(i: RefundTxInput): { hex: string; feePerInput: bigint; refundedSats: bigint } {
   if (i.utxos.length === 0) throw new Error('nothing to refund');
   if (i.utxos.length > MAX_REFUND_BATCH) throw new Error(`at most ${MAX_REFUND_BATCH} shares per refund tx`);
   const to = hexToBin(i.refundLockingBytecode);
-  const build = (amountOf: (u: Utxo) => bigint) => {
+  // `inflate` adds value to each input for the size-measuring build only. Input values aren't
+  // serialised (refundBatch has no signature either), so the size is unchanged, but CashScript's own
+  // "fee per byte below 1" check can no longer fire on a near-dust coin before our clearer
+  // "too small to refund" error does (review-2 P1-1).
+  const build = (amountOf: (u: Utxo) => bigint, inflate = 0n) => {
     const tb = new TransactionBuilder({ provider: i.contract.provider });
-    for (const u of i.utxos) tb.addInput({ ...u, lockingBytecode: i.contract.lockingBytecode }, i.contract.unlock.refundBatch());
+    for (const u of i.utxos) {
+      tb.addInput({ ...u, satoshis: u.satoshis + inflate, lockingBytecode: i.contract.lockingBytecode }, i.contract.unlock.refundBatch());
+    }
     for (const u of i.utxos) tb.addOutput({ to, amount: amountOf(u), ...(u.token && { token: u.token }) });
     return tb.setLocktime(i.expiry).build();
   };
@@ -46,7 +77,7 @@ export function buildRefundTx(i: RefundTxInput): { hex: string; feePerInput: big
     if (u.satoshis <= dustLimit(to.length, u.token)) throw new Error(`UTXO ${u.txid}:${u.vout} is too small to refund`);
   }
   // Measure with every output at its dust limit: amounts don't change the size (review #1).
-  const size = BigInt(build((u) => dustLimit(to.length, u.token)).length / 2);
+  const size = BigInt(build((u) => dustLimit(to.length, u.token), 100_000n).length / 2);
   const feePerInput = (size * BigInt(i.feeRate ?? 1) + n - 1n) / n; // ceil
   if (feePerInput > i.maxFee) throw new Error(`fee per input ${feePerInput} exceeds maxFee ${i.maxFee}`);
   for (const u of i.utxos) {

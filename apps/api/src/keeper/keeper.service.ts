@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
 import { binToHex, hexToBin } from '@bitauth/libauth';
-import { MAX_REFUND_BATCH, buildRefundTx, hongbaoContract, refundableUtxos } from '@hongbao/contract';
+import { hongbaoContract, planRefund } from '@hongbao/contract';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ChainService } from '../chain/chain.service.js';
@@ -21,7 +21,7 @@ import { EventsService } from '../events/events.service.js';
 import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { farmFlags } from './farm-flags.js';
-import type { Envelope, Share } from '../generated/prisma/client.js';
+import type { Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
 const LEASE_MS = 120_000;
 const DAY = 24 * 3600 * 1000;
@@ -199,6 +199,26 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.db.rateEvent.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - DAY) } } });
   }
 
+  /**
+   * Envelope status from its shares (review-2 P1-1, P1-2, P1-12). Once no share is unspent in the
+   * DB the envelope is finished: EXHAUSTED if every share was claimed, otherwise REFUNDED. This
+   * covers shares spent outside the keeper and the API, e.g. someone else broadcasting the keyless
+   * refund first, or a claimer broadcasting the last claim directly. While shares are still unspent,
+   * `ifUnspent` (if given) is applied. PENDING_FUNDING, FAILED and REFUNDED are never touched.
+   * Emits `exhausted` when it is what ends the envelope.
+   */
+  private async settle(db: Prisma.TransactionClient, envelopeId: string, ifUnspent?: 'EXPIRED') {
+    const env = await db.envelope.findUniqueOrThrow({ where: { id: envelopeId }, select: { status: true } });
+    if (env.status !== 'ACTIVE' && env.status !== 'EXHAUSTED' && env.status !== 'EXPIRED') return;
+    const rows = await db.share.groupBy({ by: ['status'], where: { envelopeId }, _count: { _all: true } });
+    const n = (st: Share['status']) => rows.find((r) => r.status === st)?._count._all ?? 0;
+    const unspent = n('AVAILABLE') + n('HELD') + n('RESERVED');
+    const next = unspent > 0 ? (ifUnspent ?? env.status) : n('REFUNDED') > 0 ? 'REFUNDED' : 'EXHAUSTED';
+    if (next === env.status) return;
+    await db.envelope.update({ where: { id: envelopeId }, data: { status: next } });
+    if (next === 'EXHAUSTED') await this.events.emit(envelopeId, 'exhausted', { claimed: n('CLAIMED') }, db);
+  }
+
   private async contractFor(e: Envelope) {
     return hongbaoContract(
       {
@@ -251,6 +271,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
       }
     }
 
+    const price = await this.price.bchUsd();
     for (const h of await this.chain.history(env.contractLockingBytecode)) {
       if (h.tx_hash === env.fundingTxid) continue;
       const tx = await this.chain.getTransaction(h.tx_hash);
@@ -260,8 +281,12 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
         if (i < 0) continue;
         const out = tx.outputs[i] ?? tx.outputs[0]!;
         const toLB = binToHex(out.lockingBytecode);
+        // A refund pays the sender AND carries locktime ≥ expiry (refundBatch's CHECKLOCKTIMEVERIFY
+        // can't pass otherwise). A sender claiming a share of their own envelope also pays the
+        // sender's script, but with an ordinary claim tx (locktime 0): that's a claim (review-2 P1-11).
+        const isRefund = toLB === env.refundLockingBytecode && tx.locktime >= env.expiry;
         await this.db.$transaction(async (db) => {
-          if (toLB === env.refundLockingBytecode) {
+          if (isRefund) {
             await db.share.update({ where: { id: sh.id }, data: { status: 'REFUNDED', spendTxid: h.tx_hash, reservedUntil: null, holdToken: null } });
             await db.claim.updateMany({ where: { shareId: sh.id, status: 'APPROVED' }, data: { status: 'EXPIRED', shareId: null } });
             return;
@@ -287,6 +312,12 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
                 approvedShareIds: [...new Set([...claim.approvedShareIds, sh.id])],
               },
             });
+            // Same payload as a claim relayed by the API (review-2 P1-12).
+            const prevMax = await db.claim.aggregate({
+              _max: { amountSats: true },
+              where: { envelopeId: env.id, status: { in: ['BROADCAST', 'CONFIRMED'] }, NOT: { id: claim.id } },
+            });
+            const sharesLeft = await db.share.count({ where: { envelopeId: env.id, status: { in: UNSPENT } } });
             await this.events.emit(
               env.id,
               'claimed',
@@ -294,9 +325,12 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
                 shareIndex: sh.index,
                 address: truncateAddress(claim.recipientAddress),
                 sats: toNum(out.valueSatoshis),
+                usd: this.price.toUsd(out.valueSatoshis, price),
                 isNewWallet: claim.isNewWallet,
+                luckiest: env.mode === 'LUCKY' && out.valueSatoshis > (prevMax._max.amountSats ?? 0n),
                 txid: h.tx_hash,
                 stamp: sh.nftCommitment,
+                sharesLeft,
                 reconciled: true,
               },
               db,
@@ -307,6 +341,9 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
         this.log.log(`reconciled share ${env.id}#${sh.index} spent by ${h.tx_hash}`);
       }
     }
+    // Finish the envelope if nothing is left (review-2 P1-2): without this, an envelope whose last
+    // shares were spent outside the keeper and API stayed ACTIVE/EXPIRED forever.
+    await this.settle(this.db, env.id);
   }
 
   // ------------------------------------------------------------------ 3. refunds
@@ -339,14 +376,23 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async refundEnvelope(env: Envelope, mtp: number, s: TickSummary) {
     const utxos = await this.chain.utxos(env.contractLockingBytecode);
-    const { refundable, dust } = refundableUtxos(utxos, env.refundLockingBytecode, BigInt(env.maxFee));
-    s.dustSkipped! += dust.length; // anyone can send dust to a contract; it can't be refunded, so skip it
+    // Exact per-input fee, so shares at the API's minimum size refund too (review-2 P1-1).
+    const plan = utxos.length
+      ? planRefund({
+          contract: await this.contractFor(env),
+          utxos,
+          refundLockingBytecode: env.refundLockingBytecode,
+          expiry: env.expiry,
+          maxFee: BigInt(env.maxFee),
+        })
+      : null;
+    s.dustSkipped! += plan ? plan.dust.length : utxos.length; // anyone can send dust to a contract; it can't be refunded
 
-    if (refundable.length === 0) {
+    if (!plan) {
       const unspentInDb = await this.db.share.count({ where: { envelopeId: env.id, status: { in: UNSPENT } } });
       if (unspentInDb > 0) await this.reconcileEnvelope(env, s); // spent elsewhere: find out by whom
       else if (env.status === 'PENDING_FUNDING') await this.db.envelope.update({ where: { id: env.id }, data: { status: 'EXPIRED' } });
-      else if (env.status === 'EXPIRED' && env.refundedAt) await this.db.envelope.update({ where: { id: env.id }, data: { status: 'REFUNDED' } });
+      else await this.settle(this.db, env.id);
       return;
     }
     if (mtp <= env.expiry) {
@@ -354,14 +400,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
       return;
     }
 
-    const batch = refundable.slice(0, MAX_REFUND_BATCH);
-    const { hex, refundedSats } = buildRefundTx({
-      contract: await this.contractFor(env),
-      utxos: batch,
-      refundLockingBytecode: env.refundLockingBytecode,
-      expiry: env.expiry,
-      maxFee: BigInt(env.maxFee),
-    });
+    const { hex, refundedSats, batch } = plan;
     const txid = await this.chain.broadcast(hex);
     const outpoints = batch.map((u) => ({ outpointTxid: u.txid, outpointIndex: u.vout }));
     const price = env.network === 'MAINNET' ? await this.price.bchUsd() : null;
@@ -376,15 +415,15 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
         data: { status: 'REFUNDED', spendTxid: txid, reservedUntil: null, holdToken: null },
       });
       await db.claim.updateMany({ where: { envelopeId: env.id, status: 'APPROVED', share: { status: 'REFUNDED' } }, data: { status: 'EXPIRED', shareId: null } });
-      const left = refundable.length - batch.length;
-      await db.envelope.update({
-        where: { id: env.id },
-        data: {
-          refundedSats: { increment: refundedSats },
-          refundedAt: new Date(),
-          status: left === 0 ? 'REFUNDED' : 'EXPIRED',
-        },
-      });
+      await db.envelope.update({ where: { id: env.id }, data: { refundedSats: { increment: refundedSats }, refundedAt: new Date() } });
+      // Status from what's actually left, not from this batch (review-2 P1-1): REFUNDED only once
+      // no share is unspent in the DB. A never-verified envelope (no shares) is done once its
+      // refundable coins are gone.
+      if (env.status === 'PENDING_FUNDING') {
+        if (plan.remaining.length === 0) await db.envelope.update({ where: { id: env.id }, data: { status: 'REFUNDED' } });
+      } else {
+        await this.settle(db, env.id, 'EXPIRED');
+      }
       await this.events.emit(env.id, 'refunded', { txid, shares: batch.length, sats: toNum(refundedSats) }, db);
       if (env.network === 'MAINNET') {
         await db.ledgerEntry.create({
