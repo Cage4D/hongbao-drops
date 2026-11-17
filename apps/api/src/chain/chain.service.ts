@@ -29,6 +29,25 @@ const scripthashOf = (lockingBytecodeHex: string) => binToHex(sha256.hash(hexToB
 export const STALE_CONNECTION = /disconnected server|not connected|connection (was )?(closed|lost)|socket hang up|ECONNRESET|EPIPE/i;
 const errMsg = (e: unknown) => (e as Error)?.message ?? String(e);
 
+/**
+ * Genesis block per network, as Fulcrum reports it in server.features (checked live 2026-11-17 on
+ * chipnet.imaginary.cash, chipnet.bch.ninja and bch.imaginary.cash).
+ */
+export const GENESIS_HASH = {
+  mainnet: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+  chipnet: '000000001dd410c49a788668ce26751718cc797474d3152a5fc073dd44fd9f7b',
+} as const;
+
+/**
+ * Refuse a server on the wrong network (review-2 P1-5). With NETWORK=MAINNET but Chipnet hosts left
+ * in FULCRUM_URLS, every lookup would hit Chipnet, and a "mainnet" envelope could be funded with free
+ * Chipnet coins and count against the real budget.
+ */
+export function assertGenesis(features: unknown, network: keyof typeof GENESIS_HASH, hostname: string) {
+  const got = (features as { genesis_hash?: unknown } | null)?.genesis_hash;
+  if (got !== GENESIS_HASH[network]) throw new Error(`${hostname} is not a ${network} server (genesis ${String(got)})`);
+}
+
 export function electrumProviderFactory(config: AppConfig): ProviderFactory {
   const network = config.NETWORK === 'MAINNET' ? 'mainnet' : 'chipnet';
   return async () => {
@@ -39,6 +58,7 @@ export function electrumProviderFactory(config: AppConfig): ProviderFactory {
       const provider = new ElectrumNetworkProvider(network, { hostname, manualConnectionManagement: true });
       try {
         await provider.connect();
+        assertGenesis(await provider.performRequest('server.features'), network, hostname);
         await provider.getBlockHeight();
         return { provider, server: hostname };
       } catch (e) {

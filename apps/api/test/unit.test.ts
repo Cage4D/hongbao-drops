@@ -5,7 +5,7 @@ import { fundingOutputs, hongbaoContract, bcmrRegistryHash } from '@hongbao/cont
 import { verifyFundingTx } from '../src/envelopes/funding-verifier.js';
 import { loadConfig } from '../src/config/config.js';
 import { normalizeAnswer } from '../src/envelopes/envelopes.service.js';
-import { ChainService } from '../src/chain/chain.service.js';
+import { ChainService, GENESIS_HASH, assertGenesis } from '../src/chain/chain.service.js';
 import type { NetworkProvider } from 'cashscript';
 import { addSenderUtxo, key, p2pkh, pub, sender, senderPriv, testConfig } from './helpers.js';
 
@@ -151,5 +151,14 @@ describe('ChainService: stale Fulcrum connection (Phase 8, seen in production)',
     const got = await Promise.all([1, 2, 3].map(() => chain.use((p) => p.getBlockHeight())));
     expect(got).toEqual([42, 42, 42]);
     expect(factory).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Fulcrum network check (review-2 P1-5)', () => {
+  it('accepts a server on the configured network and refuses one on another', () => {
+    expect(() => assertGenesis({ genesis_hash: GENESIS_HASH.mainnet }, 'mainnet', 'bch.imaginary.cash')).not.toThrow();
+    expect(() => assertGenesis({ genesis_hash: GENESIS_HASH.chipnet }, 'mainnet', 'chipnet.bch.ninja')).toThrow(/not a mainnet server/);
+    expect(() => assertGenesis({}, 'chipnet', 'weird.example')).toThrow(/not a chipnet server/);
+    expect(() => assertGenesis(null, 'chipnet', 'weird.example')).toThrow();
   });
 });
