@@ -31,7 +31,9 @@
 
 ### Finding: Paytaca on Chipnet shows different addresses than it exposes over WizardConnect
 
-The xpub Paytaca shares over WizardConnect derives `bchtest:qqxcan93…tvrz`. Paytaca's own Chipnet screen shows a **different** receive address (confirmed by the builder). Most likely the WizardConnect xpub is the coin-type-145 (mainnet) path, while the Chipnet wallet view uses coin type 1.
+> **Corrected later the same day:** the coin-type explanation below is wrong. The real cause is that **Paytaca's Chipnet indexer stopped at block 332402 (Nov 15)**. See "Root cause" below.
+
+The xpub Paytaca shares over WizardConnect derives `bchtest:qqxcan93…tvrz`. Paytaca's own Chipnet screen shows a **different** receive address (confirmed by the builder). ~~Most likely the WizardConnect xpub is the coin-type-145 (mainnet) path, while the Chipnet wallet view uses coin type 1.~~
 
 - Coins and stamps sent to the WizardConnect addresses are safe (Paytaca signed spends from them in Phase 2), just **invisible in the app on Chipnet**.
 - On **mainnet** both use coin type 145, so they should agree. **The wallet metadata check (stamp name/image in Paytaca) moves to the first mainnet envelope (Nov 19).**
@@ -49,6 +51,24 @@ The xpub Paytaca shares over WizardConnect derives `bchtest:qqxcan93…tvrz`. Pa
 **Neither payment appeared in Paytaca, not even the plain BCH.** `scripts addr-check` shows both coins at the address on-chain. The cause is Paytaca's Chipnet backend: `https://chipnet.watchtower.cash/` (root and `/api/status/`) returns **HTTP 502**, while mainnet `https://watchtower.cash/api/status/` returns `{"status": "up"}`. Paytaca reads balances from that backend, so **Paytaca on Chipnet can't show anything right now**, whatever the address. This is outside our stack. The wallet display check stays on mainnet (Nov 19).
 
 **Follow-up (06:10 UTC):** the Chipnet backend came back (`/api/status/` → `"up"`). A third payment, 10,000 sats ([4baa41a7…](https://chipnet.imaginary.cash/tx/4baa41a790f744fef59ff080a9b7d5c0848fe50ecfebd4906051b6abf9542ecc), block 334936), was sent while it was up. Paytaca still showed nothing. Asked directly, Paytaca's backend reports `GET /api/balance/bch/<address>/` → `balance: 0` and `GET /api/utxo/bch/<address>/` → `utxos: []`, while Fulcrum shows **34,515 sats in 3 confirmed transactions** at that address. Paytaca's Chipnet indexer isn't tracking the address even though it's up. Nothing our side can change.
+
+### Root cause: Paytaca's Chipnet indexer is frozen at block 332402 (Nov 15)
+
+The builder's Paytaca shows ~19k sats, from the Phase 2 WizardConnect test. The same backend query for the WizardConnect address `bchtest:qqxcan93…tvrz`, compared with Fulcrum (tip 334940):
+
+| | Paytaca backend (`chipnet.watchtower.cash`) | On-chain (Fulcrum) |
+|---|---|---|
+| Balance | 18,836 sats | 8,044 sats |
+| UTXOs | `dfeffbe9…:0` 11,984 · `8e4afb15…:5` 3,323 · `6857cc88…:0` 3,529 | `6857cc88…:0` 3,529 · `c79ec71c…:0` 4,515 + stamp `0500000001` |
+
+- Two of the backend's "unspent" coins were spent on Nov 15, by the WizardConnect txs Paytaca itself signed.
+- Nothing after block 332402 is known to it, including the Phase 8 stamp (block 334874) and all three payments to `qzzlwz…`.
+
+Conclusions:
+- **Paytaca on Chipnet shows a frozen Nov 15 snapshot.** Its `/api/status/` says `"up"`, but it isn't indexing new blocks.
+- **The WizardConnect address is a Paytaca wallet address.** The backend holds its balance as part of the wallet. The "different address" in the app is most likely just the next receive address: Paytaca rotates to a new one after an address is used. So **WizardConnect-derived addresses are expected to work on mainnet**.
+- The builder's real Chipnet holdings are 8,044 + 34,515 = 42,559 sats, including 2 stamps. Paytaca will show them once its indexer catches up.
+- The wallet display check moves to mainnet (Nov 19) because the Chipnet indexer is stale, not because of address derivation.
 
 Check any Chipnet address yourself: `pnpm --filter @hongbao/scripts addr-check -- bchtest:…`
 
