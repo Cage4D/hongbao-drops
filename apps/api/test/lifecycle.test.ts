@@ -214,7 +214,7 @@ describe('activation watcher and farm flags', () => {
     const farm = p2pkh(pub(key('farm')));
     const alice = await claimAndBroadcast(env.id, 'alice');
     const bob = await claimAndBroadcast(env.id, 'bob');
-    const carol = await claimAndBroadcast(env.id, 'carol');
+    const carol = await claimAndBroadcast(env.id, 'caroline'); // distinct IP from alice (helper keys IPs by name length)
     await spendClaim('alice', alice.txid, alice.amount, farm);
     await spendClaim('bob', bob.txid, bob.amount, farm);
     await t.db.claim.update({ where: { id: carol.approval.claimId }, data: { createdAt: new Date(Date.now() - 8 * 24 * 3600 * 1000) } });
@@ -228,7 +228,7 @@ describe('activation watcher and farm flags', () => {
     expect(by(carol.approval.claimId)).toMatchObject({ activatedWithin7d: false, farmReasons: ['NEVER_USED'] });
   });
 
-  it('farmFlags: SAME_FINGERPRINT and IP_BURST (≥3 claims in 60 s from one IP)', () => {
+  it('farmFlags: SAME_FINGERPRINT, SAME_IP (review-2, spec §4) and IP_BURST (≥3 claims in 60 s from one IP)', () => {
     const base = { recipientLockingBytecode: '', sweptTo: [], activatedWithin7d: null, walletFingerprint: null, ipHash: null };
     const at = (s: number) => new Date(1_800_000_000_000 + s * 1000);
     const flags = farmFlags([
@@ -238,10 +238,10 @@ describe('activation watcher and farm flags', () => {
       { ...base, id: 'd', createdAt: at(200), ipHash: 'ip1', recipientLockingBytecode: 'd', walletFingerprint: 'fp' },
       { ...base, id: 'e', createdAt: at(10), ipHash: 'ip2', recipientLockingBytecode: 'e' },
     ]);
-    expect(flags.get('a')).toEqual(['IP_BURST']);
-    expect(flags.get('c')).toEqual(['SAME_FINGERPRINT', 'IP_BURST']);
-    expect(flags.get('d')).toEqual(['SAME_FINGERPRINT']);
-    expect(flags.get('e')).toEqual([]);
+    expect(flags.get('a')).toEqual(['SAME_IP', 'IP_BURST']);
+    expect(flags.get('c')).toEqual(['SAME_FINGERPRINT', 'SAME_IP', 'IP_BURST']);
+    expect(flags.get('d')).toEqual(['SAME_FINGERPRINT', 'SAME_IP']); // same IP, but long after the burst
+    expect(flags.get('e')).toEqual([]); // the only claim from ip2
   });
 });
 

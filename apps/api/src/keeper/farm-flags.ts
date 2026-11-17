@@ -1,7 +1,7 @@
 // Suspected-farm heuristics (spec §4). Flag, don't block — sponsors decide what to do with them.
 // Pure function over a group of claims (one campaign, or one envelope when there's no campaign).
 
-export type FarmReason = 'SAME_FINGERPRINT' | 'IP_BURST' | 'COMMON_SWEEP' | 'NEVER_USED';
+export type FarmReason = 'SAME_FINGERPRINT' | 'SAME_IP' | 'IP_BURST' | 'COMMON_SWEEP' | 'NEVER_USED';
 
 export interface FarmClaimInput {
   id: string;
@@ -28,8 +28,13 @@ export function farmFlags(claims: FarmClaimInput[]): Map<string, FarmReason[]> {
   const byFp = groupBy(claims.filter((c) => c.walletFingerprint), (c) => c.walletFingerprint!);
   for (const group of byFp.values()) if (group.length > 1) group.forEach((c) => flag(c.id, 'SAME_FINGERPRINT'));
 
-  // IP_BURST: ≥ 3 claims within 60 s from one IP hash.
+  // SAME_IP: one IP hash across multiple claims in the group (spec §4; review-2 found it missing).
+  // People sharing a network (venue Wi-Fi, mobile carrier NAT) get flagged too. Flags never block
+  // a claim; sponsors see the reasons and decide.
   const byIp = groupBy(claims.filter((c) => c.ipHash), (c) => c.ipHash!);
+  for (const group of byIp.values()) if (group.length > 1) group.forEach((c) => flag(c.id, 'SAME_IP'));
+
+  // IP_BURST: ≥ 3 claims within 60 s from one IP hash.
   for (const group of byIp.values()) {
     const sorted = [...group].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     for (let i = 0; i + IP_BURST_COUNT - 1 < sorted.length; i++) {
