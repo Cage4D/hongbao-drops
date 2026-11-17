@@ -443,6 +443,11 @@ describe('review fixes: keeper robustness', () => {
     expect(s.errors).toEqual([]);
     expect((await t.db.claim.findUniqueOrThrow({ where: { id: x.claimId } })).status).toBe('BROADCAST');
     expect(await t.db.claim.findUniqueOrThrow({ where: { id: y.claimId } })).toMatchObject({ status: 'EXPIRED', shareId: null });
+    // Y's old approval for that share stays valid on-chain while X's tx is unmined (it could still be
+    // dropped), so Y must wait for X's confirmation before getting a second share (review-2 P1-13).
+    const early = await claimReq(t, env.id, { recipientAddress: addressOf('y') }, '10.6.6.6');
+    expect([early.status, early.body.error.code]).toEqual([409, 'ALREADY_CLAIMED']);
+    await t.db.claim.update({ where: { id: x.claimId }, data: { status: 'CONFIRMED' } });
     const retry = (await claimReq(t, env.id, { recipientAddress: addressOf('y') }, '10.6.6.6')).body as ClaimApproval;
     expect(retry.share.index).not.toBe(x.share.index); // Y gets the other, unspent share
   });
