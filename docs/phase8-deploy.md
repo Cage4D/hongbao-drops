@@ -48,6 +48,8 @@ The xpub Paytaca shares over WizardConnect derives `bchtest:qqxcan93…tvrz`. Pa
 
 **Neither payment appeared in Paytaca, not even the plain BCH.** `scripts addr-check` shows both coins at the address on-chain. The cause is Paytaca's Chipnet backend: `https://chipnet.watchtower.cash/` (root and `/api/status/`) returns **HTTP 502**, while mainnet `https://watchtower.cash/api/status/` returns `{"status": "up"}`. Paytaca reads balances from that backend, so **Paytaca on Chipnet can't show anything right now**, whatever the address. This is outside our stack. The wallet display check stays on mainnet (Nov 19).
 
+**Follow-up (06:10 UTC):** the Chipnet backend came back (`/api/status/` → `"up"`). A third payment, 10,000 sats ([4baa41a7…](https://chipnet.imaginary.cash/tx/4baa41a790f744fef59ff080a9b7d5c0848fe50ecfebd4906051b6abf9542ecc), block 334936), was sent while it was up. Paytaca still showed nothing. Asked directly, Paytaca's backend reports `GET /api/balance/bch/<address>/` → `balance: 0` and `GET /api/utxo/bch/<address>/` → `utxos: []`, while Fulcrum shows **34,515 sats in 3 confirmed transactions** at that address. Paytaca's Chipnet indexer isn't tracking the address even though it's up. Nothing our side can change.
+
 Check any Chipnet address yourself: `pnpm --filter @hongbao/scripts addr-check -- bchtest:…`
 
 ## Still to do
