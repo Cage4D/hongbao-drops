@@ -10,7 +10,10 @@ import { chipnetProvider } from './lib/chain.js';
 import { newKeyPair } from './lib/keys.js';
 import { apiClient, check, createAndFund } from './lib/api.js';
 
-const { values: a } = parseArgs({ options: { api: { type: 'string', default: 'http://localhost:3000' } } });
+// --allow-no-refunds: re-runs where an earlier tick already refunded everything expired.
+const { values: a } = parseArgs({
+  options: { api: { type: 'string', default: 'http://localhost:3000' }, 'allow-no-refunds': { type: 'boolean', default: false } },
+});
 const API = a.api!;
 const call = apiClient(API);
 const provider = await chipnetProvider();
@@ -22,7 +25,10 @@ console.log('\n1. Keeper tick (expired envelopes from Phases 3–4 are waiting)'
 const tick = await call('POST', '/internal/keeper/tick', undefined, { authorization: `Bearer ${KEEPER_TOKEN}` });
 check(tick.status === 200 && tick.body.ran, `tick ran in ${tick.body.ms} ms (errors: ${tick.body.errors?.length ?? 0})`);
 for (const r of tick.body.refunds ?? []) console.log(`   refunded ${r.shares} share(s), ${r.sats} sats in one refundBatch tx: ${EXPLORER_TX}${r.txid}`);
-check((tick.body.refunds?.length ?? 0) > 0, `${tick.body.refunds?.length} expired envelope(s) refunded automatically (waiting on MTP: ${tick.body.refundsWaiting})`);
+check(
+  (tick.body.refunds?.length ?? 0) > 0 || a['allow-no-refunds']!,
+  `${tick.body.refunds?.length} expired envelope(s) refunded automatically (waiting on MTP: ${tick.body.refundsWaiting})`,
+);
 if (tick.body.errors?.length) console.log('   errors:', tick.body.errors);
 const health = await call('GET', '/health');
 check(!!health.body.keeper.lastRunAt, `/health shows keeper heartbeat ${health.body.keeper.lastRunAt}`);
