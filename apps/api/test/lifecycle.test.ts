@@ -103,6 +103,12 @@ describe('keeper endpoint', () => {
     expect((await t.http().get('/health')).body.keeper.lastRunAt).toBeTruthy();
   });
 
+  it('review-2 P1-8: GET (the daily Vercel Cron backstop) is registered too, with the same auth', async () => {
+    expect((await t.http().get('/internal/keeper/tick')).status).toBe(401); // was 404: route missing
+    const r = await t.http().get('/internal/keeper/tick').set('authorization', `Bearer ${KEEPER_TOKEN}`);
+    expect([r.status, r.body.ran]).toEqual([200, true]);
+  });
+
   it('runs one tick at a time (lease)', async () => {
     const [a, b] = await Promise.all([tick(), tick()]);
     expect([a.ran, b.ran].sort()).toEqual([false, true]);

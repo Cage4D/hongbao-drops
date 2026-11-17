@@ -20,12 +20,22 @@ export class KeeperController {
     @Inject(KeeperService) private readonly keeper: KeeperService,
   ) {}
 
-  // POST from the external per-minute cron; GET from Vercel Cron (daily backstop), which sends
-  // `Authorization: Bearer $CRON_SECRET` — set KEEPER_TOKEN to the same value.
+  // POST from the external per-minute cron (cron-job.org).
   @Post('internal/keeper/tick')
-  @Get('internal/keeper/tick')
   @HttpCode(200)
   tick(@Headers('authorization') auth?: string) {
+    return this.run(auth);
+  }
+
+  // GET from Vercel Cron (daily backstop), which sends `Authorization: Bearer $CRON_SECRET` — set
+  // KEEPER_TOKEN to the same value. A separate handler: NestJS keeps only one HTTP method per
+  // handler, so stacking @Get on the POST handler silently registered POST only (review-2 P1-8).
+  @Get('internal/keeper/tick')
+  tickFromVercelCron(@Headers('authorization') auth?: string) {
+    return this.run(auth);
+  }
+
+  private run(auth: string | undefined) {
     if (!this.config.KEEPER_TOKEN) throw new AppError('NOT_FOUND');
     if (!bearerMatches(auth, this.config.KEEPER_TOKEN)) throw new AppError('UNAUTHORIZED');
     return this.keeper.tick();
