@@ -25,6 +25,12 @@ import { farmFlags } from './farm-flags.js';
 import type { Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
 const LEASE_MS = 120_000;
+/**
+ * Work budget per tick (review-2 P1-15). cron-job.org gives up after 30 s and may disable a job
+ * that keeps timing out; a cold start alone took ~15 s on Vercel (Phase 8). Loops stop once the
+ * budget is spent and carry on next minute (every loop rotates by its "last checked" column).
+ */
+export const TICK_BUDGET_MS = 12_000;
 const DAY = 24 * 3600 * 1000;
 export const ACTIVATION_WINDOW_MS = 7 * DAY;
 /** Re-check a claim's activation at most hourly. */
@@ -48,6 +54,8 @@ export interface TickSummary {
   dropped?: number;
   activation?: { checked: number; activated: number; notActivated: number };
   farm?: { flagged: number };
+  /** The tick stopped early to stay within TICK_BUDGET_MS. */
+  outOfTime?: boolean;
   errors: string[];
 }
 
@@ -57,6 +65,7 @@ class LeaseLost extends Error {}
 export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly log = new Logger('Keeper');
   private timer?: NodeJS.Timeout;
+  private deadline = 0;
 
   constructor(
     @Inject(CONFIG) private readonly config: AppConfig,
@@ -118,6 +127,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     let lease = await this.acquireLease(owner);
     if (!lease) return s;
     s.ran = true;
+    this.deadline = started + TICK_BUDGET_MS;
 
     const step = async (name: string, fn: () => Promise<void>) => {
       lease = await this.renewLease(lease!, owner);
@@ -159,6 +169,13 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     } finally {
       await this.releaseLease(lease);
     }
+  }
+
+  /** True once this tick's work budget is spent; loops then stop and resume next tick. */
+  private outOfTime(s: TickSummary): boolean {
+    if (Date.now() < this.deadline) return false;
+    s.outOfTime = true;
+    return true;
   }
 
   /** Run fn for one envelope; errors are recorded, never abort the loop (review #1). */
@@ -246,6 +263,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
       take: 20,
     });
     for (const env of envs) {
+      if (this.outOfTime(s)) break;
       await this.perEnvelope(s, 'reconcile', env, () => this.reconcileEnvelope(env, s));
       await this.db.envelope.update({ where: { id: env.id }, data: { reconciledAt: new Date() } });
     }
@@ -365,17 +383,45 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     s.refundsWaiting = 0;
     s.dustSkipped = 0;
     const nowSec = Math.floor(Date.now() / 1000);
-    const envs = await this.db.envelope.findMany({
+    const window = nowSec - 30 * 24 * 3600;
+    const live: Envelope['status'][] = ['PENDING_FUNDING', 'ACTIVE', 'EXHAUSTED', 'EXPIRED'];
+    const sweepDue: Prisma.EnvelopeWhereInput = { status: { in: ['REFUNDED', 'FAILED'] }, refundCheckedAt: { lt: new Date(Date.now() - 3600_000) } };
+    const anyExpired = await this.db.envelope.count({
+      where: { expiry: { lte: nowSec, gt: window }, OR: [{ status: { in: live } }, sweepDue] },
+    });
+    if (anyExpired === 0) return; // skip the MTP lookup on quiet ticks
+    // Only envelopes the network will accept a refund for, i.e. median-time-past > expiry (review-2
+    // P1-7). Ones still waiting for MTP are counted without chain calls instead of being checked
+    // and sent to the back of the queue.
+    const mtp = await this.chain.medianTimePast();
+    s.refundsWaiting = await this.db.envelope.count({
+      where: { expiry: { lte: nowSec, gte: mtp }, status: { in: live }, shares: { some: { status: { in: UNSPENT } } } },
+    });
+    // Real work first: never checked since becoming refundable, or shares still unspent in the DB.
+    const work = await this.db.envelope.findMany({
       where: {
-        expiry: { lte: nowSec, gt: nowSec - 30 * 24 * 3600 },
-        status: { in: ['PENDING_FUNDING', 'ACTIVE', 'EXHAUSTED', 'EXPIRED'] },
+        expiry: { lt: mtp, gt: window },
+        status: { in: live },
+        OR: [{ refundCheckedAt: null }, { shares: { some: { status: { in: UNSPENT } } } }],
       },
       orderBy: { refundCheckedAt: { sort: 'asc', nulls: 'first' } },
-      take: 10,
+      take: 20,
     });
-    if (envs.length === 0) return;
-    const mtp = await this.chain.medianTimePast();
-    for (const env of envs) {
+    // Then a slow hourly sweep of finished contracts: someone may have sent coins to a fully
+    // claimed or refunded contract (review #11), or a FAILED envelope's funding tx may have
+    // reappeared (review-2 P2-3). A few per tick, so they can never crowd out real refunds.
+    const sweep = await this.db.envelope.findMany({
+      where: {
+        expiry: { lt: mtp, gt: window },
+        status: { in: [...live, 'REFUNDED', 'FAILED'] },
+        refundCheckedAt: { lt: new Date(Date.now() - 3600_000) },
+        id: { notIn: work.map((e) => e.id) },
+      },
+      orderBy: { refundCheckedAt: 'asc' },
+      take: 3,
+    });
+    for (const env of [...work, ...sweep]) {
+      if (this.outOfTime(s)) break;
       await this.perEnvelope(s, 'refund', env, () => this.refundEnvelope(env, mtp, s));
       await this.db.envelope.update({ where: { id: env.id }, data: { refundCheckedAt: new Date() } });
     }
@@ -456,6 +502,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
       take: 50,
     });
     for (const c of claims) {
+      if (this.outOfTime(s)) break;
       try {
         const h = (await this.chain.history(c.recipientLockingBytecode)).find((x) => x.tx_hash === c.claimTxid);
         if (h && h.height > 0) {
@@ -504,6 +551,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     });
     const a = { checked: 0, activated: 0, notActivated: 0 };
     for (const c of claims) {
+      if (this.outOfTime(s)) break;
       try {
         a.checked++;
         let movedAt: Date | null = await this.passedOnAt(c.envelopeId, c.recipientLockingBytecode);

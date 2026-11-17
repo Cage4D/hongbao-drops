@@ -546,3 +546,31 @@ describe('review 2: refunds and envelope status', () => {
     expect((await t.db.claim.findUniqueOrThrow({ where: { id: a.claimId } })).status).toBe('BROADCAST');
   });
 });
+
+describe('review 2: refund queue', () => {
+  it('P1-7: an envelope that waited for median-time-past is refunded on the next tick, not queued behind finished ones', async () => {
+    const env = await fundedEnvelope(t, { expiry: now() + 2 });
+    // 15 finished (never-funded) envelopes that were checked a while ago.
+    for (let i = 0; i < 15; i++) {
+      const r = await t.http().post('/envelopes').set('x-forwarded-for', `10.20.0.${i}`).send(createBody({ expiry: now() + 2 }));
+      expect(r.status).toBe(201);
+    }
+    await sleep(2_200);
+    await t.db.envelope.updateMany({ where: { NOT: { id: env.id } }, data: { status: 'EXPIRED', refundCheckedAt: new Date(Date.now() - 10 * 60_000) } });
+    mtp = now() - 60; // the network won't accept refunds yet
+    const s1 = await tick();
+    expect([s1.refunds, s1.refundsWaiting]).toEqual([[], 1]);
+    mtp = now() + 3600; // now it will
+    const s2 = await tick();
+    expect(s2.refunds).toEqual([expect.objectContaining({ envelopeId: env.id, shares: 3 })]);
+  });
+
+  it('P2-3: coins of a FAILED envelope whose funding reappeared are still refunded (hourly sweep)', async () => {
+    const env = await fundedEnvelope(t, { expiry: now() + 2 });
+    await sleep(2_200);
+    await t.db.envelope.update({ where: { id: env.id }, data: { status: 'FAILED', refundCheckedAt: new Date(Date.now() - 2 * 3600_000) } });
+    const s = await tick();
+    expect(s.refunds).toEqual([expect.objectContaining({ envelopeId: env.id, shares: 3 })]);
+    expect(await t.provider.getUtxosForLockingBytecode(env.contractLockingBytecode)).toEqual([]);
+  });
+});
