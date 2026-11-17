@@ -12,7 +12,12 @@ import { chipnetProvider } from './lib/chain.js';
 import { newKeyPair, treasuryKey, walletKey, type KeyPair } from './lib/keys.js';
 import { apiClient, check, createAndFund } from './lib/api.js';
 
-const { values: a } = parseArgs({ options: { api: { type: 'string', default: 'http://localhost:3000' } } });
+// --single-ip: against a host that overwrites X-Forwarded-For (Vercel), every request comes from this
+// machine's one real IP. Expect the farm detector to flag the 4-claim burst and CTA clicks to count once.
+const { values: a } = parseArgs({
+  options: { api: { type: 'string', default: 'http://localhost:3000' }, 'single-ip': { type: 'boolean', default: false } },
+});
+const SINGLE_IP = a['single-ip']!;
 const call = apiClient(a.api!);
 const provider = await chipnetProvider();
 const KEEPER = { authorization: `Bearer ${process.env.KEEPER_TOKEN}` };
@@ -86,10 +91,18 @@ console.table({
   passOnEnvelopes: st.passOnEnvelopes,
   totalReach: st.totalReach,
 });
-check(st.claims === 4 && st.freshWallets === 3 && st.activatedWallets === 2 && st.activatedNotFarm === 2, 'funnel: 4 claims → 3 fresh → 2 activated → 2 not farm');
+if (SINGLE_IP) {
+  check(
+    st.claims === 4 && st.freshWallets === 3 && st.activatedWallets === 2 && st.suspectedFarms === 4 && st.activatedNotFarm === 0,
+    'funnel: 4 claims → 3 fresh → 2 activated; all 4 flagged as farm (one real IP, burst) → 0 not farm',
+  );
+} else {
+  check(st.claims === 4 && st.freshWallets === 3 && st.activatedWallets === 2 && st.activatedNotFarm === 2, 'funnel: 4 claims → 3 fresh → 2 activated → 2 not farm');
+}
 const askedFees = [e1, e2].reduce((sum, e) => sum + (e.env.requiredOutputs.find((o) => o.purpose === 'SPONSOR_FEE')?.sats ?? 0), 0);
 check(st.feesSats === askedFees && st.spentSats === st.givenAwaySats + st.feesSats, `fees = what the API required (max(3%, 546) each = ${askedFees}); spent = given away + fees`);
-check(st.passOnEnvelopes === 1 && st.ctaClicks === 2, 'pass-on and CTA counted (3 clicks from 2 IPs → 2)');
+if (SINGLE_IP) check(st.passOnEnvelopes === 1 && st.ctaClicks === 1, 'pass-on counted; 3 CTA clicks with 2 spoofed IPs → 1 (X-Forwarded-For spoofing ignored)');
+else check(st.passOnEnvelopes === 1 && st.ctaClicks === 2, 'pass-on and CTA counted (3 clicks from 2 IPs → 2)');
 
 // ------------------------------------------------------------ reconcile with the chain
 console.log('\nReconciling with Chipnet…');
