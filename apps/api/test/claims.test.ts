@@ -312,7 +312,16 @@ describe('review fixes: one outpoint per recipient, idempotency, atomic limits',
     const rs = await Promise.all(
       Array.from({ length: 8 }, () => t.http().post(`/envelopes/${env.id}/holds`).set('x-forwarded-for', '10.4.4.4').send({})),
     );
-    expect(rs.filter((r) => r.status === 201)).toHaveLength(5);
+    expect(rs.filter((r) => r.status === 201)).toHaveLength(2); // LIMITS.hold (review-2 P1-10)
+    expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'HELD' } })).toBe(2);
+  });
+
+  it('review-2 P1-10: at most half the shares can be held at once; wallets can still claim', async () => {
+    const env = await fundedEnvelope(t, { shareCount: 10, totalSats: 100_000 });
+    const rs = [];
+    for (let i = 0; i < 6; i++) rs.push(await t.http().post(`/envelopes/${env.id}/holds`).set('x-forwarded-for', `10.5.5.${i}`).send({}));
+    expect(rs.map((r) => r.status)).toEqual([201, 201, 201, 201, 201, 429]);
     expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'HELD' } })).toBe(5);
+    expect((await claimReq(t, env.id, { recipientAddress: addressOf('has-wallet') }, '10.5.6.1')).status).toBe(201);
   });
 });

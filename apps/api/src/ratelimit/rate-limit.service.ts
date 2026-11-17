@@ -15,8 +15,8 @@ export const LIMITS = {
   claim: 10,
   /** Wrong quiz answers per IP per envelope per 10 min (spec §8.2). */
   wrongAnswer: 5,
-  /** Holds per IP per envelope per 10 min. */
-  hold: 5,
+  /** Holds per IP per envelope per 15 min (the hold lifetime), review-2 P1-10. */
+  hold: 2,
   /** SSE streams opened per IP per 10 min (review-2 P1-9). */
   stream: 30,
 } as const;

@@ -131,20 +131,29 @@ export class ClaimsService {
 
   // ------------------------------------------------------------------ POST /envelopes/:id/holds
 
-  /** "Hold my share" for people with no wallet yet: reserves a share for 15 minutes. */
+  /**
+   * "Hold my share" for people with no wallet yet: reserves a share for 15 minutes.
+   * Limits (review-2 P1-10): each IP may take LIMITS.hold holds per envelope per 15 min, and at most
+   * half the shares (rounded up) may be held at once, so a couple of IPs can't keep a whole envelope
+   * held indefinitely; people with a wallet can always claim the rest.
+   */
   async hold(envelopeId: string, body: unknown, ip: string): Promise<HoldResponse> {
     const req = validate(HoldRequestSchema, body ?? {});
     const env = await this.loadClaimable(envelopeId);
+    // Same device asking again: same hold, without counting against the limits.
+    if (req.fingerprint) {
+      const mine = await this.db.share.findFirst({
+        where: { envelopeId: env.id, holdFingerprint: req.fingerprint, status: 'HELD', reservedUntil: { gt: new Date() } },
+      });
+      if (mine) return { holdToken: mine.holdToken!, heldUntil: mine.reservedUntil!.toISOString() };
+    }
     const ipHash = this.rate.ipHash(ip);
-    await this.rate.hit(`hold:${env.id}:${ipHash}`, LIMITS.hold);
+    await this.rate.hit(`hold:${env.id}:${ipHash}`, LIMITS.hold, HOLD_MS);
 
     const share = await this.db.$transaction(async (tx) => {
-      if (req.fingerprint) {
-        const mine = await tx.share.findFirst({
-          where: { envelopeId: env.id, holdFingerprint: req.fingerprint, status: 'HELD', reservedUntil: { gt: new Date() } },
-        });
-        if (mine) return mine; // same device asking again: same hold
-      }
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`hold:${env.id}`}))`;
+      const held = await tx.share.count({ where: { envelopeId: env.id, status: 'HELD', reservedUntil: { gt: new Date() } } });
+      if (held >= Math.ceil(env.shareCount / 2)) throw new AppError('RATE_LIMITED', { reason: 'Too many shares are being held right now.' });
       const free = await this.pickFreeShare(tx, env.id);
       if (!free) throw new AppError('ENVELOPE_EMPTY');
       await this.releaseStaleClaim(tx, free.id);
