@@ -17,6 +17,8 @@ export const LIMITS = {
   wrongAnswer: 5,
   /** Holds per IP per envelope per 10 min. */
   hold: 5,
+  /** SSE streams opened per IP per 10 min (review-2 P1-9). */
+  stream: 30,
 } as const;
 
 @Injectable()

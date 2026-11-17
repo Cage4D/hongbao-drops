@@ -5,6 +5,7 @@ import { binToHex, decodeTransaction, hash256, hexToBin, sha256 } from '@bitauth
 import { buildClaimTx, buildRefundTx, hongbaoContract } from '@hongbao/contract';
 import type { ClaimApproval, CreateEnvelopeResponse, TreeResponse } from '@hongbao/shared';
 import { farmFlags } from '../src/keeper/farm-flags.js';
+import { EventsService } from '../src/events/events.service.js';
 import type { TickSummary } from '../src/keeper/keeper.service.js';
 import {
   addSenderUtxo,
@@ -326,6 +327,30 @@ describe('SSE /envelopes/:id/events', () => {
     const resumed = (await sse(`/envelopes/${env.id}/events?maxSeconds=1`, { 'last-event-id': ids[0]! })).body as string;
     expect(resumed).not.toContain(first.txid);
     expect(resumed).toContain(live.txid);
+  });
+
+  it('review-2 P1-9: opening streams is rate-limited per IP', async () => {
+    const env = await fundedEnvelope(t);
+    const ip = { 'x-forwarded-for': '10.30.0.1' };
+    const opens = await Promise.all(Array.from({ length: 31 }, () => sse(`/envelopes/${env.id}/events?maxSeconds=1`, ip)));
+    expect(opens.filter((r) => r.status === 200)).toHaveLength(30);
+    expect(opens.filter((r) => r.status === 429)).toHaveLength(1);
+    expect((await sse(`/envelopes/${env.id}/events?maxSeconds=1`, { 'x-forwarded-for': '10.30.0.2' })).status).toBe(200);
+  });
+
+  it('review-2 P1-9: a DB error mid-stream ends the stream cleanly', async () => {
+    const env = await fundedEnvelope(t);
+    const events = t.app.get(EventsService);
+    const after = events.after.bind(events);
+    events.after = async () => Promise.reject(new Error('connection terminated'));
+    try {
+      const r = await sse(`/envelopes/${env.id}/events?maxSeconds=5`, { 'x-forwarded-for': '10.30.0.3' });
+      expect(r.status).toBe(200);
+      expect(r.body).toContain('retry: 1000');
+    } finally {
+      events.after = after;
+    }
+    expect((await t.http().get('/health')).status).toBe(200); // process still fine
   });
 });
 
