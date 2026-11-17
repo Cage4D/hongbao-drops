@@ -308,7 +308,7 @@ export class EnvelopesService {
       contractLockingBytecode: env.contractLockingBytecode,
       treasuryLockingBytecode: this.treasuryLockingBytecode,
     });
-    if (!result.ok) {
+    if ('reasons' in result) { // `in` narrows even without strictNullChecks (Vercel's build check)
       this.log.warn(`funding ${txid} rejected for ${env.id}: ${result.reasons.join('; ')}`);
       throw new AppError('FUNDING_MISMATCH', { reasons: result.reasons });
     }
