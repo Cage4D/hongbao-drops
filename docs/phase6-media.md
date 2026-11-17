@@ -42,3 +42,5 @@ pnpm --filter @hongbao/scripts stamp-to-wallet -- --to <your Paytaca chipnet add
 ```
 
 It funds a stamped envelope through the API and claims one share straight to that wallet.
+
+**Update (Phase 8):** run against production on Chipnet. The stamp was delivered and the served BCMR hash matches on-chain. Paytaca's Chipnet view doesn't show WizardConnect-derived addresses (see [phase8-deploy.md](phase8-deploy.md)), so the visual wallet check moves to mainnet.
