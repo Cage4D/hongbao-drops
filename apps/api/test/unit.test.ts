@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { decodeTransaction, hexToBin } from '@bitauth/libauth';
+import { binToHex, decodeTransaction, hexToBin } from '@bitauth/libauth';
 import { MockNetworkProvider, SignatureTemplate, TransactionBuilder } from 'cashscript';
 import { fundingOutputs, hongbaoContract, bcmrRegistryHash } from '@hongbao/contract';
 import { verifyFundingTx } from '../src/envelopes/funding-verifier.js';
@@ -63,6 +63,38 @@ describe('config', () => {
       expect((e as Error).message).toMatch(/GATE_MASTER_SEED/);
       expect((e as Error).message).not.toContain('short');
     }
+  });
+
+  it('review-2: mainnet guards (demo wallet required, public https API URL, expiry ≤ 24 h, Fulcrum port)', () => {
+    const ok = {
+      NETWORK: 'MAINNET',
+      DATABASE_URL: 'x',
+      GATE_MASTER_SEED: '11'.repeat(32),
+      ADMIN_TOKEN: 'a'.repeat(32),
+      TREASURY_ADDRESS: 'bitcoincash:qrm75mfwuwpw93wnrra2grcnqxtc23dctqdpgd5dwc',
+      BUDGET_WALLET_ADDRESS: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0',
+      PUBLIC_API_URL: 'https://hongbao-drops-api.vercel.app',
+    };
+    const c = loadConfig(ok);
+    expect(c.MAX_EXPIRY_SECONDS).toBe(24 * 3600);
+    expect(c.budgetLockingBytecode).toBe(binToHex(sender)); // same key as the test sender
+    const err = (over: Record<string, string | undefined>) => {
+      try {
+        loadConfig({ ...ok, ...over });
+        return '';
+      } catch (e) {
+        return (e as Error).message;
+      }
+    };
+    expect(err({ BUDGET_WALLET_ADDRESS: undefined })).toMatch(/BUDGET_WALLET_ADDRESS: required on MAINNET/);
+    expect(err({ BUDGET_WALLET_ADDRESS: 'bchtest:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwgw2cltjwn' })).toMatch(/BUDGET_WALLET_ADDRESS/);
+    expect(err({ PUBLIC_API_URL: undefined })).toMatch(/PUBLIC_API_URL/); // localhost default
+    expect(err({ PUBLIC_API_URL: 'http://hongbao-drops-api.vercel.app' })).toMatch(/PUBLIC_API_URL/);
+    expect(err({ MAX_EXPIRY_SECONDS: String(7 * 24 * 3600) })).toMatch(/MAX_EXPIRY_SECONDS/);
+    expect(err({ FULCRUM_URLS: 'wss://bch.imaginary.cash:50002' })).toMatch(/port 50002 is not supported/);
+    expect(err({ FULCRUM_URLS: 'wss://bch.imaginary.cash:50004,wss://fulcrum.greyh.at' })).toBe('');
+    // Chipnet keeps the long default and needs no demo wallet.
+    expect(testConfig().MAX_EXPIRY_SECONDS).toBe(30 * 24 * 3600);
   });
 
   it('defaults Fulcrum hosts per network', () => {

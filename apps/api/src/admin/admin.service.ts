@@ -9,30 +9,39 @@ import { z } from 'zod';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PriceService } from '../price/price.service.js';
+import { BudgetService } from '../budget/budget.service.js';
 import { AppError } from '../common/app-error.js';
 import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
 
 const DEMO_KEY = 'demo.envelopeId';
 
+/**
+ * The demo wallet's position (BUDGET_WALLET_ADDRESS, review-2 Q1), worked out from share and
+ * envelope state like the caps themselves (review-2 P1-2, P1-3). `ledger` is the audit log for comparison.
+ */
 export interface BudgetSummary {
   network: string;
-  priceUsd: number | null;
+  budgetWallet: string | null;
+  priceUsd: number;
+  /** false: no live or last-known price, so BUDGET_FALLBACK_BCH_USD is used. */
+  priceLive: boolean;
   budgetTotalUsd: number;
-  /** Funded into contracts, ever. */
+  /** Funded into contracts, ever (FAILED envelopes excluded). */
   fundedSats: number;
-  /** Given away to claimers: gone for good. */
+  /** Shares given away to claimers: gone for good. */
   claimedSats: number;
-  /** Returned to the sender by refunds. */
+  /** Shares returned to the sender (share value; each refund tx pays ~340 sat per share in fees). */
   refundedSats: number;
   /** Sponsor fees paid to our own treasury: recoverable (§10.1 rule 8). */
   feeSats: number;
   /** Still sitting in contracts (unclaimed shares, not yet refunded). */
   lockedSats: number;
-  /** Funded − claimed − refunded − locked: what miners took (small). */
-  networkFeesSats: number;
+  /** Unfunded envelopes still in their first hour (they count against the caps). */
+  pendingSats: number;
   spentUsdTotal: number;
-  lockedUsd: number | null;
+  lockedUsd: number;
+  ledger: Record<'FUND' | 'CLAIMED' | 'REFUNDED' | 'FEE', number>;
   /** budget − spent − locked (worst case: everything still locked gets claimed). */
   remainingBudgetUsd: number;
   warning: string | null;
@@ -55,6 +64,7 @@ export class AdminService {
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(PriceService) private readonly price: PriceService,
+    @Inject(BudgetService) private readonly budgetSvc: BudgetService,
   ) {}
 
   authorize(header: string | undefined) {
@@ -66,37 +76,30 @@ export class AdminService {
 
   async budget(): Promise<BudgetSummary> {
     const c = this.config;
-    const sums = await this.db.ledgerEntry.groupBy({ by: ['kind'], _sum: { sats: true, usd: true } });
-    const get = (k: string) => sums.find((s) => s.kind === k)?._sum;
-    const locked =
-      (
-        await this.db.share.aggregate({
-          _sum: { sats: true },
-          where: { status: { in: ['AVAILABLE', 'HELD', 'RESERVED'] }, envelope: { network: 'MAINNET', fundedAt: { not: null } } },
-        })
-      )._sum.sats ?? 0n;
-    const funded = get('FUND')?.sats ?? 0n;
-    const claimed = get('CLAIMED')?.sats ?? 0n;
-    const refunded = get('REFUNDED')?.sats ?? 0n;
-    const fees = get('FEE')?.sats ?? 0n;
-    const price = await this.price.bchUsd();
-    const spentUsd = Number(get('CLAIMED')?.usd ?? 0);
-    const lockedUsd = this.price.toUsd(locked, price);
-    const remaining = Math.round((c.BUDGET_TOTAL_USD - spentUsd - (lockedUsd ?? 0)) * 100) / 100;
+    const st = await this.budgetSvc.state(this.db);
+    const price = await this.budgetSvc.capPrice();
+    const usd = (sats: bigint) => Math.round((Number(sats) / 1e8) * price.usd * 100) / 100;
+    const spentUsd = usd(st.spentSats);
+    const lockedUsd = usd(st.lockedSats + st.pendingSats);
+    const remaining = Math.round((c.BUDGET_TOTAL_USD - spentUsd - lockedUsd) * 100) / 100;
     const used = c.BUDGET_TOTAL_USD - remaining;
-    const minerFees = funded - claimed - refunded - locked;
+    const sums = await this.db.ledgerEntry.groupBy({ by: ['kind'], _sum: { sats: true } });
+    const ledgerSats = (k: string) => toNum(sums.find((s) => s.kind === k)?._sum.sats ?? 0n);
     return {
       network: c.NETWORK,
-      priceUsd: price,
+      budgetWallet: c.BUDGET_WALLET_ADDRESS ?? null,
+      priceUsd: price.usd,
+      priceLive: price.live,
       budgetTotalUsd: c.BUDGET_TOTAL_USD,
-      fundedSats: toNum(funded),
-      claimedSats: toNum(claimed),
-      refundedSats: toNum(refunded),
-      feeSats: toNum(fees),
-      lockedSats: toNum(locked),
-      networkFeesSats: toNum(minerFees > 0n ? minerFees : 0n),
-      spentUsdTotal: Math.round(spentUsd * 100) / 100,
+      fundedSats: toNum(st.fundedSats),
+      claimedSats: toNum(st.spentSats),
+      refundedSats: toNum(st.refundedShareSats),
+      feeSats: toNum(st.feeSats),
+      lockedSats: toNum(st.lockedSats),
+      pendingSats: toNum(st.pendingSats),
+      spentUsdTotal: spentUsd,
       lockedUsd,
+      ledger: { FUND: ledgerSats('FUND'), CLAIMED: ledgerSats('CLAIMED'), REFUNDED: ledgerSats('REFUNDED'), FEE: ledgerSats('FEE') },
       remainingBudgetUsd: remaining,
       warning: used >= 0.8 * c.BUDGET_TOTAL_USD ? `${Math.round((used / c.BUDGET_TOTAL_USD) * 100)}% of the $${c.BUDGET_TOTAL_USD} budget is spent or locked` : null,
       caps: {

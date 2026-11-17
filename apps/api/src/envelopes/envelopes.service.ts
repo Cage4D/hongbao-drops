@@ -33,7 +33,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { KeysService } from '../keys/keys.service.js';
 import { ChainService } from '../chain/chain.service.js';
 import { PriceService } from '../price/price.service.js';
-import { BudgetService } from '../budget/budget.service.js';
+import { BudgetService, PENDING_COUNTS_FOR_MS } from '../budget/budget.service.js';
 import { AppError } from '../common/app-error.js';
 import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
@@ -154,7 +154,7 @@ export class EnvelopesService {
 
     const created = await this.db.$transaction(async (tx) => {
       // Mainnet caps, atomically with the insert (review #5).
-      await this.budget.assertWithinCaps(tx, { totalSats, shareCount: req.shareCount });
+      await this.budget.assertWithinCaps(tx, { totalSats, shareCount: req.shareCount, refundLockingBytecode: binToHex(refundLockingBytecode) });
       // Insert first to get the sequence number (gate key index), then fill in derived fields.
       let row: Envelope | undefined;
       for (let attempt = 0; !row; attempt++) {
@@ -315,9 +315,19 @@ export class EnvelopesService {
 
     const price = this.config.NETWORK === 'MAINNET' ? await this.price.bchUsd() : null;
     const updated = await this.db.$transaction(async (db) => {
-      // Re-check the mainnet caps before going ACTIVE: an old pending envelope that no longer counts
-      // can't be funded past them (review #5). If refused, it stays PENDING and refunds after expiry.
-      await this.budget.assertWithinCaps(db, { totalSats: env.totalSats, shareCount: env.shareCount, excludeId: env.id });
+      // Re-check the mainnet caps before going ACTIVE, but only for envelopes funded more than an hour
+      // after creation: within the hour they were already counted as pending, and a refusal here
+      // would lock the funder's coins until expiry (review-2 P1-6 / Q2). An old pending envelope that
+      // no longer counts still can't be funded past the caps (review #5); if refused, it stays
+      // PENDING and refunds after expiry (≤ 24 h on mainnet).
+      if (Date.now() - env.createdAt.getTime() > PENDING_COUNTS_FOR_MS) {
+        await this.budget.assertWithinCaps(db, {
+          totalSats: env.totalSats,
+          shareCount: env.shareCount,
+          refundLockingBytecode: env.refundLockingBytecode,
+          excludeId: env.id,
+        });
+      }
       // Conditional update: two concurrent /funded calls can't both activate.
       const n = await db.envelope.updateMany({
         where: { id: env.id, status: 'PENDING_FUNDING' },
@@ -334,16 +344,10 @@ export class EnvelopesService {
           nftCommitment: s.nftCommitment,
         })),
       });
-      if (this.config.NETWORK === 'MAINNET') {
-        const ledger: Prisma.LedgerEntryCreateManyInput[] = [
-          { kind: 'FUND', sats: env.totalSats, usd: this.price.toUsd(env.totalSats, price) ?? 0, txid, envelopeId: env.id },
-        ];
-        // Treasury is our own address, so the fee is recoverable (spec §10.1 rule 8).
-        if (env.sponsorFeeSats > 0n) {
-          ledger.push({ kind: 'FEE', sats: env.sponsorFeeSats, usd: this.price.toUsd(env.sponsorFeeSats, price) ?? 0, txid, envelopeId: env.id });
-        }
-        await db.ledgerEntry.createMany({ data: ledger });
-      }
+      // Audit log for demo-wallet envelopes. The treasury is our own address, so the sponsor fee is
+      // recoverable (spec §10.1 rule 8).
+      await this.budget.record(db, env, 'FUND', env.totalSats, txid, price);
+      if (env.sponsorFeeSats > 0n) await this.budget.record(db, env, 'FEE', env.sponsorFeeSats, txid, price);
       // Pass it on: tell the parent envelope's live feed that one of its claimers re-gifted.
       if (env.parentEnvelopeId) {
         await this.events.emit(

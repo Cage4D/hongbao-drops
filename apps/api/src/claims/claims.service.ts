@@ -32,6 +32,7 @@ import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { hashAnswer } from '../envelopes/envelopes.service.js';
 import { EventsService } from '../events/events.service.js';
+import { BudgetService } from '../budget/budget.service.js';
 import { stampAlt } from '../media/stamp.js';
 import type { Claim, Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
@@ -52,6 +53,7 @@ export class ClaimsService {
     @Inject(PriceService) private readonly price: PriceService,
     @Inject(RateLimitService) private readonly rate: RateLimitService,
     @Inject(EventsService) private readonly events: EventsService,
+    @Inject(BudgetService) private readonly budget: BudgetService,
   ) {}
 
   // ------------------------------------------------------------------ helpers
@@ -399,11 +401,7 @@ export class ClaimsService {
         await db.envelope.updateMany({ where: { id: env.id, status: 'ACTIVE' }, data: { status: 'EXHAUSTED' } });
         await this.events.emit(env.id, 'exhausted', { claimed: env.shareCount }, db);
       }
-      if (env.network === 'MAINNET') {
-        await db.ledgerEntry.create({
-          data: { kind: 'CLAIMED', sats: share.sats, usd: this.price.toUsd(share.sats, price) ?? 0, txid, envelopeId: env.id },
-        });
-      }
+      await this.budget.record(db, env, 'CLAIMED', share.sats, txid, price);
       return true;
     });
     if (!recorded) {

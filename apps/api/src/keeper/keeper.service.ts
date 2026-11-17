@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ChainService } from '../chain/chain.service.js';
 import { PriceService } from '../price/price.service.js';
 import { EventsService } from '../events/events.service.js';
+import { BudgetService } from '../budget/budget.service.js';
 import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { farmFlags } from './farm-flags.js';
@@ -63,6 +64,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(ChainService) private readonly chain: ChainService,
     @Inject(PriceService) private readonly price: PriceService,
     @Inject(EventsService) private readonly events: EventsService,
+    @Inject(BudgetService) private readonly budget: BudgetService,
   ) {}
 
   /** Local dev convenience: KEEPER_INTERVAL_MS > 0 runs ticks in-process (production uses the cron). */
@@ -272,6 +274,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     const price = await this.price.bchUsd();
+    const externalRefunds = new Map<string, bigint>(); // refund txid → sats returned (audit log)
     for (const h of await this.chain.history(env.contractLockingBytecode)) {
       if (h.tx_hash === env.fundingTxid) continue;
       const tx = await this.chain.getTransaction(h.tx_hash);
@@ -289,6 +292,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
           if (isRefund) {
             await db.share.update({ where: { id: sh.id }, data: { status: 'REFUNDED', spendTxid: h.tx_hash, reservedUntil: null, holdToken: null } });
             await db.claim.updateMany({ where: { shareId: sh.id, status: 'APPROVED' }, data: { status: 'EXPIRED', shareId: null } });
+            externalRefunds.set(h.tx_hash, (externalRefunds.get(h.tx_hash) ?? 0n) + out.valueSatoshis);
             return;
           }
           // Detach whoever currently holds the reservation on this share first: Claim.shareId is
@@ -301,6 +305,8 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
             data: { status: 'EXPIRED', shareId: null },
           });
           await db.share.update({ where: { id: sh.id }, data: { status: 'CLAIMED', spendTxid: h.tx_hash, reservedUntil: null, holdToken: null } });
+          // Audit log, same entry the API writes for a relayed claim (review-2 P1-3).
+          await this.budget.record(db, env, 'CLAIMED', sh.sats, h.tx_hash, price);
           if (claim) {
             await db.claim.update({
               where: { id: claim.id },
@@ -341,6 +347,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
         this.log.log(`reconciled share ${env.id}#${sh.index} spent by ${h.tx_hash}`);
       }
     }
+    for (const [txid, sats] of externalRefunds) await this.budget.record(this.db, env, 'REFUNDED', sats, txid, price);
     // Finish the envelope if nothing is left (review-2 P1-2): without this, an envelope whose last
     // shares were spent outside the keeper and API stayed ACTIVE/EXPIRED forever.
     await this.settle(this.db, env.id);
@@ -425,11 +432,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
         await this.settle(db, env.id, 'EXPIRED');
       }
       await this.events.emit(env.id, 'refunded', { txid, shares: batch.length, sats: toNum(refundedSats) }, db);
-      if (env.network === 'MAINNET') {
-        await db.ledgerEntry.create({
-          data: { kind: 'REFUNDED', sats: refundedSats, usd: this.price.toUsd(refundedSats, price) ?? 0, txid, envelopeId: env.id },
-        });
-      }
+      await this.budget.record(db, env, 'REFUNDED', refundedSats, txid, price);
       return true;
     });
     if (!recorded) return;
@@ -466,6 +469,8 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
             if (c.shareId) {
               await db.share.updateMany({ where: { id: c.shareId, spendTxid: c.claimTxid }, data: { status: 'AVAILABLE', spendTxid: null } });
             }
+            // The coins never left: drop the audit entry so a later re-claim isn't counted twice.
+            await this.budget.unrecordClaim(db, c.envelopeId, c.claimTxid!);
           });
           s.dropped++;
           this.log.warn(`claim ${c.id} tx ${c.claimTxid} was dropped by the network; share released`);

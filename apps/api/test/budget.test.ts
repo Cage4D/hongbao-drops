@@ -1,13 +1,18 @@
 // §10.1 mainnet caps on POST /envelopes (422 BUDGET_CAP). No mainnet funds involved: nothing is funded.
 import { afterEach, describe, expect, it } from 'vitest';
 import type { CreateEnvelopeResponse } from '@hongbao/shared';
-import { addSenderUtxo, createBody, fundFromTemplate, makeApp, resetDb } from './helpers.js';
+import { encodeCashAddress, hash160 } from '@bitauth/libauth';
+import { BudgetService } from '../src/budget/budget.service.js';
+import { addSenderUtxo, createBody, fundFromTemplate, key, makeApp, pub, resetDb } from './helpers.js';
 
+const SENDER = 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0'; // = BUDGET_WALLET_ADDRESS (the demo wallet)
+// Someone funding envelopes with their own BCH.
+const JUDGE = encodeCashAddress({ prefix: 'bitcoincash', type: 'p2pkh', payload: hash160(pub(key('judge'))) }).address;
 const MAINNET = {
   NETWORK: 'MAINNET',
   TREASURY_ADDRESS: 'bitcoincash:qrm75mfwuwpw93wnrra2grcnqxtc23dctqdpgd5dwc',
+  BUDGET_WALLET_ADDRESS: SENDER,
 };
-const SENDER = 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0';
 
 let t: Awaited<ReturnType<typeof makeApp>> | undefined;
 afterEach(async () => {
@@ -24,6 +29,24 @@ async function mainnet(over: Record<string, string> = {}, priceUsd: number | nul
 const body = (over: Record<string, unknown> = {}) => createBody({ senderAddress: SENDER, ...over });
 const cap = (r: { status: number; body: { error?: { code: string; cap?: string } } }) => [r.status, r.body.error?.code, r.body.error?.cap];
 
+/** Create + fund a demo-wallet envelope through the API. */
+async function funded(t: NonNullable<typeof t>, totalSats: number) {
+  const utxo = addSenderUtxo(t.provider, BigInt(totalSats) + 100_000n);
+  const r = await t.http().post('/envelopes').send(body({ totalSats }));
+  expect(r.status).toBe(201);
+  const txid = await fundFromTemplate(t.provider, r.body as CreateEnvelopeResponse, utxo);
+  const f = await t.http().post(`/envelopes/${r.body.id}/funded`).send({ txid });
+  expect(f.status).toBe(200);
+  return r.body as CreateEnvelopeResponse;
+}
+/** Make `sats` count as already given away: a funded envelope whose shares were all claimed. */
+async function claimedSats(t: NonNullable<typeof t>, sats: bigint) {
+  const env = await funded(t, 6_000);
+  const shares = await t.db.share.findMany({ where: { envelopeId: env.id } });
+  await t.db.share.update({ where: { id: shares[0]!.id }, data: { status: 'CLAIMED', sats } });
+  await t.db.share.updateMany({ where: { envelopeId: env.id, NOT: { id: shares[0]!.id } }, data: { status: 'CLAIMED', sats: 0n } });
+}
+
 describe('mainnet budget caps', () => {
   it('MAX_SHARES = 10', async () => {
     const t = await mainnet();
@@ -38,9 +61,17 @@ describe('mainnet budget caps', () => {
     expect((await t.http().post('/envelopes').send(body({ totalSats: 200_000 })))).toHaveProperty('status', 201);
   });
 
-  it('MAX_ENVELOPE_SATS applies when the price is unknown', async () => {
-    const t = await mainnet({}, null);
-    expect(cap(await t.http().post('/envelopes').send(body({ totalSats: 200_001 })))).toEqual([422, 'BUDGET_CAP', 'MAX_ENVELOPE_SATS']);
+  it('review-2 P1-4: with no price known, the USD caps use the conservative fallback price', async () => {
+    const t = await mainnet({}, null); // BUDGET_FALLBACK_BCH_USD = 500
+    // 120,000 sats × $500 = $0.60 > $0.50 (it would pass at the real ~$200)
+    expect(cap(await t.http().post('/envelopes').send(body({ totalSats: 120_000 })))).toEqual([422, 'BUDGET_CAP', 'MAX_ENVELOPE_USD']);
+    expect((await t.http().post('/envelopes').send(body({ totalSats: 90_000 }))).status).toBe(201);
+  });
+
+  it('review-2 P1-4: BUDGET_TOTAL_USD is still enforced with no price known', async () => {
+    const t = await mainnet({ DAILY_MAINNET_SATS: '100000000', MAX_ACTIVE_MAINNET_SATS: '100000000', BUDGET_TOTAL_USD: '1' }, null);
+    for (let i = 0; i < 2; i++) expect((await t.http().post('/envelopes').send(body({ totalSats: 90_000 }))).status).toBe(201); // $0.90 at $500
+    expect(cap(await t.http().post('/envelopes').send(body({ totalSats: 90_000 })))).toEqual([422, 'BUDGET_CAP', 'BUDGET_TOTAL_USD']);
   });
 
   it('MAX_ENVELOPE_SATS also applies when the price is cheap', async () => {
@@ -110,10 +141,54 @@ describe('mainnet budget caps', () => {
   });
 
   it('BUDGET_TOTAL_USD: spent + locked + new may not exceed $5', async () => {
-    const t = await mainnet({ DAILY_MAINNET_SATS: '10000000', MAX_ACTIVE_MAINNET_SATS: '10000000' });
-    await t.db.ledgerEntry.create({ data: { kind: 'CLAIMED', sats: 2_350_000n, usd: 4.7, txid: 'x' } });
+    const t = await mainnet({ DAILY_MAINNET_SATS: '100000000', MAX_ACTIVE_MAINNET_SATS: '100000000' });
+    await claimedSats(t, 2_350_000n); // $4.70 spent
     expect((await t.http().post('/envelopes').send(body({ totalSats: 100_000 }))).status).toBe(201); // $0.20 → $4.90
     expect(cap(await t.http().post('/envelopes').send(body({ totalSats: 100_000 })))).toEqual([422, 'BUDGET_CAP', 'BUDGET_TOTAL_USD']);
+  });
+
+  it('review-2 P1-2/P1-3: spending counts claims however they were recorded; locked counts only unspent shares', async () => {
+    const t = await mainnet({ DAILY_MAINNET_SATS: '100000000' });
+    // Three funded envelopes fill MAX_ACTIVE_MAINNET_SATS (600,000)…
+    const envs = [];
+    for (let i = 0; i < 3; i++) envs.push(await funded(t, 200_000));
+    expect(cap(await t.http().post('/envelopes').send(body({ totalSats: 6_000 })))[2]).toBe('MAX_ACTIVE_MAINNET_SATS');
+    // …then one is emptied outside the API (reconcile marks its shares; nothing writes a ledger row
+    // and its status stays ACTIVE). Its sats now count as spent, not locked, so creating works again.
+    await t.db.share.updateMany({ where: { envelopeId: envs[0]!.id }, data: { status: 'CLAIMED' } });
+    expect((await t.http().post('/envelopes').send(body({ totalSats: 6_000 }))).status).toBe(201);
+    const b = await t.app.get(BudgetService).state(t.db);
+    expect(b.spentSats).toBe(200_000n);
+    expect(b.lockedSats).toBe(400_000n);
+  });
+
+  it('review-2 Q1: totals count only the demo wallet; per-envelope caps apply to everyone', async () => {
+    const t = await mainnet();
+    for (let i = 0; i < 3; i++) expect((await t.http().post('/envelopes').send(body({ senderAddress: JUDGE, totalSats: 200_000 }))).status).toBe(201);
+    // 600,000 sats of judges' envelopes didn't touch the 400,000-sat daily cap of the demo wallet.
+    for (let i = 0; i < 2; i++) expect((await t.http().post('/envelopes').send(body({ totalSats: 200_000 }))).status).toBe(201);
+    expect(cap(await t.http().post('/envelopes').send(body({ totalSats: 6_000 })))[2]).toBe('DAILY_MAINNET_SATS');
+    expect(cap(await t.http().post('/envelopes').send(body({ senderAddress: JUDGE, shareCount: 11, totalSats: 22_000 })))[2]).toBe('MAX_SHARES');
+    expect(cap(await t.http().post('/envelopes').send(body({ senderAddress: JUDGE, totalSats: 300_000 })))[2]).toBe('MAX_ENVELOPE_USD');
+  });
+
+  it('review-2 P1-6/Q2: an envelope funded within the hour is not re-checked, so its coins are never locked out', async () => {
+    const t = await mainnet();
+    const utxo = addSenderUtxo(t.provider, 300_000n);
+    const r = await t.http().post('/envelopes').send(body({ totalSats: 200_000 })); // $0.40 at $200
+    expect(r.status).toBe(201);
+    await t.db.setting.update({ where: { key: 'price.bchusd' }, data: { value: '300' } }); // now $0.60 > $0.50
+    const txid = await fundFromTemplate(t.provider, r.body, utxo);
+    const f = await t.http().post(`/envelopes/${r.body.id}/funded`).send({ txid });
+    expect([f.status, f.body.status]).toEqual([200, 'ACTIVE']);
+  });
+
+  it('review-2 Q3: mainnet expiry is at most 24 h', async () => {
+    const t = await mainnet();
+    const in25h = Math.floor(Date.now() / 1000) + 25 * 3600;
+    const r = await t.http().post('/envelopes').send(body({ expiry: in25h }));
+    expect([r.status, r.body.error.code]).toEqual([400, 'INVALID_REQUEST']);
+    expect((await t.http().post('/envelopes').send(body({ expiry: in25h - 2 * 3600 }))).status).toBe(201);
   });
 
   it('caps do not apply on chipnet', async () => {

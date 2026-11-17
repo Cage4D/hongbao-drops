@@ -16,6 +16,7 @@ beforeAll(
     (t = await makeApp({
       NETWORK: 'MAINNET',
       TREASURY_ADDRESS: 'bitcoincash:qrm75mfwuwpw93wnrra2grcnqxtc23dctqdpgd5dwc',
+      BUDGET_WALLET_ADDRESS: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0', // = the test sender
     })),
 );
 afterAll(async () => t.app.close());
@@ -53,23 +54,28 @@ describe('GET /admin/budget', () => {
     const b = (await t.http().get('/admin/budget').set(ADMIN)).body;
     expect(b).toMatchObject({
       network: 'MAINNET',
+      budgetWallet: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0',
       priceUsd: 200,
+      priceLive: true,
       budgetTotalUsd: 5,
       fundedSats: 20_000,
       claimedSats: 10_000,
       refundedSats: 0,
       lockedSats: 10_000,
-      networkFeesSats: 0,
+      pendingSats: 0,
       spentUsdTotal: 0.02, // 10,000 sats × $200
       lockedUsd: 0.02,
       remainingBudgetUsd: 4.96,
       warning: null,
+      ledger: { FUND: 20_000, CLAIMED: 10_000, REFUNDED: 0, FEE: 0 }, // audit log agrees
     });
     expect(b.caps.MAX_ENVELOPE_USD).toBe(0.5);
   });
 
   it('warns at 80% of the budget', async () => {
-    await t.db.ledgerEntry.create({ data: { kind: 'CLAIMED', sats: 2_000_000n, usd: 4.1, txid: 'x' } });
+    // $4.10 given away (shares claimed: however they were recorded, they count).
+    const env = await mainnetEnvelope(2, 20_000);
+    await t.db.share.updateMany({ where: { envelopeId: env.id }, data: { status: 'CLAIMED', sats: 1_025_000n } });
     const b = (await t.http().get('/admin/budget').set(ADMIN)).body;
     expect(b.warning).toMatch(/82% of the \$5 budget/);
   });
