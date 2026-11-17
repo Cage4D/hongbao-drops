@@ -111,7 +111,10 @@ describe('campaign stats', () => {
       spentSats: 41_500,
       spentUsd: 0.08, // 41,500 sats × $200
       feesUsd: 0,
+      givenAwayUsd: 0.08, // §9: USD next to every amount (review-2)
       lockedSats: 10_000, // e2's unclaimed share
+      lockedUsd: 0.02,
+      refundedUsd: 0,
       priceUsd: 200,
       costPerActivatedNewWalletUsd: 0.04, // $0.08 / 2
       costPerFreshWalletUsd: 0.03, // $0.08 / 3
@@ -181,6 +184,17 @@ describe('campaign stats', () => {
     expect(r.status).toBe(201);
     const st = (await t.http().get(`/campaigns/${cid}/stats`).set(bearer(s.sponsorToken))).body as CampaignStats;
     expect(st).toMatchObject({ claims: 0, spentSats: 0, feesSats: 0, costPerActivatedNewWalletUsd: null, perEnvelope: [] });
+  });
+
+  it('review-2 P1-14: a FAILED envelope (funding vanished) adds no spend or fee', async () => {
+    const s = await sponsor();
+    const cid = await campaign(s.sponsorToken);
+    const env = await fundedEnvelope(t, { sponsorToken: s.sponsorToken, campaignId: cid, totalSats: 50_000 });
+    const before = (await t.http().get(`/campaigns/${cid}/stats`).set(bearer(s.sponsorToken))).body as CampaignStats;
+    expect(before.feesSats).toBe(1_500);
+    await t.db.envelope.update({ where: { id: env.id }, data: { status: 'FAILED' } });
+    const st = (await t.http().get(`/campaigns/${cid}/stats`).set(bearer(s.sponsorToken))).body as CampaignStats;
+    expect(st).toMatchObject({ feesSats: 0, spentSats: 0, lockedSats: 0, perEnvelope: [] });
   });
 
   it('cta-click 404s unknown envelopes', async () => {

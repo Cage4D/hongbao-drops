@@ -195,6 +195,7 @@ export interface TreeNode {
   theme: Theme;
   shareCount: number;
   totalSats: number;
+  totalUsd: number | null;
   claims: number;
   newWallets: number;
   createdAt: string;
@@ -265,9 +266,12 @@ export interface CampaignMoney {
   spentSats: number;
   spentUsd: number | null;
   feesUsd: number | null;
+  givenAwayUsd: number | null;
   /** Still in contracts (unclaimed, not yet refunded). */
   lockedSats: number;
+  lockedUsd: number | null;
   refundedSats: number;
+  refundedUsd: number | null;
   priceUsd: number | null;
 }
 

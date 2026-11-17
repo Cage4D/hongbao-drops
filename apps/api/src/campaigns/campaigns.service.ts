@@ -102,7 +102,8 @@ export class CampaignsService {
     const campaign = await this.db.campaign.findUnique({ where: { id: campaignId }, include: { sponsor: true } });
     if (!campaign) throw new AppError('NOT_FOUND');
     const envs = await this.db.envelope.findMany({
-      where: { campaignId, fundedAt: { not: null } },
+      // FAILED = the funding tx vanished: its fee was never really paid (review-2 P1-14).
+      where: { campaignId, fundedAt: { not: null }, status: { not: 'FAILED' } },
       include: { shares: true, claims: { where: { status: CLAIMED } } },
       orderBy: { fundedAt: 'asc' },
     });
@@ -163,12 +164,15 @@ export class CampaignsService {
       pendingActivation: fresh.filter((c) => c.activatedWithin7d === null).length,
       suspectedFarms: claims.filter((c) => c.suspectedFarm).length,
       givenAwaySats: toNum(givenAway),
+      givenAwayUsd: usd(givenAway),
       feesSats: toNum(fees),
       spentSats: toNum(spent),
       spentUsd,
       feesUsd: usd(fees),
       lockedSats: toNum(locked),
+      lockedUsd: usd(locked),
       refundedSats: toNum(refunded),
+      refundedUsd: usd(refunded),
       priceUsd: price,
       costPerActivatedNewWalletUsd: spentUsd !== null && activatedNotFarm.length ? round2(spentUsd / activatedNotFarm.length) : null,
       costPerFreshWalletUsd: spentUsd !== null && fresh.length ? round2(spentUsd / fresh.length) : null,

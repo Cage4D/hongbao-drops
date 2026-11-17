@@ -485,6 +485,7 @@ export class EnvelopesService {
       createdAt: true,
       claims: { where: { status: { in: ['BROADCAST', 'CONFIRMED'] } }, select: { isNewWallet: true } },
     } satisfies Prisma.EnvelopeSelect;
+    const price = await this.price.bchUsd(); // §9: every amount in sats + USD (review-2)
     const toNode = (e: Prisma.EnvelopeGetPayload<{ select: typeof select }>, generation: number): TreeNode => ({
       id: e.id,
       slug: e.slug,
@@ -494,6 +495,7 @@ export class EnvelopesService {
       theme: e.theme as Theme,
       shareCount: e.shareCount,
       totalSats: toNum(e.totalSats),
+      totalUsd: this.price.toUsd(e.totalSats, price),
       claims: e.claims.length,
       newWallets: e.claims.filter((c) => c.isNewWallet).length,
       createdAt: e.createdAt.toISOString(),
