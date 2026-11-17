@@ -40,7 +40,13 @@ export async function createAndFund(
 ): Promise<{ env: CreateEnvelopeResponse; linkPriv: Uint8Array; fundingTxid: string }> {
   const signer = new SignatureTemplate(wallet.priv);
   const withStamps = over.withStamps !== false;
-  let utxos: SpendableUtxo[] = (await provider.getUtxos(wallet.address)).filter((u) => !u.token);
+  // Coins just received via the API (e.g. a claim) may not have reached our Fulcrum server yet.
+  let utxos: SpendableUtxo[] = [];
+  for (let i = 0; i < 15 && utxos.length === 0; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 2_000));
+    utxos = (await provider.getUtxos(wallet.address)).filter((u) => !u.token);
+  }
+  if (utxos.length === 0) throw new Error(`no spendable coins at ${wallet.address} after 30 s`);
 
   let input0 = utxos.find((u) => u.vout === 0 && u.satoshis > 30_000n);
   if (withStamps && !input0) {
