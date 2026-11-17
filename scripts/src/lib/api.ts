@@ -88,7 +88,14 @@ export async function createAndFund(
   const fee = BigInt(txSize(mk(inSum - outSum - 1_000n))) * FEE_RATE;
   const sent = await mk(inSum - outSum - fee).send();
 
-  const funded = await call('POST', `/envelopes/${env.id}/funded`, { txid: sent.txid });
+  // The API may look the tx up on a different Fulcrum server than the one we broadcast to, so it can
+  // briefly report "not found on the network yet". Retry only that case (a wallet-broadcast tx in
+  // the frontend hits the same race).
+  let funded = await call('POST', `/envelopes/${env.id}/funded`, { txid: sent.txid });
+  for (let i = 0; i < 15 && funded.status === 409 && JSON.stringify(funded.body).includes('not found on the network yet'); i++) {
+    await new Promise((r) => setTimeout(r, 2_000));
+    funded = await call('POST', `/envelopes/${env.id}/funded`, { txid: sent.txid });
+  }
   if (funded.status !== 200) throw new Error(`funded failed: ${JSON.stringify(funded.body)}`);
   return { env, linkPriv, fundingTxid: sent.txid };
 }
