@@ -70,6 +70,14 @@ Conclusions:
 - The builder's real Chipnet holdings are 8,044 + 34,515 = 42,559 sats, including 2 stamps. Paytaca will show them once its indexer catches up.
 - The wallet display check moves to mainnet (Nov 19) because the Chipnet indexer is stale, not because of address derivation.
 
+**Why it stopped: Paytaca's Chipnet node is on a chain split from the 1-minute-blocks upgrade.**
+- Paytaca's backend publishes its node state. `GET https://chipnet.watchtower.cash/api/blockchain/info/` → `blocks: 332517, headers: 332517`, best block `00000000081874e3…`, `upgrade_status: "May 2026 Upgrade (chipnet)"`.
+- Chipnet block 332517 is `000000000000707e…` on both `chipnet.imaginary.cash` and `chipnet.bch.ninja` (independent operators, tip ~334943). Same height, different block: Paytaca's node follows a separate chain, and it stopped there.
+- The split falls between block 332402 (Nov 15 05:22 UTC, still shared) and 332517 (Nov 15 13:30 UTC). That matches the Chipnet activation of **CHIP-2025-03 (1-minute blocks)** at **2026-11-15 12:00 UTC**. Mainnet activates it on 2027-05-15. BCHN shipped the Chipnet preview release on Nov 14. A node still on the "May 2026" rules rejects the upgraded chain and stalls on its own minority branch.
+- The upgraded chain's pace confirms it: ~2,400 blocks between Nov 15 13:30 and Nov 17 07:00 is about 1 block per minute.
+- **Mainnet is unaffected** until May 2027. Paytaca's mainnet backend reports block 977720, consistent with 10-minute blocks since the 977417 tip recorded on Nov 15.
+- **Side effect for our Chipnet runs:** median-time-past now trails wall-clock by ~6 minutes instead of ~1 hour, so Chipnet refunds open sooner after expiry than the Phase 2 notes say. Mainnet keeps the ~1 h delay through the hackathon.
+
 Check any Chipnet address yourself: `pnpm --filter @hongbao/scripts addr-check -- bchtest:…`
 
 ## Still to do
