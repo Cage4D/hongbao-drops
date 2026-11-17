@@ -1,16 +1,20 @@
-// Send Chipnet sats from the script wallet (e.g. to top up a WizardConnect test wallet).
+// Send sats from the script wallet (e.g. to top up a WizardConnect test wallet).
 // Usage: pnpm --filter @hongbao/scripts send -- --to bchtest:q… --sats 20000
+// Mainnet: send -- --mainnet --yes-mainnet --to bitcoincash:q… --sats N   (N ≤ 50,000 ≈ $0.10)
 import { parseArgs } from 'node:util';
 import { SignatureTemplate, TransactionBuilder, type SpendableUtxo } from 'cashscript';
-import { EXPLORER_TX } from './lib/env.js';
+import { EXPLORER_TX, MAINNET, PREFIX, isOwnNetworkAddress, requireMainnetConsent } from './lib/env.js';
 import { chipnetProvider } from './lib/chain.js';
 import { walletKey } from './lib/keys.js';
 import { FEE_RATE, addressToLockingBytecode, draftFee, txSize } from './lib/envelope.js';
 
 const { values: a } = parseArgs({ options: { to: { type: 'string' }, sats: { type: 'string' } } });
 if (!a.to || !a.sats) throw new Error('--to and --sats are required');
-if (!a.to.startsWith('bchtest:')) throw new Error('Chipnet (bchtest:) addresses only');
+if (!isOwnNetworkAddress(a.to)) throw new Error(`${PREFIX}: addresses only`);
 const amount = BigInt(a.sats);
+const MAINNET_MAX_SEND = 50_000n; // hard ceiling for a manual mainnet send (~$0.10)
+if (MAINNET && amount > MAINNET_MAX_SEND) throw new Error(`mainnet sends are capped at ${MAINNET_MAX_SEND} sats`);
+requireMainnetConsent(`send ${amount} sats to ${a.to}`);
 const to = addressToLockingBytecode(a.to);
 
 const provider = await chipnetProvider();

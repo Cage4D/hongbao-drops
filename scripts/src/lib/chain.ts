@@ -1,11 +1,12 @@
-// Chipnet access via CashScript's ElectrumNetworkProvider, trying each Fulcrum host in order.
+// Fulcrum access via CashScript's ElectrumNetworkProvider, trying each host in order. Chipnet unless
+// the script runs with --mainnet (see env.ts). Name kept for the many Chipnet-only callers.
 import { ElectrumNetworkProvider } from 'cashscript';
-import { FULCRUM_HOSTS } from './env.js';
+import { FULCRUM_HOSTS, NET } from './env.js';
 
 export async function chipnetProvider(): Promise<ElectrumNetworkProvider> {
   let lastError: unknown;
   for (const hostname of FULCRUM_HOSTS) {
-    const provider = new ElectrumNetworkProvider('chipnet', { hostname });
+    const provider = new ElectrumNetworkProvider(NET, { hostname });
     try {
       await provider.getBlockHeight(); // connectivity check
       return provider;

@@ -1,12 +1,14 @@
-// Phase 6 wallet check: create + fund a stamped envelope through the API, then claim one share to a
-// real wallet address so its stamp NFT (and BCMR metadata) can be inspected in Paytaca / Cashonize.
+// Wallet check: create + fund a stamped envelope through the API, then claim one share to a real
+// wallet address so its stamp NFT (and BCMR metadata) can be inspected in Paytaca / Cashonize.
 // The API's PUBLIC_API_URL must be reachable over HTTPS by the wallet, or the metadata can't load.
 // Usage: pnpm --filter @hongbao/scripts stamp-to-wallet -- --to bchtest:q… [--api http://localhost:3000] [--theme lunar]
+// Mainnet (Nov 19 Paytaca check): add --mainnet --yes-mainnet. Defaults to the cheapest stamped
+// envelope (1 share × 2,000 sats ≈ $0.004), funded from the demo wallet; capped at 20,000 sats.
 import { parseArgs } from 'node:util';
 import { cashAddressToLockingBytecode, lockingBytecodeToCashAddress } from '@bitauth/libauth';
 import { buildClaimTx } from '@hongbao/contract';
 import type { ClaimApproval } from '@hongbao/shared';
-import { EXPLORER_TX } from './lib/env.js';
+import { API_NETWORK, EXPLORER_TX, MAINNET, PREFIX, isOwnNetworkAddress, requireMainnetConsent } from './lib/env.js';
 import { chipnetProvider } from './lib/chain.js';
 import { apiClient, check, createAndFund } from './lib/api.js';
 
@@ -15,27 +17,33 @@ const { values: a } = parseArgs({
     to: { type: 'string' },
     api: { type: 'string', default: 'http://localhost:3000' },
     theme: { type: 'string', default: 'lunar' },
+    shares: { type: 'string', default: MAINNET ? '1' : '2' },
+    sats: { type: 'string', default: MAINNET ? '2000' : '10000' },
   },
 });
-if (!a.to?.startsWith('bchtest:')) throw new Error('--to must be a bchtest: address');
+if (!isOwnNetworkAddress(a.to)) throw new Error(`--to must be a ${PREFIX}: address`);
+const totalSats = Number(a.sats);
+if (MAINNET && totalSats > 20_000) throw new Error('mainnet stamp checks are capped at 20,000 sats');
 // Send the stamp to the token-aware (z…) form of the same key so wallets show the NFT.
 const lb = cashAddressToLockingBytecode(a.to);
 if (typeof lb === 'string') throw new Error(lb);
-const tokenAddr = lockingBytecodeToCashAddress({ bytecode: lb.bytecode, prefix: 'bchtest', tokenSupport: true });
+const tokenAddr = lockingBytecodeToCashAddress({ bytecode: lb.bytecode, prefix: PREFIX, tokenSupport: true });
 const to = typeof tokenAddr === 'string' ? a.to : tokenAddr.address;
 
 const call = apiClient(a.api!);
 const provider = await chipnetProvider();
 const health = await call('GET', '/health');
-check(health.body.network === 'CHIPNET', `API on CHIPNET (${a.api})`);
+check(health.body.network === API_NETWORK, `API on ${API_NETWORK} (${a.api})`);
+requireMainnetConsent(`fund a ${totalSats}-sat stamped envelope and claim it to ${to}`);
 
 const env = await createAndFund(call, provider, {
-  shareCount: 2,
+  shareCount: Number(a.shares),
   mode: 'EQUAL',
-  totalSats: 10_000,
+  totalSats,
   theme: a.theme,
-  message: 'Phase 6 stamp check 🧧',
-  expiry: Math.floor(Date.now() / 1000) + 24 * 3600,
+  message: 'Hongbao stamp check 🧧',
+  // Short on mainnet: anything unclaimed refunds to the demo wallet ~1 h after expiry.
+  expiry: Math.floor(Date.now() / 1000) + (MAINNET ? 2 * 3600 : 24 * 3600),
 });
 console.log(`   funded: ${EXPLORER_TX}${env.fundingTxid} (slug ${env.env.slug})`);
 console.log(`   BCMR:   https://${env.env.bcmr!.uri}  (hash ${env.env.bcmr!.hash})`);

@@ -1,6 +1,6 @@
-// Decode a Chipnet tx straight from Fulcrum and print every output (independent of our builders).
-// Usage: pnpm --filter @hongbao/scripts inspect -- <txid> [<txid>…]
-import './lib/env.js';
+// Decode a tx straight from Fulcrum and print every output (independent of our builders).
+// Usage: pnpm --filter @hongbao/scripts inspect -- [--mainnet] <txid> [<txid>…]
+import { PREFIX } from './lib/env.js';
 import { binToHex, decodeTransaction, hexToBin, lockingBytecodeToCashAddress } from '@bitauth/libauth';
 import { chipnetProvider } from './lib/chain.js';
 
@@ -19,7 +19,7 @@ for (const txid of process.argv.slice(2)) {
       const tag = new TextDecoder().decode(lb.slice(2, 6));
       to = `OP_RETURN ${tag} hash=${binToHex(lb.slice(7, 39))} uri=${new TextDecoder().decode(lb.slice(41))}`;
     } else {
-      const a = lockingBytecodeToCashAddress({ bytecode: lb, prefix: 'bchtest', tokenSupport: !!o.token });
+      const a = lockingBytecodeToCashAddress({ bytecode: lb, prefix: PREFIX, tokenSupport: !!o.token });
       to = typeof a === 'string' ? binToHex(lb) : a.address;
     }
     const tok = o.token

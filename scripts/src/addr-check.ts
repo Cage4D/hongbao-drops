@@ -1,9 +1,10 @@
-// Show what a Chipnet address holds on-chain: UTXOs (with tokens) and tx history with heights.
-// Usage: pnpm --filter @hongbao/scripts addr-check -- bchtest:q…
+// Show what an address holds on-chain: UTXOs (with tokens) and tx history with heights.
+// Usage: pnpm --filter @hongbao/scripts addr-check -- [--mainnet] bchtest:q… | bitcoincash:q…
+import { PREFIX, isOwnNetworkAddress } from './lib/env.js';
 import { chipnetProvider } from './lib/chain.js';
 
 const addr = process.argv[2];
-if (!addr?.startsWith('bchtest:')) throw new Error('usage: addr-check bchtest:…');
+if (!isOwnNetworkAddress(addr)) throw new Error(`usage: addr-check [--mainnet] ${PREFIX}:…`);
 
 const p = await chipnetProvider();
 const tip = await p.getBlockHeight();
