@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prisma:generate": "prisma generate",
-    "build": "prisma generate && tsc -p tsconfig.json",
-    "typecheck": "prisma generate >/dev/null && tsc -p tsconfig.test.json",
+    "prisma:generate": "prisma generate && node tools/embed-fonts.mjs",
+    "build": "prisma generate && node tools/embed-fonts.mjs && tsc -p tsconfig.json",
+    "typecheck": "prisma generate >/dev/null && node tools/embed-fonts.mjs >/dev/null && tsc -p tsconfig.test.json",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "migrate": "prisma migrate deploy",

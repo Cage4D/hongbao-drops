@@ -43,7 +43,7 @@ export class MediaService {
       remainingSats: v.status === 'PENDING_FUNDING' ? v.total.sats : v.remaining.sats,
     };
     const { svg, cjk } = ogSvg(input);
-    return { body: renderPng(svg, OG_WIDTH, cjk), contentType: 'image/png', cacheControl: SHORT };
+    return { body: await renderPng(svg, OG_WIDTH, cjk), contentType: 'image/png', cacheControl: SHORT };
   }
 
   /** The envelope that minted a stamp category (funded one first: only that one's metadata is real). */
@@ -80,7 +80,7 @@ export class MediaService {
     const svg = stampSvg(input);
     return m[2] === 'svg'
       ? { body: svg, contentType: 'image/svg+xml; charset=utf-8', cacheControl: IMMUTABLE }
-      : { body: renderPng(svg, 512), contentType: 'image/png', cacheControl: IMMUTABLE };
+      : { body: await renderPng(svg, 512), contentType: 'image/png', cacheControl: IMMUTABLE };
   }
 
   /**
