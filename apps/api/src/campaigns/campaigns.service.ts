@@ -201,12 +201,7 @@ export class CampaignsService {
       'envelope_slug', 'claimed_at', 'recipient_address', 'share_index', 'share_outpoint', 'share_sats', 'received_sats',
       'claim_txid', 'status', 'fresh_wallet', 'activated_within_7d', 'suspected_farm', 'farm_reasons', 'wallet_fingerprint',
     ];
-    const cell = (v: unknown) => {
-      const s = v === null || v === undefined ? '' : String(v);
-      // Quote everything that could break a row; neutralise spreadsheet formula injection.
-      const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
-      return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-    };
+    const cell = csvCell;
     const lines = rows.map((c) =>
       [
         c.envelope.slug,
@@ -271,4 +266,15 @@ export class CampaignsService {
       await this.db.envelope.update({ where: { id: env.id }, data: { ctaClicks: { increment: 1 } } });
     });
   }
+}
+
+/**
+ * One CSV cell. Quotes anything that could break a row, and neutralises spreadsheet formula
+ * injection: a leading = + - @ (or tab / carriage return, OWASP) gets a ' prefix so Excel and
+ * Sheets show it as text.
+ */
+export function csvCell(v: unknown): string {
+  const s = v === null || v === undefined ? '' : String(v);
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }

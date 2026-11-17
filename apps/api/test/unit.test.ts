@@ -5,6 +5,7 @@ import { fundingOutputs, hongbaoContract, bcmrRegistryHash } from '@hongbao/cont
 import { verifyFundingTx } from '../src/envelopes/funding-verifier.js';
 import { loadConfig } from '../src/config/config.js';
 import { normalizeAnswer } from '../src/envelopes/envelopes.service.js';
+import { csvCell } from '../src/campaigns/campaigns.service.js';
 import { ChainService, GENESIS_HASH, assertGenesis } from '../src/chain/chain.service.js';
 import type { NetworkProvider } from 'cashscript';
 import { addSenderUtxo, key, p2pkh, pub, sender, senderPriv, testConfig } from './helpers.js';
@@ -160,5 +161,16 @@ describe('Fulcrum network check (review-2 P1-5)', () => {
     expect(() => assertGenesis({ genesis_hash: GENESIS_HASH.chipnet }, 'mainnet', 'chipnet.bch.ninja')).toThrow(/not a mainnet server/);
     expect(() => assertGenesis({}, 'chipnet', 'weird.example')).toThrow(/not a chipnet server/);
     expect(() => assertGenesis(null, 'chipnet', 'weird.example')).toThrow();
+  });
+});
+
+describe('CSV export cells (review-2 test gap)', () => {
+  it('neutralises formula injection and quotes separators', () => {
+    expect(csvCell('=HYPERLINK("http://evil","x")')).toBe(`"'=HYPERLINK(""http://evil"",""x"")"`);
+    for (const v of ['+1', '-1', '@SUM(A1)', '\tcmd', '\rcmd']) expect(csvCell(v).replace(/^"/, '').startsWith("'")).toBe(true);
+    expect(csvCell('a,b')).toBe('"a,b"');
+    expect(csvCell('bchtest:zq4xsj347e')).toBe('bchtest:zq4xsj347e');
+    expect(csvCell(null)).toBe('');
+    expect(csvCell(42)).toBe('42');
   });
 });

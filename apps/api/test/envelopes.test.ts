@@ -185,6 +185,20 @@ describe('POST /envelopes/:id/funded', () => {
       expect((await t.http().post(`/envelopes/${created.id}/funded`).send({ txid })).body.status).toBe('ACTIVE');
     });
 
+    it('review-2 test gap: a sponsored drop WITH stamps, fee exactly at the 546-sat dust floor, activates', async () => {
+      const token = 'stamped-sponsor-token';
+      await t.db.sponsor.create({ data: { name: 'Stamped', adminToken: binToHex(sha256.hash(new TextEncoder().encode(token))) } });
+      const utxo = addSenderUtxo(t.provider);
+      const created = (await create({ sponsorToken: token, totalSats: 9_000, withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+      expect(created.requiredOutputs).toEqual(
+        expect.arrayContaining([expect.objectContaining({ purpose: 'SPONSOR_FEE', sats: 546 }), expect.objectContaining({ purpose: 'BCMR' })]),
+      );
+      const txid = await fundFromTemplate(t.provider, created, utxo);
+      const f = await t.http().post(`/envelopes/${created.id}/funded`).send({ txid });
+      expect([f.status, f.body.status]).toEqual([200, 'ACTIVE']);
+      expect(f.body.shares.every((s: { nftCommitment: string | null }) => s.nftCommitment)).toBe(true);
+    });
+
     it('a sponsored drop without the treasury fee output', async () => {
       const token = 'sponsor-secret-token';
       await t.db.sponsor.create({
