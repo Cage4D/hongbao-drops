@@ -280,6 +280,25 @@ describe('review fixes: one outpoint per recipient, idempotency, atomic limits',
     expect((await broadcastReq(t, x4)).status).toBe(200);
   });
 
+  it('review-2 P1-13: the pin holds while another claim of that share is unconfirmed, and lifts once it is mined', async () => {
+    const env = await fundedEnvelope(t);
+    const x1 = (await claimReq(t, env.id, { recipientAddress: addressOf('px') })).body as ClaimApproval;
+    await lapse(env.id);
+    const y = (await claimReq(t, env.id, { recipientAddress: addressOf('py') }, '203.0.113.2')).body as ClaimApproval;
+    expect(y.share).toEqual(x1.share);
+    expect((await broadcastReq(t, y)).status).toBe(200); // Y's claim tx is out, but not mined
+
+    // X's stale approval could still beat Y's tx in a double-spend race: no second share yet.
+    const x2 = await claimReq(t, env.id, { recipientAddress: addressOf('px') });
+    expect([x2.status, x2.body.error.code]).toEqual([409, 'ALREADY_CLAIMED']);
+
+    // Y's claim is mined: X's old approval is dead for good, so X may claim another share.
+    await t.db.claim.update({ where: { id: y.claimId }, data: { status: 'CONFIRMED' } });
+    const x3 = await claimReq(t, env.id, { recipientAddress: addressOf('px') });
+    expect(x3.status).toBe(201);
+    expect(x3.body.share.outpointIndex).not.toBe(x1.share.outpointIndex);
+  });
+
   it('#10: a lapsed retry is re-reserved on the same outpoint with a fresh timer', async () => {
     const env = await fundedEnvelope(t);
     const a = (await claimReq(t, env.id, { recipientAddress: addressOf('r') })).body as ClaimApproval;

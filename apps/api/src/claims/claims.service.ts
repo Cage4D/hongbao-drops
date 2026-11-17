@@ -268,6 +268,16 @@ export class ClaimsService {
               reason: 'An earlier approval for this address is still open. Try again in a couple of minutes.',
             });
           }
+        } else {
+          // A pinned share taken by someone else's claim that isn't mined yet still counts as a pin
+          // (review-2 P1-13): our stale approval could still win a double-spend race against that
+          // tx, and with a second approval this address would end up with two shares.
+          const racing = await tx.claim.count({ where: { shareId: { in: pinnedIds }, status: 'BROADCAST', NOT: { id: mine!.id } } });
+          if (racing > 0) {
+            throw new AppError('ALREADY_CLAIMED', {
+              reason: 'An earlier approval for this address is still open. Try again in a few minutes.',
+            });
+          }
         }
       }
       if (!share && req.holdToken) {
