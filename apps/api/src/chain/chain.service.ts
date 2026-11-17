@@ -21,6 +21,14 @@ export interface ChainTestHooks {
 
 const scripthashOf = (lockingBytecodeHex: string) => binToHex(sha256.hash(hexToBin(lockingBytecodeHex)).reverse());
 
+/**
+ * Errors meaning the cached WSS connection is dead (not that the server rejected the request).
+ * On Vercel an idle instance's socket gets dropped, and the next request fails with
+ * "Unable to send request to a disconnected server" — seen in production, Phase 8.
+ */
+export const STALE_CONNECTION = /disconnected server|not connected|connection (was )?(closed|lost)|socket hang up|ECONNRESET|EPIPE/i;
+const errMsg = (e: unknown) => (e as Error)?.message ?? String(e);
+
 export function electrumProviderFactory(config: AppConfig): ProviderFactory {
   const network = config.NETWORK === 'MAINNET' ? 'mainnet' : 'chipnet';
   return async () => {
@@ -63,7 +71,7 @@ export class ChainService implements OnApplicationBootstrap {
       .catch(() => {});
   }
 
-  private async conn() {
+  private conn(): Promise<{ provider: NetworkProvider; server: string }> {
     this.current ??= this.factory().catch((e) => {
       this.current = undefined;
       throw e;
@@ -71,10 +79,28 @@ export class ChainService implements OnApplicationBootstrap {
     return this.current;
   }
 
+  /**
+   * Run `fn` on the cached provider. If the connection turns out to be dead, reconnect (possibly to
+   * another host) and run it once more. Any other error is passed through untouched.
+   */
+  private async withProvider<T>(fn: (p: NetworkProvider) => Promise<T>): Promise<T> {
+    const pending = this.conn();
+    const first = await pending;
+    try {
+      return await fn(first.provider);
+    } catch (e) {
+      if (!STALE_CONNECTION.test(errMsg(e))) throw e;
+      this.log.warn(`Fulcrum connection to ${first.server} was stale (${errMsg(e)}); reconnecting`);
+      // Only drop it if nobody has replaced it yet (a parallel request may already have reconnected).
+      if (this.current === pending) this.reset();
+      return fn((await this.conn()).provider);
+    }
+  }
+
   /** Run a chain call; on failure reset the connection and surface CHAIN_UNAVAILABLE. */
   async use<T>(fn: (p: NetworkProvider) => Promise<T>): Promise<T> {
     try {
-      return await fn((await this.conn()).provider);
+      return await this.withProvider(fn);
     } catch (e) {
       this.log.warn(`chain call failed: ${(e as Error).message}`);
       this.reset();
@@ -88,11 +114,11 @@ export class ChainService implements OnApplicationBootstrap {
 
   /** Raw tx hex, or null if the server doesn't know the txid (not broadcast yet). */
   async getRawTransaction(txid: string): Promise<string | null> {
-    const { provider } = await this.conn().catch(() => {
+    await this.conn().catch(() => {
       throw new AppError('CHAIN_UNAVAILABLE');
     });
     try {
-      return await provider.getRawTransaction(txid);
+      return await this.withProvider((p) => p.getRawTransaction(txid));
     } catch (e) {
       const msg = (e as Error).message ?? '';
       if (/not found|No such|unknown|missing|Invalid tx/i.test(msg)) return null;
@@ -108,8 +134,7 @@ export class ChainService implements OnApplicationBootstrap {
    * must never be blocked by analytics.
    */
   async hasHistory(lockingBytecodeHex: string, timeoutMs = 1_500): Promise<boolean | null> {
-    const lookup = (async () => {
-      const provider = await this.provider();
+    const lookup = this.withProvider(async (provider) => {
       if (provider instanceof ElectrumNetworkProvider) {
         const scripthash = scripthashOf(lockingBytecodeHex);
         const history = (await provider.performRequest('blockchain.scripthash.get_history', scripthash)) as unknown[];
@@ -117,7 +142,7 @@ export class ChainService implements OnApplicationBootstrap {
       }
       // Test providers: approximate with "has any UTXO".
       return (await provider.getUtxosForLockingBytecode(lockingBytecodeHex)).length > 0;
-    })();
+    });
     lookup.catch(() => {}); // if the timeout wins, a late rejection must not be unhandled (would crash Node)
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<null>((r) => {
@@ -143,14 +168,15 @@ export class ChainService implements OnApplicationBootstrap {
    */
   async broadcast(rawTxHex: string): Promise<string> {
     const txid = binToHex(sha256.hash(sha256.hash(hexToBin(rawTxHex))).reverse());
-    let provider: NetworkProvider;
     try {
-      provider = await this.provider();
+      await this.provider();
     } catch {
       throw new AppError('CHAIN_UNAVAILABLE');
     }
     try {
-      await provider.sendRawTransaction(rawTxHex);
+      // A retry after a dead connection is safe: if the first attempt did reach the node, the
+      // second gets "already known", which counts as success below.
+      await this.withProvider((p) => p.sendRawTransaction(rawTxHex));
       return txid;
     } catch (e) {
       const msg = (e as Error).message ?? String(e);

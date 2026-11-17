@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { decodeTransaction, hexToBin } from '@bitauth/libauth';
 import { MockNetworkProvider, SignatureTemplate, TransactionBuilder } from 'cashscript';
 import { fundingOutputs, hongbaoContract, bcmrRegistryHash } from '@hongbao/contract';
 import { verifyFundingTx } from '../src/envelopes/funding-verifier.js';
 import { loadConfig } from '../src/config/config.js';
 import { normalizeAnswer } from '../src/envelopes/envelopes.service.js';
+import { ChainService } from '../src/chain/chain.service.js';
+import type { NetworkProvider } from 'cashscript';
 import { addSenderUtxo, key, p2pkh, pub, sender, senderPriv, testConfig } from './helpers.js';
 
 describe('verifyFundingTx: genesis input', () => {
@@ -71,5 +73,51 @@ describe('config', () => {
 describe('quiz normalisation', () => {
   it('trims, lowercases and collapses spaces', () => {
     expect(normalizeAnswer('  Bitcoin \t  CASH ')).toBe('bitcoin cash');
+  });
+});
+
+describe('ChainService: stale Fulcrum connection (Phase 8, seen in production)', () => {
+  const DEAD = "Unable to send request to a disconnected server 'chipnet.imaginary.cash'.";
+  // Each factory call hands out the next fake provider; `calls` counts reconnects.
+  function service(...providers: Partial<NetworkProvider>[]) {
+    let calls = 0;
+    const factory = vi.fn(async () => ({ provider: providers[calls++]! as NetworkProvider, server: `s${calls}` }));
+    return { chain: new ChainService(factory), factory };
+  }
+
+  it('reconnects once and retries a lookup when the cached socket is dead', async () => {
+    const { chain, factory } = service(
+      { getRawTransaction: async () => Promise.reject(new Error(DEAD)) },
+      { getRawTransaction: async () => 'abcd' },
+    );
+    await expect(chain.getRawTransaction('00'.repeat(32))).resolves.toBe('abcd');
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a broadcast after a dead socket; "already known" on the retry still counts as success', async () => {
+    const { chain } = service(
+      { sendRawTransaction: async () => Promise.reject(new Error(DEAD)) },
+      { sendRawTransaction: async () => Promise.reject(new Error('txn-already-known')) },
+    );
+    await expect(chain.broadcast('00')).resolves.toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('does not retry other errors', async () => {
+    const tip = vi.fn(async () => Promise.reject(new Error('server busy')));
+    const { chain, factory } = service({ getBlockHeight: tip }, { getBlockHeight: async () => 1 });
+    await expect(chain.use((p) => p.getBlockHeight())).rejects.toMatchObject({ code: 'CHAIN_UNAVAILABLE' });
+    expect(tip).toHaveBeenCalledTimes(1);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('parallel requests on a dead socket reconnect only once', async () => {
+    const { chain, factory } = service(
+      { getBlockHeight: async () => Promise.reject(new Error(DEAD)) },
+      { getBlockHeight: async () => 42 },
+      { getBlockHeight: async () => -1 }, // must never be used
+    );
+    const got = await Promise.all([1, 2, 3].map(() => chain.use((p) => p.getBlockHeight())));
+    expect(got).toEqual([42, 42, 42]);
+    expect(factory).toHaveBeenCalledTimes(2);
   });
 });
