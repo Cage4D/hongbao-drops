@@ -25,6 +25,9 @@ pnpm --filter @hongbao/scripts probe:fulcrum  # live Fulcrum probe
 | Hosting | **Decided: Vercel for frontend, API and DB** (Neon Postgres via the Vercel Marketplace). Keeper runs from an external per-minute cron (approved 2026-11-15), see §7 |
 | `stampCategory` on `POST /envelopes` | **Approved** (builder, 2026-11-15) |
 | Funding output 0 = identity output to treasury | **Approved** (builder, 2026-11-15) |
+| Mainnet totals caps scope (§10.1) | **Demo wallet only** (`BUDGET_WALLET_ADDRESS`); per-envelope caps for everyone. Builder, 2026-11-17, review 2 Q1 |
+| Cap re-check at `/funded` | Only when funded > 1 h after creation. Builder, 2026-11-17, review 2 Q2 |
+| Max expiry on mainnet | **24 h**. Builder, 2026-11-17, review 2 Q3 |
 
 ---
 

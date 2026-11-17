@@ -120,6 +120,6 @@ The second `campaign-e2e` run got **503 `CHAIN_UNAVAILABLE`** on `POST /envelope
 - ~~**Keeper scheduler (builder)**~~ **Done 2026-11-17:** cron-job.org job `8882581`, `POST /internal/keeper/tick` every minute (UTC) with `Authorization: Bearer KEEPER_TOKEN`, created by `scripts/setup-keeper-cron.sh`. The script reads the cron-job.org API key (`~/.local/share/hongbao-drops/cronjob-api-key`) and `KEEPER_TOKEN` from files and never prints them. Re-running it updates the same job, e.g. after rotating the token on the mainnet switch. Check: `scripts/setup-keeper-cron.sh --status` and `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop stays configured.
 - **Mainnet switch on Nov 19** (day 6, spec §10.1):
   1. A dedicated demo wallet funded with ≤ $5.
-  2. `NETWORK=MAINNET`, mainnet `FULCRUM_URLS` and `TREASURY_ADDRESS`, **new** `GATE_MASTER_SEED` and a fresh database (Chipnet envelope sequence numbers must not mix with mainnet gate keys).
+  2. `NETWORK=MAINNET`, mainnet `FULCRUM_URLS` and `TREASURY_ADDRESS`, **new** `GATE_MASTER_SEED` and a fresh database (Chipnet envelope sequence numbers must not mix with mainnet gate keys). Since review 2 the API also **refuses to start** without `BUDGET_WALLET_ADDRESS` (the demo wallet) and a public `https://` `PUBLIC_API_URL`, and skips Fulcrum hosts on the wrong network. See [review-2-fixes.md](review-2-fixes.md).
   3. Tiny funding, claim and batch-refund txids; `/admin/budget` < $1 spent.
   4. Paytaca stamp check on mainnet.
