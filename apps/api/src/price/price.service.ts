@@ -28,7 +28,8 @@ export class PriceService {
   private async refresh(): Promise<number | null> {
     try {
       const res = await fetch(this.config.PRICE_API_URL, { signal: AbortSignal.timeout(3_000) });
-      const json = (await res.json()) as { 'bitcoin-cash'?: { usd?: number } };
+      // Parse via text(): Vercel's build type-checks with a different ambient `Response` type.
+      const json = JSON.parse(await (res as unknown as { text(): Promise<string> }).text()) as { 'bitcoin-cash'?: { usd?: number } };
       const usd = json['bitcoin-cash']?.usd;
       if (typeof usd !== 'number' || !(usd > 0)) throw new Error('unexpected price payload');
       this.cache = { usd, at: Date.now() };
