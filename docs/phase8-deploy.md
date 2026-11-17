@@ -37,6 +37,19 @@ The xpub Paytaca shares over WizardConnect derives `bchtest:qqxcan93…tvrz`. Pa
 - On **mainnet** both use coin type 145, so they should agree. **The wallet metadata check (stamp name/image in Paytaca) moves to the first mainnet envelope (Nov 19).**
 - **Note for the frontend session:** don't rely on Chipnet + Paytaca for any "see it in your wallet" demo.
 
+### Chipnet re-test against production, 2026-11-17 (later the same day)
+
+| Check | Result |
+|---|---|
+| `stamp-to-wallet` to the address **Paytaca's own app shows** (`bchtest:qzzlwz…u9d2v`) | Funding [0d0a2b6a…](https://chipnet.imaginary.cash/tx/0d0a2b6aec810725edff29d025cef4ef210e727f4c793bd8d737a63465f78afe), claim [cf2ab71c…](https://chipnet.imaginary.cash/tx/cf2ab71cb23cc037e69a787cd2bc27f37e03969caaf734a4e7b699d47bd902f3): 4,515 sats + stamp `0600000001`, confirmed in block 334907 |
+| Plain 20,000-sat send to the same address (no token) | [ea8ce884…](https://chipnet.imaginary.cash/tx/ea8ce8847759b267b9816927bbebbbb8e44b000454b33476d10d75941d1590b9), confirmed in block 334913 |
+| `api-e2e` against production | All checks pass. `ACTIVE` with 3 stamped shares: [ab83af8e…](https://chipnet.imaginary.cash/tx/ab83af8e356f2ce76e28fc98c235e1ef5a4d02c5e28e3a1d3a54747fe9c645dc) |
+| `claims-e2e` against production | All checks pass: 3 parallel stamped claims ([731341…](https://chipnet.imaginary.cash/tx/731341188479db33d701a393d4f3c592804a7c5f631f57d606de88574e682042), [f7c3d4…](https://chipnet.imaginary.cash/tx/f7c3d4e2254200e90ef9646e306d2d28a013e018d6ae9d0d763a63596e56a470), [599d6e…](https://chipnet.imaginary.cash/tx/599d6e499cbaf039f58159d780a1586cb2479dd6a18a0f1f5b1a86ce0539b89a)), `ENVELOPE_EMPTY`, `ALREADY_CLAIMED`, hold + quiz ([6d4adf40…](https://chipnet.imaginary.cash/tx/6d4adf40faf24e61dfdb226a307cf9384efb95a5c726d0afac0be9b41a723fe2)) |
+
+**Neither payment appeared in Paytaca, not even the plain BCH.** `scripts addr-check` shows both coins at the address on-chain. The cause is Paytaca's Chipnet backend: `https://chipnet.watchtower.cash/` (root and `/api/status/`) returns **HTTP 502**, while mainnet `https://watchtower.cash/api/status/` returns `{"status": "up"}`. Paytaca reads balances from that backend, so **Paytaca on Chipnet can't show anything right now**, whatever the address. This is outside our stack. The wallet display check stays on mainnet (Nov 19).
+
+Check any Chipnet address yourself: `pnpm --filter @hongbao/scripts addr-check -- bchtest:…`
+
 ## Still to do
 
 - **Keeper scheduler (builder):** cron-job.org → `POST /internal/keeper/tick` every minute with `Authorization: Bearer KEEPER_TOKEN`. Verify via `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop is configured.
