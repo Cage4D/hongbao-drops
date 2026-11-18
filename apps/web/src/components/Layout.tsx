@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useNetwork } from '../lib/network';
 import { useWallet } from '../lib/wallet';
@@ -83,9 +83,68 @@ function Nav() {
             Send a drop
           </Link>
           <WalletButton />
+          <MobileMenu connected={connected} onHow={onHow} />
         </div>
       </nav>
     </header>
+  );
+}
+
+/** Phones: the nav links are hidden below 820 px, so a ☰ button opens them as a panel. */
+function MobileMenu({ connected, onHow }: { connected: boolean; onHow: boolean }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const { pathname, hash } = useLocation();
+  // Close on navigation, outside tap and Escape.
+  useEffect(() => setOpen(false), [pathname, hash]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const cls = ({ isActive }: { isActive: boolean }) => `mnav-link${isActive ? ' active' : ''}`;
+  return (
+    <div className="mnav" ref={root}>
+      <button
+        type="button"
+        className={`mnav-btn${open ? ' open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls="mnav-panel"
+        aria-label={open ? 'Close menu' : 'Open menu'}
+      >
+        <span aria-hidden="true" />
+        <span aria-hidden="true" />
+        <span aria-hidden="true" />
+      </button>
+      {open && (
+        <nav id="mnav-panel" className="mnav-panel" aria-label="Menu">
+          <NavLink to="/" end className={({ isActive }) => cls({ isActive: isActive && !onHow })}>
+            Home
+          </NavLink>
+          <Link to="/#how" className={`mnav-link${onHow ? ' active' : ''}`}>
+            How it works
+          </Link>
+          <NavLink to="/send" className={cls}>
+            Send a drop
+          </NavLink>
+          <NavLink to="/sponsor" className={cls}>
+            Sponsors
+          </NavLink>
+          {connected && (
+            <NavLink to="/activity" className={cls}>
+              My drops
+            </NavLink>
+          )}
+        </nav>
+      )}
+    </div>
   );
 }
 

@@ -491,7 +491,7 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .blaze-sep { color: rgba(255, 255, 255, 0.6); }
 .blaze-muted { color: var(--chip-text); font-weight: 400; }
 .blaze-addr { font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(155, 239, 255, 0.12); border: 1px solid rgba(155, 239, 255, 0.28); color: #e6f7ff; padding: 0 6px; border-radius: 3px; user-select: all; }
-.blaze-addr-short, .blaze-vote-short, .blaze-qr-short { display: none; }
+.blaze-addr-short, .blaze-vote-short, .blaze-qr-short, .blaze-copy-addr { display: none; }
 .blaze-btn { height: 24px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 3px; background: transparent; color: #fff; font: 700 12px/1 var(--font-body); letter-spacing: 0.02em; cursor: var(--cur-hover); transition: background 0.15s, border-color 0.15s; }
 .blaze-btn:hover { background: rgba(255, 255, 255, 0.14); border-color: #fff; }
 .blaze-btn[aria-expanded='true'] { background: #fff; color: #0a1d45; }
@@ -514,6 +514,12 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
   .blaze-btn { height: 24px; padding: 0 7px; font-size: 11px; }
   .blaze-row { gap: 6px; }
   .blaze-qr { right: 12px; left: 12px; width: auto; margin: 0 auto; max-width: 320px; }
+}
+@media (max-width: 420px) {
+  /* Narrow phones (360-px Android screens): the vote row can't fit the address too. Copy and the
+     QR still give the full address, so drop the chip and say what Copy copies. */
+  .blaze-addr, .blaze-vote-to { display: none; }
+  .blaze-copy-addr { display: inline; }
 }
 
 /* ================================================================ why hongbao */

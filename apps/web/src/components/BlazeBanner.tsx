@@ -79,7 +79,7 @@ export function BlazeBanner() {
             <span aria-hidden="true">🗳️ </span>
             <span className="blaze-vote-long">Vote for us: send {BLAZE.voteToken} tokens to</span>
             <span className="blaze-vote-short">
-              Vote: {BLAZE.voteToken} to
+              Vote: {BLAZE.voteToken}<span className="blaze-vote-to"> to</span>
             </span>
           </span>
           <code className="blaze-addr" title={BLAZE.voteAddress}>
@@ -89,7 +89,11 @@ export function BlazeBanner() {
             </span>
           </code>
           <button type="button" className="blaze-btn" onClick={copy} aria-label={copied ? 'Voting address copied' : 'Copy the voting address'}>
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? 'Copied!' : (
+              <>
+                Copy<span className="blaze-copy-addr"> address</span>
+              </>
+            )}
           </button>
           <button
             type="button"
