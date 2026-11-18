@@ -115,6 +115,28 @@ The second `campaign-e2e` run got **503 `CHAIN_UNAVAILABLE`** on `POST /envelope
 - `createAndFund` retries `/funded` while the API reports "not found on the network yet", and waits for freshly received coins. The scripts default to `chipnet.bch.ninja` and production uses `chipnet.imaginary.cash`, and a tx takes a few seconds to reach the other server. **The frontend should also retry `/funded` on `NOT_FUNDED` with that reason**, because wallets broadcast through their own servers.
 - `lifecycle-e2e --allow-no-refunds` for re-runs after an earlier tick has already refunded everything expired.
 
+## Mainnet switch, 2026-11-18
+
+- **Demo wallet funded:** 1,463,629 sats in `c11b4ea01dbd59d8b53ceb029c9cb6d2cfe0b22b1d7b46f8cd9b517fea8202c4`.
+- **Secrets:** new `GATE_MASTER_SEED`, `ADMIN_TOKEN`, `KEEPER_TOKEN`, `CRON_SECRET` in `~/.local/share/hongbao-drops/mainnet-secrets.env`.
+- **Database:** Chipnet production data archived with `pg_dump` to `~/.local/share/hongbao-drops/chipnet-archive-20261118T170340Z.dump` (55 envelopes, 115 shares, 49 claims, 112 events), then the 9 app tables were truncated. Restore with `pg_restore --clean --no-owner -d <url> <dump>`. No Neon branch was made.
+- **Vercel API env** switched to mainnet and redeployed. `/health`: `network: MAINNET`, `bch.imaginary.cash` at height 977913, DB up.
+- **Keeper:** cron-job.org job `8882581` updated with the new `KEEPER_TOKEN`; `keeper.lastRunAt` advanced after the update.
+- **Caps on the live URL (no spend):** 11 shares → 422 `MAX_SHARES`; 300,000 sats → 422 `MAX_ENVELOPE_USD`; 25 h expiry → 400. `/admin/budget`: budget wallet = demo wallet, `priceLive: true` ($205.63), $2.50 remaining, 0 spent.
+
+### First mainnet envelope (Paytaca check)
+
+`seal-to-wallet --shares 2 --sats 4000 --expiry-minutes 15`, slug `srjcj4`, seal category = the funding coin's txid.
+
+| Step | Txid |
+|---|---|
+| Funding (2 seal-bearing shares, identity output, BCMR OP_RETURN) | `435d1f7c42e2f6bb8e3daa8b816ee7135b90b53b59a84c5e11547dc52852cfef` |
+| Claim: seal `0100000001` + 1,515 sats → Paytaca | `7cebcb70d2a2c6bfb410adbca10e706478e9f15d8a9d6b23533a192e080fbfc6` |
+| Refund of the other share (keeper, ~75 min after expiry) | _pending_ |
+
+- **Paytaca's backends already know the seal** within a minute: `watchtower.cash/api/utxo/ct/<addr>/` lists the token UTXO with name "Hongbao Seal #1-1" and the image URL, and `bcmr.paytaca.com/api/tokens/<category>/0100000001/` returns the collection and NFT metadata. The seal PNG serves 200 `image/png`.
+- **The 1,515 sats ride on the seal's output** (one output carries both). Watchtower's BCH balance for the address is therefore 0: it doesn't count token-carrying UTXOs. Whether Paytaca shows those sats as spendable BCH has to be checked in the app.
+
 ## Still to do
 
 - ~~**Keeper scheduler (builder)**~~ **Done 2026-11-17:** cron-job.org job `8882581`, `POST /internal/keeper/tick` every minute (UTC) with `Authorization: Bearer KEEPER_TOKEN`, created by `scripts/setup-keeper-cron.sh`. The script reads the cron-job.org API key (`~/.local/share/hongbao-drops/cronjob-api-key`) and `KEEPER_TOKEN` from files and never prints them. Re-running it updates the same job, e.g. after rotating the token on the mainnet switch. Check: `scripts/setup-keeper-cron.sh --status` and `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop stays configured.
