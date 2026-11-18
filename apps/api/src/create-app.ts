@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule, type AppModuleOptions } from './app.module.js';
 import { ErrorFilter } from './common/error.filter.js';
+import { corsDelegate } from './common/cors.js';
 
 export const LOGGER = process.env.NODE_ENV === 'test' ? (false as const) : (['log', 'warn', 'error'] as ('log' | 'warn' | 'error')[]);
 
@@ -12,7 +13,7 @@ export const LOGGER = process.env.NODE_ENV === 'test' ? (false as const) : (['lo
 export function configureApp(app: NestExpressApplication): NestExpressApplication {
   app.disable('x-powered-by');
   app.useBodyParser('json', { limit: '64kb' });
-  app.enableCors(); // tightened to the frontend origin in Phase 9
+  app.enableCors(corsDelegate()); // frontend origins only, public media open (common/cors.ts)
   app.useGlobalFilters(new ErrorFilter());
   return app;
 }

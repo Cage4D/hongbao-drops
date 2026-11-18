@@ -8,7 +8,7 @@
 
 **Drop a red envelope of Bitcoin Cash into any group chat as one link. The first people to open it each get a share of real BCH and a collectible stamp, in seconds, with no fees and nothing to sign.**
 
-### 👉 [Try it](⟨TODO: frontend URL⟩) · built for BCH BLAZE 2026 (Mainnet Track)
+### 👉 [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
 
 <p>
   <img src="docs/media/og-lunar.png" alt="A Lunar New Year red envelope link preview: Happy New Year!, 3 of 3 shares left" width="420">

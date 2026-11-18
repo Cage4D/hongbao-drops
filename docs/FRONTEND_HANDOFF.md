@@ -40,7 +40,8 @@ Paytaca is also a sponsor of BCH BLAZE 2026, so the product **must work end-to-e
 | Network today | **CHIPNET** (BCH test network) |
 | Network from Nov 19 | **MAINNET**. The production database is **wiped** at the switch, so Chipnet envelopes disappear |
 | Which network? | Read `GET /health` → `network` (`"CHIPNET"` / `"MAINNET"`). Don't hard-code it |
-| CORS | Currently `*`. **Tell the backend session your production and preview origins**; it gets tightened to those before submission |
+| Frontend | `https://hongbao-drops.vercel.app` (Vercel project `hongbao-drops`, root `apps/web`) |
+| CORS | Browsers are answered only from the frontend: `https://hongbao-drops.vercel.app`, its `hongbao-drops-*-cage4ds-projects.vercel.app` aliases and previews, and `localhost`. Add more with `CORS_ORIGINS` (comma-separated). `/bcmr`, `/stamps`, `/og` and `/health` stay open to any site. See `apps/api/src/common/cors.ts` |
 | Submission deadline | **22 Nov 14:00 UTC.** The top risk is the judge's claim flow on a phone, on mainnet |
 
 Per network:
