@@ -3,7 +3,7 @@ import { Envelope } from '../components/Envelope';
 
 export function NotFound({ what = 'page' }: { what?: 'page' | 'envelope' }) {
   return (
-    <div className="page narrow center stack" style={{ paddingBottom: 64 }}>
+    <div className="page narrow center stack">
       <div style={{ display: 'grid', placeItems: 'center', opacity: 0.6 }}>
         <Envelope theme="lunar" size={140} sealText="?" />
       </div>

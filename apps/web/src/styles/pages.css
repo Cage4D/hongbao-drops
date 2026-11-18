@@ -171,7 +171,7 @@
 .burst { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 70; }
 
 /* ================================================================ send */
-.send-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; margin-top: 32px; align-items: start; padding-bottom: 64px; }
+.send-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; margin-top: 32px; align-items: start; }
 .send-side { position: sticky; top: calc(var(--nav-height) + 20px); display: flex; flex-direction: column; gap: 20px; }
 @media (max-width: 900px) { .send-grid { grid-template-columns: minmax(0, 1fr); } .send-side { position: static; } }
 fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
@@ -200,7 +200,6 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .recent-drops a { display: flex; flex-direction: column; padding: 10px 0; border-bottom: 1px solid var(--border); text-decoration: none; color: #fff; }
 .recent-drops li:last-child a { border-bottom: 0; }
 .recent-drops a:hover { color: var(--flame-200); }
-.created-page { padding-bottom: 64px; }
 .created-env { display: grid; place-items: center; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
 @keyframes float { 50% { transform: translateY(-10px); } }
 .copy-field { display: flex; gap: 8px; }
@@ -208,7 +207,7 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 @media (max-width: 480px) { .copy-field { flex-direction: column; } }
 
 /* ================================================================ envelope page */
-.envelope-page { position: relative; padding-bottom: 32px; }
+.envelope-page { position: relative; }
 .env-bg { position: absolute; inset: 0 0 auto 0; height: 720px; background: radial-gradient(ellipse 60% 70% at 30% 20%, rgba(0, 66, 200, 0.28), transparent 70%); pointer-events: none; }
 .envelope-page .container { position: relative; }
 .env-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 48px; align-items: start; margin-top: 16px; }
@@ -288,7 +287,7 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 @media (max-width: 480px) { .nav-hide-xs { display: none; } }
 
 /* ================================================================ sponsor */
-.sponsor-dash { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; padding-bottom: 64px; }
+.sponsor-dash { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; }
 .sponsor-side { position: sticky; top: calc(var(--nav-height) + 20px); }
 .hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
 .camp-list { list-style: none; margin: 8px 0 0; padding: 0; }
