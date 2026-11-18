@@ -64,13 +64,19 @@ export function decor(p: Palette, width: number, height: number, seed: number): 
   let s = seed || 1;
   const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
   const out: string[] = [];
-  const n = p.decor === 'snow' ? 40 : 14;
+  const n = p.decor === 'snow' ? 40 : p.decor === 'embers' ? 22 : 14;
   for (let i = 0; i < n; i++) {
     const x = rnd() * width;
     const y = rnd() * height;
     const k = 0.5 + rnd();
     if (p.decor === 'coins') out.push(`<circle cx="${x}" cy="${y}" r="${10 * k}" fill="${p.accent}" opacity="0.13"/>`);
     if (p.decor === 'sparkle') out.push(`<path d="M ${x} ${y - 12 * k} L ${x + 3 * k} ${y - 3 * k} L ${x + 12 * k} ${y} L ${x + 3 * k} ${y + 3 * k} L ${x} ${y + 12 * k} L ${x - 3 * k} ${y + 3 * k} L ${x - 12 * k} ${y} L ${x - 3 * k} ${y - 3 * k} Z" fill="#FFFFFF" opacity="0.35"/>`);
+    if (p.decor === 'embers') {
+      // Rising fire sparks (the site's hero embers): a soft glow with a bright core.
+      out.push(`<circle cx="${x}" cy="${y}" r="${9 * k}" fill="${p.accent}" opacity="0.12"/>
+        <circle cx="${x}" cy="${y}" r="${3 * k}" fill="${p.accent}" opacity="0.55"/>
+        <circle cx="${x}" cy="${y}" r="${1.4 * k}" fill="#EBFCFF" opacity="0.9"/>`);
+    }
     if (p.decor === 'snow') out.push(`<circle cx="${x}" cy="${y}" r="${3.5 * k}" fill="#FFFFFF" opacity="0.55"/>`);
     if (p.decor === 'lanterns' && i < 5) {
       if (width < 600) {

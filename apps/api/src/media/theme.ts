@@ -16,7 +16,7 @@ export interface Palette {
   chipBg: string;
   chipText: string;
   /** Decorative extra drawn on the background. */
-  decor: 'coins' | 'sparkle' | 'snow' | 'lanterns';
+  decor: 'coins' | 'sparkle' | 'snow' | 'lanterns' | 'embers';
   label: string;
 }
 
@@ -36,10 +36,11 @@ export const PALETTES: Record<Theme, Palette> = {
     seal: '#FFFFFF', sealText: '#1B5E20', text: '#FFFFFF', subtext: '#C8E6C9', accent: '#FFCDD2',
     chipBg: '#FFFFFF', chipText: '#1B5E20', decor: 'snow', label: 'Christmas',
   },
+  // Shown as "Blue Dragon" on the site: the frontend's Blue Dragon design tokens (apps/web tokens.css).
   lunar: {
-    bgFrom: '#5D0000', bgTo: '#1A0000', envelope: '#D50000', envelopeShade: '#9B0000', flap: '#C51162',
-    seal: '#FFD700', sealText: '#5D0000', text: '#FFE082', subtext: '#FFCA28', accent: '#FFD700',
-    chipBg: '#FFD700', chipText: '#5D0000', decor: 'lanterns', label: 'Lunar New Year',
+    bgFrom: '#0B3A8F', bgTo: '#020817', envelope: '#0066FF', envelopeShade: '#003F9E', flap: '#0050E0',
+    seal: '#00E0FF', sealText: '#001B3D', text: '#FFFFFF', subtext: '#9BEFFF', accent: '#00E0FF',
+    chipBg: '#00E0FF', chipText: '#001B3D', decor: 'embers', label: 'Blue Dragon',
   },
 };
 

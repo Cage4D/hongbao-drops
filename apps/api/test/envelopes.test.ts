@@ -252,9 +252,9 @@ describe('GET /envelopes/:id and /s/:slug', () => {
       fundingTxid: txid,
       stamp: { category: utxo.txid, imageUrl: `https://api.hongbao.test/stamps/${utxo.txid}/collection.png` },
     });
-    expect(r.body.stamp.alt).toMatch(/Lunar New Year red envelope stamp/);
+    expect(r.body.stamp.alt).toMatch(/Blue Dragon red envelope stamp/);
     expect(r.body.og).toMatchObject({ imageUrl: `https://api.hongbao.test/og/${created.slug}.png`, width: 1200, height: 630 });
-    expect(r.body.og.alt).toMatch(/Lunar New Year red envelope: "Happy New Year!", 3 of 3 shares left/);
+    expect(r.body.og.alt).toMatch(/Blue Dragon red envelope: "Happy New Year!", 3 of 3 shares left/);
     expect(r.body.secondsLeft).toBeGreaterThan(1700);
     const text = JSON.stringify(r.body);
     for (const secret of ['gatePk', 'linkPk', 'quizSalt', 'quizAnswerHashes', 'senderAddress', 'bcmrRegistry']) {
