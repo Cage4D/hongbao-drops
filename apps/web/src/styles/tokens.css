@@ -1,0 +1,63 @@
+/* Blue Dragon design system (from docs/Hongbao Drops — Blue Dragon.html). */
+@font-face { font-family: 'Anton'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/anton-400.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/chakra-400.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/chakra-600.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/chakra-700.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-style: italic; font-weight: 700; font-display: swap; src: url('/fonts/chakra-700i.woff2') format('woff2'); }
+
+:root {
+  --bg: #07080c;
+  --surface: #0e121b;
+  --surface-raised: #141a26;
+  --card: #0b0e15;
+  --border: #1e2738;
+  --border-strong: #2b3850;
+  --line-flame: #12336e;
+  --ink: #ffffff;
+  --text: #c9d3e3;
+  --text-muted: #8592a8;
+  --flame-900: #001b3d;
+  --flame-700: #003f9e;
+  --flame-500: #0066ff;
+  --flame-400: #00a3ff;
+  --flame-200: #00e0ff;
+  --btn-from: #006ef5;
+  --btn-to: #0040c0;
+  --band-to: #002a80;
+  --accent-text: #3da9ff;
+  --chip-text: #bfe6ff;
+  --tag-bg: #0050e0;
+  --on-flame: #ffffff;
+  --on-bright: #07080c;
+  --danger: #ff4d6a;
+  --success: #3dffb0;
+  --focus: #9befff;
+  --scrim: #030408c7;
+  --nav-bg: #000000b8;
+  --flame-wash: #0066ff1f;
+
+  --shadow-glow: 0 0 18px rgba(0, 120, 255, 0.45);
+  --shadow-glow-hover: 0 0 26px rgba(0, 140, 255, 0.65);
+  --shadow-heading: 3px 3px 0 #000;
+  --shadow-modal: 0 0 48px rgba(0, 102, 255, 0.22), 0 24px 64px rgba(0, 0, 0, 0.6);
+  --shadow-toast: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px;
+  --radius-xs: 3px; --radius-sm: 4px; --radius-md: 6px;
+
+  --container-max: 1180px;
+  --gutter: 32px;
+  --nav-height: 64px;
+  --skew-display: -10deg;
+  --skew-tag: -12deg;
+
+  --font-display: Anton, Impact, 'Arial Narrow', sans-serif;
+  --font-body: 'Chakra Petch', system-ui, sans-serif;
+
+  color-scheme: dark;
+}
+
+@media (max-width: 640px) {
+  :root { --gutter: 16px; }
+}
