@@ -157,8 +157,17 @@ input:not([type='checkbox']):not([type='color']), textarea { cursor: text; }
   top: 0; left: 0; right: 0;
   z-index: 50;
   border-bottom: 1px solid rgba(30, 39, 56, 0.8);
-  /* No backdrop blur: blurring the animated dragon behind the nav every frame is expensive. */
   background: var(--nav-bg);
+}
+/* Frosted glass: whatever scrolls under the nav shows through, blurred. Only the nav strip is
+   blurred, so the cost over the animated dragon stays small. Browsers without backdrop-filter
+   keep the solid background above. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .nav {
+    background: var(--nav-bg-glass);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+  }
 }
 .nav-inner { max-width: var(--container-max); margin: 0 auto; padding: 0 var(--gutter); height: var(--nav-height); display: flex; align-items: center; gap: 32px; }
 .nav-brand { font-size: 26px; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
