@@ -368,10 +368,20 @@ export class ClaimsService {
     if (tx.inputs.length !== 1 || !input || binToHex(input.outpointTransactionHash) !== share.outpointTxid || input.outpointIndex !== share.outpointIndex) {
       reasons.push('the transaction must spend exactly the approved share');
     }
-    if (tx.outputs.length !== 1 || !output || binToHex(output.lockingBytecode) !== claim.recipientLockingBytecode) {
-      reasons.push('the transaction must have exactly one output, to the approved address');
+    // Output 0 carries the seal (if any); an optional output 1 pays plain BCH to the same address,
+    // which wallets count as balance (the contract allows exactly this shape).
+    const bchOut = tx.outputs[1];
+    if (
+      tx.outputs.length < 1 ||
+      tx.outputs.length > 2 ||
+      !output ||
+      tx.outputs.some((o) => binToHex(o.lockingBytecode) !== claim.recipientLockingBytecode)
+    ) {
+      reasons.push('the transaction must pay only the approved address (a seal output and an optional BCH output)');
     }
-    if (output && output.valueSatoshis < share.sats - BigInt(env.maxFee)) reasons.push('the network fee is above the envelope limit');
+    if (bchOut?.token) reasons.push('the BCH output must not carry a token');
+    const paid = tx.outputs.reduce((sum, o) => sum + o.valueSatoshis, 0n);
+    if (output && paid < share.sats - BigInt(env.maxFee)) reasons.push('the network fee is above the envelope limit');
     if (output && share.nftCommitment) {
       const t = output.token;
       if (!t || binToHex(t.category) !== env.sealCategory || !t.nft || binToHex(t.nft.commitment) !== share.nftCommitment) {
@@ -381,7 +391,7 @@ export class ClaimsService {
     if (reasons.length) throw new AppError('INVALID_REQUEST', { reasons });
 
     const txid = await this.chain.broadcast(rawTx);
-    const amount = output!.valueSatoshis;
+    const amount = paid;
     const price = await this.price.bchUsd();
 
     const recorded = await this.db.$transaction(async (db) => {

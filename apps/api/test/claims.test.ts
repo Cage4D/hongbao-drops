@@ -28,8 +28,12 @@ describe('claim → broadcast (happy path)', () => {
     expect(b.body.seal).toMatchObject({ commitment: a.share.nftCommitment });
     expect(b.body.seal.alt).toMatch(/Hongbao Seal/);
 
-    const [got] = await t.provider.getUtxosForLockingBytecode(a.recipientLockingBytecode);
-    expect(got?.token?.nft?.commitment).toBe(a.share.nftCommitment);
+    // Seal on a dust output, the rest as plain BCH (wallets only count token-free outputs as balance).
+    const got = await t.provider.getUtxosForLockingBytecode(a.recipientLockingBytecode);
+    expect(got).toHaveLength(2);
+    expect(got.find((u) => u.token)?.token?.nft?.commitment).toBe(a.share.nftCommitment);
+    expect(got.reduce((sum, u) => sum + u.satoshis, 0n)).toBe(BigInt(b.body.amountSats));
+    expect(got.find((u) => !u.token)!.satoshis).toBeGreaterThan(8_000n);
     const share = await t.db.share.findFirstOrThrow({
       where: { outpointTxid: a.share.outpointTxid, outpointIndex: a.share.outpointIndex },
     });
@@ -237,7 +241,7 @@ describe('reservations and broadcast safety', () => {
     const relay = vi.spyOn(t.provider, 'sendRawTransaction');
     const r = await broadcastReq(t, a, { recipientLockingBytecode: evil });
     expect(r.status).toBe(400);
-    expect(r.body.error.reasons).toContain('the transaction must have exactly one output, to the approved address');
+    expect(r.body.error.reasons).toContain('the transaction must pay only the approved address (a seal output and an optional BCH output)');
     expect(relay).not.toHaveBeenCalled(); // refused by the API itself, not by the network
     relay.mockRestore();
   });

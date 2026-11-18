@@ -302,6 +302,8 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
         if (i < 0) continue;
         const out = tx.outputs[i] ?? tx.outputs[0]!;
         const toLB = binToHex(out.lockingBytecode);
+        // A claim may pay the claimer on two outputs (seal + plain BCH); count both.
+        const claimedSats = tx.outputs.filter((o) => binToHex(o.lockingBytecode) === toLB).reduce((sum, o) => sum + o.valueSatoshis, 0n);
         // A refund pays the sender AND carries locktime ≥ expiry (refundBatch's CHECKLOCKTIMEVERIFY
         // can't pass otherwise). A sender claiming a share of their own envelope also pays the
         // sender's script, but with an ordinary claim tx (locktime 0): that's a claim (review-2 P1-11).
@@ -310,7 +312,8 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
           if (isRefund) {
             await db.share.update({ where: { id: sh.id }, data: { status: 'REFUNDED', spendTxid: h.tx_hash, reservedUntil: null, holdToken: null } });
             await db.claim.updateMany({ where: { shareId: sh.id, status: 'APPROVED' }, data: { status: 'EXPIRED', shareId: null } });
-            externalRefunds.set(h.tx_hash, (externalRefunds.get(h.tx_hash) ?? 0n) + out.valueSatoshis);
+            // Every output of a refund pays the sender (the pooled BCH output too): record the tx total once.
+            externalRefunds.set(h.tx_hash, tx.outputs.reduce((sum, o) => sum + o.valueSatoshis, 0n));
             return;
           }
           // Detach whoever currently holds the reservation on this share first: Claim.shareId is
@@ -331,7 +334,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
               data: {
                 status: 'BROADCAST',
                 claimTxid: h.tx_hash,
-                amountSats: out.valueSatoshis,
+                amountSats: claimedSats,
                 shareId: sh.id,
                 approvedShareIds: [...new Set([...claim.approvedShareIds, sh.id])],
               },
@@ -348,10 +351,10 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
               {
                 shareIndex: sh.index,
                 address: truncateAddress(claim.recipientAddress),
-                sats: toNum(out.valueSatoshis),
-                usd: this.price.toUsd(out.valueSatoshis, price),
+                sats: toNum(claimedSats),
+                usd: this.price.toUsd(claimedSats, price),
                 isNewWallet: claim.isNewWallet,
-                luckiest: env.mode === 'LUCKY' && out.valueSatoshis > (prevMax._max.amountSats ?? 0n),
+                luckiest: env.mode === 'LUCKY' && claimedSats > (prevMax._max.amountSats ?? 0n),
                 txid: h.tx_hash,
                 seal: sh.nftCommitment,
                 sharesLeft,
