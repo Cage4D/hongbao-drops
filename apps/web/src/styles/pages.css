@@ -44,7 +44,7 @@
    tucks slightly under the nav (4%) and the copy rides up into the bottom gap (12%). */
 .hero {
   --pad-top: calc(72px + var(--blaze-h, 0px));
-  --flow-h: 54px; /* the flow hint under the headline (FlowHint) */
+  --flow-h: 62px; /* the flow hint under the headline (FlowHint), incl. its top margin */
   --copy-h: calc(407px + var(--flow-h)); /* eyebrow → main button, desktop */
   --dh: clamp(220px, calc((100svh - var(--pad-top) - var(--copy-h) - 16px) / 0.84), 812px);
   position: relative;
@@ -542,7 +542,7 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .hero-live { position: relative; z-index: 2; margin: 40px auto 0; text-align: center; font: 600 13px/16px var(--font-body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted); }
 .hero-live::before { content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 8px 2px 0; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); }
 
-.flow { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; height: 40px; }
+.flow { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; height: 40px; } /* room for the paper rising out of the envelope */
 .flow-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--line-flame); border-radius: 999px; background: rgba(11, 14, 21, 0.85); font: 600 13px/18px var(--font-body); color: var(--text); white-space: nowrap; }
 .flow-link svg { color: var(--accent-text); flex: none; }
 .flow-url { font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted); }
@@ -584,8 +584,8 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 }
 /* Short screens: the hint gives way first, so the main button stays on screen. */
 @media (max-height: 760px) {
-  .hero { --flow-h: 42px; }
-  .flow { margin-top: 8px; height: 34px; }
+  .hero { --flow-h: 56px; }
+  .flow { margin-top: 22px; height: 34px; }
   .flow-chip { padding: 3px 9px; }
 }
 @media (max-height: 680px) {
