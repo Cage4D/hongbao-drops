@@ -84,7 +84,15 @@ export default function WalletEngine({
 }) {
   const { cfg } = useNetwork();
   const wc = useWizardConnect({ dappName: 'Hongbao Drops', dappIcon: `${location.origin}/favicon.svg` });
-  const connected = wc.state === 'connected' && !!wc.manager;
+  // After a page reload the hook restores the saved session but stays 'connecting' until the wallet
+  // app answers, and a phone wallet in the background doesn't (on reconnect the wallet sends no
+  // wallet_ready). The manager has already restored the wallet's xpubs from storage, which is all we
+  // need for addresses, scanning and claims. So a restored session with keys counts as connected;
+  // only signing needs the wallet awake (pending sign requests are re-sent when it comes back).
+  // A new pairing never matches: attachRelay() drops the old stored session first.
+  const awake = wc.state === 'connected' && !!wc.manager;
+  const restored = !!wc.manager && (wc.state === 'connecting' || wc.state === 'reconnecting') && wc.manager.hasPath(0);
+  const connected = awake || restored;
 
   const addresses = useMemo(
     () => (connected && wc.manager && cfg ? deriveAddresses(wc.manager, cfg.prefix) : []),
@@ -187,6 +195,7 @@ export default function WalletEngine({
       uri: wc.uri,
       qrUri: wc.qrUri,
       connected: connected && addresses.length > 0,
+      awake,
       connect,
       disconnect: wc.disconnect,
       reconnect,
@@ -196,7 +205,7 @@ export default function WalletEngine({
       scan,
       signAndSend,
     }),
-    [wc.state, wc.walletName, wc.error, wc.uri, wc.qrUri, wc.disconnect, connected, addresses, receive0, fingerprint, connect, reconnect, scan, signAndSend],
+    [wc.state, wc.walletName, wc.error, wc.uri, wc.qrUri, wc.disconnect, connected, awake, addresses, receive0, fingerprint, connect, reconnect, scan, signAndSend],
   );
 
   useLayoutEffect(() => {

@@ -33,6 +33,8 @@ export interface EngineValue {
   uri: string | null;
   qrUri: string | null;
   connected: boolean;
+  /** The wallet app is answering right now (signing works). False while a restored session waits for it. */
+  awake: boolean;
   connect: () => void;
   disconnect: () => Promise<void>;
   reconnect: () => Promise<void>;
@@ -106,6 +108,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       uri: null,
       qrUri: null,
       connected: false,
+      awake: false,
       connect: () => void load(),
       disconnect: async () => {},
       reconnect: load,

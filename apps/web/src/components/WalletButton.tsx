@@ -62,9 +62,9 @@ function WalletMenu({ cls }: { cls: string }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Your connected wallet"
+        title={w.awake ? 'Your connected wallet' : 'Your wallet (saved session: open the wallet app to sign)'}
       >
-        <span className="dot" /> {addr ? shortAddr(addr) : 'Connected'}
+        <span className={`dot ${w.awake ? '' : 'dot-idle'}`} /> {addr ? shortAddr(addr) : 'Connected'}
         <span className={`wallet-caret ${open ? 'up' : ''}`} aria-hidden="true">
           ▾
         </span>
@@ -72,9 +72,11 @@ function WalletMenu({ cls }: { cls: string }) {
       {open && (
         <div className="wallet-pop" role="menu" aria-label="Wallet">
           <p className="label" style={{ marginBottom: 4 }}>
-            Connected{w.walletName ? ` · ${w.walletName}` : ''}
+            {w.awake ? 'Connected' : 'Saved session'}
+            {w.walletName ? ` · ${w.walletName}` : ''}
           </p>
           <p className="mono wallet-addr">{addr}</p>
+          {!w.awake && <p className="small muted wallet-asleep">Your wallet app isn't open right now. Claims work as usual; to send or sign, open the wallet app first.</p>}
           <div className="row" style={{ gap: 8 }}>
             <button
               className="btn btn-outline btn-sm"
