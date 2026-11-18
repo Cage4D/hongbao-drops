@@ -14,14 +14,16 @@ import { binToHex, encodeCashAddress, encodeTransaction, hash160, sha256 } from 
 import { useNetwork, type NetCfg } from './network';
 import { chainProvider } from './chain';
 import { planChange, txBuilder } from './txplan';
-import type { EngineValue, PathName, SignResult, WalletAddr, WalletUtxo } from './wallet';
+import { WalletSilent, type EngineValue, type PathName, type SignResult, type WalletAddr, type WalletUtxo } from './wallet';
 
 const PATHS: { name: PathName; child: number; count: number }[] = [
   { name: 'receive', child: 0, count: 20 },
   { name: 'change', child: 1, count: 10 },
 ];
 
-const SIGN_TIMEOUT_MS = 3 * 60_000;
+// Long enough to switch to the wallet app and approve; a wallet that was disconnected in its app
+// never answers, so don't keep the user waiting longer than this.
+const SIGN_TIMEOUT_MS = 2 * 60_000;
 
 export function deriveAddresses(m: DappConnectionManager, prefix: NetCfg['prefix']): WalletAddr[] {
   const out: WalletAddr[] = [];
@@ -135,7 +137,7 @@ export default function WalletEngine({
           { signal: ctrl.signal },
         );
       } catch (e) {
-        if (ctrl.signal.aborted) throw new Error(signal?.aborted ? 'Cancelled.' : 'Your wallet did not answer. Open it, or reconnect and try again.');
+        if (ctrl.signal.aborted) throw signal?.aborted ? new Error('Cancelled.') : new WalletSilent();
         throw e;
       } finally {
         clearTimeout(timer);

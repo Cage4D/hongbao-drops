@@ -25,6 +25,17 @@ export interface SignResult {
   change: { vout: number; sats: bigint; addr: WalletAddr } | null;
 }
 
+/**
+ * The wallet never answered a sign request. Most often the session was ended in the wallet app
+ * (Paytaca's disconnect message frequently never reaches the relay), so the fix is a fresh pairing.
+ */
+export class WalletSilent extends Error {
+  constructor() {
+    super("Your wallet didn't answer. If you disconnected Hongbao Drops in your wallet app, connect again.");
+    this.name = 'WalletSilent';
+  }
+}
+
 /** What the engine provides once loaded. */
 export interface EngineValue {
   state: WizardConnectState;

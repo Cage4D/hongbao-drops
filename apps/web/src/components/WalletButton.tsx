@@ -76,7 +76,23 @@ function WalletMenu({ cls }: { cls: string }) {
             {w.walletName ? ` · ${w.walletName}` : ''}
           </p>
           <p className="mono wallet-addr">{addr}</p>
-          {!w.awake && <p className="small muted wallet-asleep">Your wallet app isn't open right now. Claims work as usual; to send or sign, open the wallet app first.</p>}
+          {!w.awake && (
+            <div className="wallet-asleep">
+              <p className="small muted">
+                Your wallet app isn't answering right now. Claims work as usual; to send or sign, open the wallet app first. Disconnected Hongbao Drops in your wallet? Connect again.
+              </p>
+              <button
+                className="btn btn-outline btn-sm"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  void w.reconnect();
+                }}
+              >
+                Connect again
+              </button>
+            </div>
+          )}
           <div className="row" style={{ gap: 8 }}>
             <button
               className="btn btn-outline btn-sm"
