@@ -3,7 +3,7 @@
    mix-blend-mode anywhere in here (they force per-frame repaints and were the scroll jank). */
 .dragon { position: relative; width: min(1180px, 100%); aspect-ratio: 1600 / 1101; margin: 0 auto; contain: layout paint; isolation: isolate; }
 .dr-layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; pointer-events: none; }
-.dr-tilt, .dr-body, .dr-halo, .dr-flames, .dr-bloom, .dr-eye { will-change: transform, opacity; }
+.dr-body, .dr-halo, .dr-flames, .dr-bloom, .dr-eye { will-change: transform, opacity; }
 .dr-halo {
   position: absolute; left: 12%; right: 12%; top: 8%; bottom: 4%; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(0, 102, 255, 0.3), rgba(0, 60, 180, 0.16) 45%, rgba(0, 42, 128, 0.06) 70%, transparent 100%);

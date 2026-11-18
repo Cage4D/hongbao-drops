@@ -4,7 +4,8 @@
 // the compositor runs it off the main thread and scrolling never waits on it. No live filters, blur
 // or blend modes: the glow is pre-rendered (tools/bake-dragon.mjs) and the flames "lick" by
 // cross-fading two copies of the outer ring that sway at different speeds. JS only drives the
-// ember canvas (sprites, 1× resolution, paused offscreen and while scrolling) and pointer parallax.
+// ember canvas (sprites, 1× resolution, paused offscreen and while scrolling). The dragon ignores
+// the cursor; it only floats on its own (the CSS breathing loop on .dr-body).
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { prefersReducedMotion } from '../lib/hooks';
@@ -18,19 +19,6 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
     const el = stage.current;
     if (!el || prefersReducedMotion()) return;
     const canvas = el.querySelector('.dr-embers') as HTMLCanvasElement | null;
-    const tilt = el.querySelector('.dr-tilt') as HTMLElement | null;
-
-    // Pointer parallax (mouse only).
-    const xTo = tilt ? gsap.quickTo(tilt, 'x', { duration: 1.2, ease: 'power3.out' }) : null;
-    const yTo = tilt ? gsap.quickTo(tilt, 'y', { duration: 1.2, ease: 'power3.out' }) : null;
-    const onMove = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse' || !xTo || !yTo) return;
-      const r = el.getBoundingClientRect();
-      if (r.bottom < 0) return;
-      xTo(((e.clientX - r.left) / r.width - 0.5) * 18);
-      yTo(((e.clientY - r.top) / r.height - 0.5) * 12);
-    };
-    window.addEventListener('pointermove', onMove, { passive: true });
 
     let visible = true;
     const io = new IntersectionObserver(([en]) => (visible = !!en?.isIntersecting));
@@ -118,7 +106,6 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
     gsap.ticker.add(tick);
     return () => {
       gsap.ticker.remove(tick);
-      window.removeEventListener('pointermove', onMove);
       window.removeEventListener('scroll', onScroll);
       io.disconnect();
     };
@@ -133,15 +120,13 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
     >
       <div className="dr-halo" aria-hidden="true" />
       <canvas className="dr-embers dr-layer" aria-hidden="true" />
-      <div className="dr-tilt dr-layer">
-        <div className="dr-body dr-layer">
-          <img className="dr-layer dr-core" src="/dragon.webp" alt="" fetchPriority="high" decoding="async" />
-          <img className="dr-layer dr-flames dr-flames-a" src="/dragon.webp" alt="" decoding="async" />
-          <img className="dr-layer dr-flames dr-flames-b" src="/dragon.webp" alt="" decoding="async" />
-          <img className="dr-layer dr-bloom" src="/dragon-bloom.webp" alt="" decoding="async" />
-          <span className="dr-eye" style={{ left: '47.7%', top: '52.6%' }} />
-          <span className="dr-eye dr-eye-r" style={{ left: '54.6%', top: '52.6%' }} />
-        </div>
+      <div className="dr-body dr-layer">
+        <img className="dr-layer dr-core" src="/dragon.webp" alt="" fetchPriority="high" decoding="async" />
+        <img className="dr-layer dr-flames dr-flames-a" src="/dragon.webp" alt="" decoding="async" />
+        <img className="dr-layer dr-flames dr-flames-b" src="/dragon.webp" alt="" decoding="async" />
+        <img className="dr-layer dr-bloom" src="/dragon-bloom.webp" alt="" decoding="async" />
+        <span className="dr-eye" style={{ left: '47.7%', top: '52.6%' }} />
+        <span className="dr-eye dr-eye-r" style={{ left: '54.6%', top: '52.6%' }} />
       </div>
     </div>
   );
