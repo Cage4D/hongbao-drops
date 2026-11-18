@@ -1,10 +1,9 @@
-// Link previews (middleware.ts + src/lib/ogMeta.ts), with the network mocked.
+// Link previews (middleware.ts), with the network mocked.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PublicEnvelopeView } from '@hongbao/shared';
-import middleware, { config } from '../middleware';
-import { injectPreview, previewText } from '../src/lib/ogMeta';
+import middleware, { config, injectPreview, previewText } from '../middleware';
 
 const INDEX = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
 

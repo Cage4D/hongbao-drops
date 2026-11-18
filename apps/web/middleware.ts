@@ -7,8 +7,13 @@
 //
 // It must never slow down or break a claim: on any problem (API slow or down, unknown envelope,
 // unexpected HTML) it falls through to the normal static page.
-import { next } from '@vercel/functions';
-import { injectPreview, type PreviewView } from './src/lib/ogMeta';
+//
+// Self-contained on purpose: Vercel runs the compiled middleware as unbundled Node ESM, so a
+// relative import (or a package it didn't trace) fails at runtime and every envelope URL 500s.
+// Keep this file free of imports.
+
+/** Continue to the normal static page (what @vercel/functions' next() returns). */
+const next = () => new Response(null, { headers: { 'x-middleware-next': '1' } });
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 const API_URL = (env.VITE_API_URL || 'https://hongbao-drops-api.vercel.app').replace(/\/$/, '');
@@ -49,4 +54,83 @@ export default async function middleware(request: Request): Promise<Response> {
   } catch {
     return next();
   }
+}
+
+// ------------------------------------------------------------------ preview tags
+
+/**
+ * The fields of the API's PublicEnvelopeView (@hongbao/shared) that previews use. Declared here so
+ * the middleware compiles on its own on Vercel, where the workspace packages' types aren't built.
+ */
+export interface PreviewView {
+  status: string;
+  message: string | null;
+  sponsor: { name: string } | null;
+  remaining: { usd: number | null };
+  shares: { total: number; left: number };
+  og: { imageUrl: string; alt: string; width: number; height: number };
+}
+
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+
+const oneLine = (s: string, max: number) => {
+  const t = s.replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+};
+
+export interface PreviewText {
+  title: string;
+  description: string;
+}
+
+export function previewText(v: PreviewView): PreviewText {
+  const title = v.sponsor ? `🧧 A red envelope from ${oneLine(v.sponsor.name, 60)}` : '🧧 A red envelope for you';
+  const parts: string[] = [];
+  if (v.message) parts.push(oneLine(v.message, 140));
+  if (v.status === 'ACTIVE' && v.shares.left > 0) {
+    parts.push(`${v.shares.left} of ${v.shares.total} left`);
+    if (v.remaining.usd != null) parts.push(`$${v.remaining.usd.toFixed(2)}`);
+  } else if (v.status === 'ACTIVE' || v.status === 'EXHAUSTED') {
+    parts.push('All grabbed');
+  } else if (v.status === 'PENDING_FUNDING') {
+    parts.push('Being sealed');
+  } else {
+    parts.push('This envelope has closed');
+  }
+  return { title, description: parts.join(' · ') };
+}
+
+/** The <head> tags. `pageUrl` must be origin + path only: never the #k= fragment or a query. */
+export function previewTags(v: PreviewView, pageUrl: string): string {
+  const { title, description } = previewText(v);
+  const m = (attr: 'property' | 'name', key: string, value: string | number) => `<meta ${attr}="${key}" content="${esc(String(value))}" />`;
+  return [
+    m('property', 'og:type', 'website'),
+    m('property', 'og:site_name', 'Hongbao Drops'),
+    m('property', 'og:url', pageUrl),
+    m('property', 'og:title', title),
+    m('property', 'og:description', description),
+    m('property', 'og:image', v.og.imageUrl),
+    m('property', 'og:image:alt', v.og.alt),
+    m('property', 'og:image:width', v.og.width),
+    m('property', 'og:image:height', v.og.height),
+    m('property', 'og:image:type', 'image/png'),
+    m('name', 'twitter:card', 'summary_large_image'),
+    m('name', 'twitter:title', title),
+    m('name', 'twitter:description', description),
+    m('name', 'twitter:image', v.og.imageUrl),
+    m('name', 'twitter:image:alt', v.og.alt),
+    m('name', 'description', description),
+  ].join('\n    ');
+}
+
+/** Swaps the default tags between <!--og--> and <!--/og--> in index.html. Null if the markers are gone. */
+export function injectPreview(html: string, v: PreviewView, pageUrl: string): string | null {
+  const start = html.indexOf('<!--og-->');
+  const end = html.indexOf('<!--/og-->');
+  if (start < 0 || end < start) return null;
+  // The page's generic description would be a duplicate; the envelope's goes in the og block.
+  const head = html.slice(0, start).replace(/\s*<meta name="description"[^>]*>/, '');
+  return `${head}<!--og-->\n    ${previewTags(v, pageUrl)}\n    ${html.slice(end)}`;
 }
