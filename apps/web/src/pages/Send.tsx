@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import type { Mode, Theme } from '@hongbao/shared';
 import { useNetwork } from '../lib/network';
 import { useWallet, InsufficientFunds } from '../lib/wallet';
-import { createAndFund, type FundResult, type FundStep } from '../lib/fund';
+import { FundingUnconfirmed, confirmFunding, createAndFund, type FundResult, type FundStep } from '../lib/fund';
 import { errorText } from '../lib/api';
 import { fmtBch, fmtDuration, fmtSats, fmtUsd, satsToUsd, usdToSats } from '../lib/format';
 import { store } from '../lib/storage';
@@ -53,6 +53,8 @@ export function Send() {
   const [stepNote, setStepNote] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FundResult | null>(null);
+  /** Funded on-chain but not confirmed by the API yet: retry only the check, never fund again. */
+  const [pending, setPending] = useState<FundResult | null>(null);
   const abort = useRef<AbortController | null>(null);
 
   const minShare = withStamps ? MIN_SHARE_STAMP : MIN_SHARE_PLAIN;
@@ -111,9 +113,38 @@ export function Send() {
     return () => window.removeEventListener('beforeunload', h);
   }, [result, linkSaved]);
 
+  // Save the link the moment the money is in the lockbox, so it survives any later failure.
+  const remember = (r: FundResult) => {
+    const sent = store.get<SentDrop[]>(SENT_KEY) ?? [];
+    if (sent.some((d) => d.id === r.created.id)) return;
+    store.set(SENT_KEY, [
+      { id: r.created.id, slug: r.created.slug, url: r.url, totalSats: sats, shareCount, theme, message: message.trim(), createdAt: new Date().toISOString(), ...(parent && { parent }) },
+      ...sent,
+    ].slice(0, 30));
+    // The claimed share is now spent: the claim page shows this pass-on instead of the button.
+    if (parent) markPassedOn(parent, { id: r.created.id, slug: r.created.slug, url: r.url });
+  };
+
+  const fail = (e: unknown) => {
+    if (e instanceof FundingUnconfirmed) {
+      setPending(e.pending);
+      setError(`Your envelope is sent and the money is in the lockbox, but we couldn't confirm it yet (${errorText(e.cause)}). Your link is saved under “Your recent drops”. Tap Check again in a moment.`);
+    } else setError(e instanceof InsufficientFunds ? insufficientText(e, priceUsd) : errorText(e));
+  };
+
   const submit = async () => {
     if (!cfg || problems.length) return;
     setError(null);
+    if (pending) {
+      setStep('confirm');
+      try {
+        setResult(await confirmFunding(pending));
+        setPending(null);
+      } catch (e) {
+        fail(e);
+      }
+      return;
+    }
     abort.current = new AbortController();
     try {
       const r = await createAndFund({
@@ -123,7 +154,9 @@ export function Send() {
           shareCount,
           mode,
           totalSats: sats,
-          expiry: Math.floor(Date.now() / 1000) + expirySec,
+          // At the network's maximum (24 h on mainnet) keep 5 min of slack: a phone clock running a
+          // little ahead of the server's would otherwise ask for more than the API allows.
+          expiry: Math.floor(Date.now() / 1000) + Math.min(expirySec, cfg.maxExpirySec - 300),
           message: message.trim() || undefined,
           theme,
           withStamps,
@@ -136,18 +169,12 @@ export function Send() {
           setStep(s);
           setStepNote(note);
         },
+        onBroadcast: remember,
         signal: abort.current.signal,
       });
-      const sent = store.get<SentDrop[]>(SENT_KEY) ?? [];
-      store.set(SENT_KEY, [
-        { id: r.created.id, slug: r.created.slug, url: r.url, totalSats: sats, shareCount, theme, message: message.trim(), createdAt: new Date().toISOString(), ...(parent && { parent }) },
-        ...sent,
-      ].slice(0, 30));
-      // The claimed share is now spent: the claim page shows this pass-on instead of the button.
-      if (parent) markPassedOn(parent, { id: r.created.id, slug: r.created.slug, url: r.url });
       setResult(r);
     } catch (e) {
-      setError(e instanceof InsufficientFunds ? insufficientText(e, priceUsd) : errorText(e));
+      fail(e);
     }
   };
 
@@ -182,7 +209,7 @@ export function Send() {
               submit();
             }}
           >
-            <fieldset disabled={busy} className="bare">
+            <fieldset disabled={busy || !!pending} className="bare">
               <div className="field">
                 <span className="label">
                   Amount
@@ -399,7 +426,7 @@ export function Send() {
                   </button>
                 ) : (
                   <button className="btn btn-primary btn-lg btn-block" disabled={!!problems.length || !cfg} onClick={submit}>
-                    {error ? 'Try again' : parent ? 'Pass it on' : `Fund & seal · ${usd != null ? fmtUsd(usd) : `${fmtSats(sats)} sats`}`}
+                    {pending ? 'Check again' : error ? 'Try again' : parent ? 'Pass it on' : `Fund & seal · ${usd != null ? fmtUsd(usd) : `${fmtSats(sats)} sats`}`}
                   </button>
                 )}
               </div>

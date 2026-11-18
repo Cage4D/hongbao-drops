@@ -20,6 +20,29 @@ export interface FundResult {
   txid: string;
 }
 
+/**
+ * The funding tx is on the network but the API hasn't confirmed the envelope yet. The money is in
+ * the lockbox, so never fund again: keep the link and retry only the check (confirmFunding).
+ */
+export class FundingUnconfirmed extends Error {
+  constructor(
+    public pending: FundResult,
+    public cause: unknown,
+  ) {
+    super('Your envelope was sent, but we could not confirm it yet.');
+  }
+}
+
+/** Step 5 alone: ask the API to verify a funding tx that's already broadcast. */
+export async function confirmFunding(pending: FundResult): Promise<FundResult> {
+  try {
+    await api.funded(pending.created.id, pending.txid);
+  } catch (e) {
+    throw new FundingUnconfirmed(pending, e);
+  }
+  return pending;
+}
+
 type Wallet = ReturnType<typeof useWallet>;
 
 const IDENTITY = 546n;
@@ -46,9 +69,11 @@ export async function createAndFund(opts: {
   /** Pass it on: the claimed coin (txid:0) that must be spent as input 0. */
   mustSpend?: { txid: string; vout: number };
   onStep: (s: FundStep, note?: string) => void;
+  /** Called as soon as the funding tx is broadcast, before the API check: save the link here. */
+  onBroadcast?: (r: FundResult) => void;
   signal?: AbortSignal;
 }): Promise<FundResult> {
-  const { wallet, cfg, draft, mustSpend, onStep, signal } = opts;
+  const { wallet, cfg, draft, mustSpend, onStep, onBroadcast, signal } = opts;
   const withStamps = draft.withStamps !== false;
   const receive0 = wallet.receive0;
   if (!receive0) throw new Error('Connect your wallet first.');
@@ -130,10 +155,12 @@ export async function createAndFund(opts: {
     signal,
   );
 
+  const result: FundResult = { created, wif: link.wif, url: shareUrl(created, link.wif), txid };
+  onBroadcast?.(result);
+
   // 5 — tell the API; it checks the tx on-chain (retries while its server catches up)
   onStep('confirm');
-  await api.funded(created.id, txid);
-  return { created, wif: link.wif, url: shareUrl(created, link.wif), txid };
+  return confirmFunding(result);
 }
 
 export type { WalletAddr };
