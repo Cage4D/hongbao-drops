@@ -518,15 +518,15 @@ function ClaimPanel({
               <ol className="hold-steps">
                 <li>
                   <a href={PAYTACA_URL} target="_blank" rel="noreferrer">
-                    Get a Bitcoin Cash wallet
+                    Try Paytaca
                   </a>{' '}
-                  (we suggest Paytaca: free, about a minute).
+                  (free, about a minute), or use any Bitcoin Cash wallet.
                 </li>
                 <li>Come back to this same link.</li>
                 <li>Connect your wallet or paste its address below.</li>
               </ol>
               <a className="btn btn-ghost btn-block" href={PAYTACA_URL} target="_blank" rel="noreferrer">
-                Get Paytaca (suggested)
+                Try Paytaca
               </a>
               <div className="field">
                 <label className="label" htmlFor="addr2">
@@ -551,7 +551,7 @@ function ClaimPanel({
           ) : (
             <>
               <p className="small muted">
-                No wallet yet? We'll hold a share for you for <strong>15 minutes</strong> while you set up a wallet. We suggest Paytaca.
+                No wallet yet? Try Paytaca. We'll hold a share for you for <strong>15 minutes</strong> while you set it up.
               </p>
               <button className="btn btn-primary btn-lg btn-block" onClick={holdShare}>
                 Hold my share

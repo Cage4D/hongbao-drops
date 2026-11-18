@@ -199,7 +199,7 @@ export function Landing() {
               <h3 className="disp disp-sm" style={{ marginTop: 10 }}>
                 No wallet yet?
               </h3>
-              <p>We hold your share for 15 minutes while you set up a wallet (we suggest Paytaca). Come back and it's still yours.</p>
+              <p>We hold your share for 15 minutes while you set one up. Try Paytaca. Come back and it's still yours.</p>
             </article>
             <article className="card reveal">
               <span className="tag">Sponsored drops</span>

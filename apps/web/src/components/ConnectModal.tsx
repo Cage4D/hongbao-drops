@@ -95,7 +95,7 @@ export function ConnectModal() {
           {w.error && <div className="alert alert-error">{w.error}</div>}
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <a className="small" href={PAYTACA_URL} target="_blank" rel="noreferrer">
-              No wallet yet? We suggest Paytaca (free) →
+              No wallet yet? Try Paytaca →
             </a>
             <button className="btn-link small" onClick={w.reconnect}>
               Stuck? Start over
