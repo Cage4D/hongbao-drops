@@ -2,6 +2,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import type { CampaignStats } from '@hongbao/shared';
+import { binToHex, sha256, utf8ToBin } from '@bitauth/libauth';
 import { api, errorText } from '../lib/api';
 import { store } from '../lib/storage';
 import { CampaignView } from '../components/CampaignView';
@@ -17,7 +18,8 @@ interface CampaignRef {
   name: string;
 }
 const SPONSOR = 'hongbao:sponsor';
-const CAMPAIGNS = 'hongbao:campaigns';
+/** Campaign list per sponsor key (a hash of it), so switching keys never shows another sponsor's campaigns. */
+const campaignsKey = (token: string) => `hongbao:campaigns:${binToHex(sha256.hash(utf8ToBin(token))).slice(0, 16)}`;
 
 export function Sponsor() {
   const [session, setSession] = useState<SponsorSession | null>(() => store.get(SPONSOR));
@@ -168,6 +170,7 @@ function KeyOnce({ s, onDone }: { s: SponsorSession; onDone: () => void }) {
 
 function Dashboard({ session, onSignOut }: { session: SponsorSession; onSignOut: () => void }) {
   const toast = useToast();
+  const CAMPAIGNS = campaignsKey(session.token);
   const [campaigns, setCampaigns] = useState<CampaignRef[]>(() => store.get(CAMPAIGNS) ?? []);
   const [active, setActive] = useState<string | null>(campaigns[0]?.id ?? null);
   const [name, setName] = useState('');
