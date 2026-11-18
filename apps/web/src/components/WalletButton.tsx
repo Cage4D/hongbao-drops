@@ -21,6 +21,12 @@ export function WalletButton({ small = true }: { small?: boolean }) {
   );
 }
 
+/** "qruu…8gcs": the nav button on 360-px phones, where the logo needs the room. */
+const tinyAddr = (a: string) => {
+  const body = a.slice(a.indexOf(':') + 1);
+  return `${body.slice(0, 4)}…${body.slice(-4)}`;
+};
+
 /** Connected: the address button toggles a small menu with the address and Disconnect. */
 function WalletMenu({ cls }: { cls: string }) {
   const w = useWallet();
@@ -64,7 +70,15 @@ function WalletMenu({ cls }: { cls: string }) {
         aria-expanded={open}
         title={w.awake ? 'Your connected wallet' : 'Your wallet (saved session: open the wallet app to sign)'}
       >
-        <span className={`dot ${w.awake ? '' : 'dot-idle'}`} /> {addr ? shortAddr(addr) : 'Connected'}
+        <span className={`dot ${w.awake ? '' : 'dot-idle'}`} />{' '}
+        {addr ? (
+          <>
+            <span className="addr-long">{shortAddr(addr)}</span>
+            <span className="addr-tiny">{tinyAddr(addr)}</span>
+          </>
+        ) : (
+          'Connected'
+        )}
         <span className={`wallet-caret ${open ? 'up' : ''}`} aria-hidden="true">
           ▾
         </span>

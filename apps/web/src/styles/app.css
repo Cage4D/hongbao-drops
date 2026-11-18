@@ -170,7 +170,8 @@ input:not([type='checkbox']):not([type='color']), textarea { cursor: text; }
   }
 }
 .nav-inner { max-width: var(--container-max); margin: 0 auto; padding: 0 var(--gutter); height: var(--nav-height); display: flex; align-items: center; gap: 32px; }
-.nav-brand { font-size: 26px; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
+.nav-brand { font-size: 26px; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; flex-shrink: 0; }
+.addr-tiny { display: none; }
 .nav-brand:hover { color: #fff; }
 .nav-links { display: flex; gap: 28px; margin-left: auto; font: 600 14px/20px var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; }
 .nav-links a { position: relative; color: #fff; text-decoration: none; padding: 4px 0; transition: color 0.2s; }
@@ -222,6 +223,9 @@ input:not([type='checkbox']):not([type='color']), textarea { cursor: text; }
   .nav-brand { font-size: 19px; }
   .nav-actions { gap: 8px; }
   .nav-actions .btn-sm { padding: 0 12px; }
+  /* Connected: a shorter address and no caret, so the logo stays on one line. */
+  .addr-long, .wallet-on .wallet-caret { display: none; }
+  .addr-tiny { display: inline; }
 }
 @media (prefers-reduced-motion: reduce) { .mnav-btn span { transition: none; } }
 
