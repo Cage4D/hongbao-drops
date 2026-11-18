@@ -83,7 +83,7 @@ export default function ConnectModal() {
                 </li>
                 <li>Come back to this page. It connects by itself.</li>
               </ol>
-              {w.uri && !isPhone() && (
+              {w.uri && (
                 <p className="small muted" style={{ margin: 0 }}>
                   Wallet app opens <span className="mono">wiz://</span> links?{' '}
                   <a href={w.uri}>Open it directly</a>
