@@ -132,10 +132,31 @@ The second `campaign-e2e` run got **503 `CHAIN_UNAVAILABLE`** on `POST /envelope
 |---|---|
 | Funding (2 seal-bearing shares, identity output, BCMR OP_RETURN) | `435d1f7c42e2f6bb8e3daa8b816ee7135b90b53b59a84c5e11547dc52852cfef` |
 | Claim: seal `0100000001` + 1,515 sats → Paytaca | `7cebcb70d2a2c6bfb410adbca10e706478e9f15d8a9d6b23533a192e080fbfc6` |
-| Refund of the other share (keeper, ~75 min after expiry) | _pending_ |
+| Refund of the other share (production keeper, once median-time-past passed expiry) | 2,000 sats → 1,648 back to the demo wallet |
 
 - **Paytaca's backends already know the seal** within a minute: `watchtower.cash/api/utxo/ct/<addr>/` lists the token UTXO with name "Hongbao Seal #1-1" and the image URL, and `bcmr.paytaca.com/api/tokens/<category>/0100000001/` returns the collection and NFT metadata. The seal PNG serves 200 `image/png`.
-- **The 1,515 sats ride on the seal's output** (one output carries both). Watchtower's BCH balance for the address is therefore 0: it doesn't count token-carrying UTXOs. Whether Paytaca shows those sats as spendable BCH has to be checked in the app.
+- **The 1,515 sats ride on the seal's output** (one output carries both). Watchtower's BCH balance for the address is therefore 0: it doesn't count token-carrying UTXOs.
+- **Result in the Paytaca app: seal shown, BCH not.** Paytaca (like most wallets) only counts token-free outputs as BCH balance. Gate failed on the BCH half.
+
+### Fix: separate BCH output (contract change, `9874af7`, `97b2a1c`)
+
+The contract allowed exactly one claim output, so the share's value had to ride on the seal. Now:
+- `claim` allows an optional second, token-free output to the same recipient. Seal shares claim as **seal on a 666-sat output + the rest as plain BCH**. Too-small shares fall back to one output.
+- `refundBatch` allows one extra pooled, token-free output to the sender, so refunded value also shows as BCH.
+- The fee cap now covers all outputs together. The contract grew from 222 to 294 bytes with constructor args, adding ≈100 sats to each claim's fee. The minimum share stays at 2,000 sats (it still splits, leaving ≈744 sats BCH).
+- Tests: contract 68, API 164, web 28. On Chipnet (local API): seal claim `666 + seal | 1,744`, pooled refund of 2 shares `666 + seal | 666 + seal | 3,794`.
+- Deployed only after `srjcj4`'s refund had gone through, because the keeper builds refunds from the current artifact (an old-contract share would have been stranded).
+
+### Paytaca recheck with the new contract: **passed**
+
+`seal-to-wallet --shares 2 --sats 4000 --expiry-minutes 15`, slug `fzhqxh`.
+
+| Step | Txid |
+|---|---|
+| Funding | `675ddbf80b9293f92c8f09fb6c7bb7ddb052f2c44c0ce205cb739cda0ab1c76b` |
+| Claim: seal `0200000001` on 666 sats + **744 sats plain BCH** → Paytaca | `2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5` |
+
+**In the Paytaca app (builder, 2026-11-18): the BCH balance went up and "Hongbao Seal #2-1" shows with its name and image.** Watchtower picked the claim up only after it confirmed; the BCMR indexer had the collection within a minute. The Nov 19 must-pass gate is met.
 
 ## Still to do
 
