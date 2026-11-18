@@ -1,5 +1,5 @@
 // Flow B (claim), handoff §5. No wallet signature: the link key from #k= signs.
-import { decodeCashAddress } from '@bitauth/libauth';
+import { binToHex, decodeCashAddress, secp256k1 } from '@bitauth/libauth';
 import { buildClaimTx } from '@hongbao/contract';
 import type { BroadcastResponse, ClaimRequest } from '@hongbao/shared';
 import { api } from './api';
@@ -15,6 +15,10 @@ export interface ClaimResult extends BroadcastResponse {
 
 export async function claimShare(cfg: NetCfg, envelopeId: string, linkPrivateKey: Uint8Array, body: ClaimRequest): Promise<ClaimResult> {
   const ap = await api.claim(envelopeId, body);
+  // A well-formed key from another envelope (links mixed up or pasted together) can't open this
+  // lockbox: say so instead of letting the network reject the tx with a generic error.
+  if (binToHex(secp256k1.derivePublicKeyCompressed(linkPrivateKey) as Uint8Array) !== ap.constructorArgs.linkPk)
+    throw new Error("This link's key belongs to a different envelope. Ask the sender to send the full link again.");
   // The share is reserved for 120 s: build and broadcast straight away.
   const { hex } = buildClaimTx({
     provider: chainProvider(cfg),
