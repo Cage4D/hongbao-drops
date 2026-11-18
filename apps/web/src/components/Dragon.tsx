@@ -59,6 +59,8 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
     type Ember = { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number };
     const embers: Ember[] = [];
     let t0 = 0;
+    /** Fractional embers carried between frames (the rate scales with the dragon's size). */
+    let owed = 0;
     const tick = (time: number) => {
       if (!visible || !canvas || !ctx) return;
       // Skip ember frames while scrolling: the main thread belongs to the scroll then.
@@ -74,15 +76,20 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
       ctx.clearRect(0, 0, w, h);
       const dt = t0 ? Math.min(0.05, time - t0) : 0.016;
       t0 = time;
-      if (Math.random() < 0.9) {
-        const spawn = Math.max(1, Math.round(2 * k.current));
+      // The hero sizes the dragon to the screen, so keep the embers' density and reach what they
+      // were at full size (1180 px wide): spawn rate ∝ drawn area, drift speed ∝ width.
+      const scale = Math.min(1, w / 1180);
+      owed += 0.9 * 2 * k.current * scale * scale;
+      const spawn = Math.floor(owed);
+      owed -= spawn;
+      {
         for (let s = 0; s < spawn; s++) {
           const ang = Math.random() * Math.PI * 2;
           embers.push({
             x: w * (0.5 + Math.cos(ang) * (0.22 + Math.random() * 0.12)),
             y: h * (0.55 + Math.sin(ang) * (0.3 + Math.random() * 0.1)),
-            vx: (Math.random() - 0.5) * 30,
-            vy: -30 - Math.random() * 70,
+            vx: (Math.random() - 0.5) * 30 * scale,
+            vy: (-30 - Math.random() * 70) * Math.max(scale, 0.5),
             life: 0,
             max: 1.2 + Math.random() * 1.8,
             r: Math.random() < 0.3 ? 2.5 : 1.5,
@@ -97,7 +104,7 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
           embers.splice(i, 1);
           continue;
         }
-        e.vx += Math.sin(e.y * 0.03 + time * 2) * 20 * dt;
+        e.vx += Math.sin(e.y * 0.03 + time * 2) * 20 * scale * dt;
         e.x += e.vx * dt;
         e.y += e.vy * dt;
         const a = 1 - e.life / e.max;
