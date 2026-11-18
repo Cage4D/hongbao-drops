@@ -57,86 +57,101 @@ export default function ConnectModal() {
           </p>
         </div>
       ) : (
-        <div className="stack">
-          <p className="eyebrow">Step 1 · Connect</p>
-          <h2 className="disp disp-md">
-            Link your <span className="flame">wallet</span>
-          </h2>
+        <div className="connect">
+          <header className="connect-head">
+            <p className="eyebrow">Step 1 · Connect</p>
+            <h2 className="disp disp-md">
+              Link your <span className="flame">wallet</span>
+            </h2>
+          </header>
+
           {isPhone() ? (
             <>
               <ol className="phone-steps">
-                <li>
+                <li className="phone-step-action">
                   <button className={`btn btn-lg btn-block ${linkCopied ? 'btn-ghost' : 'btn-primary'}`} onClick={copyLink} disabled={!w.uri}>
                     {!w.uri ? 'Preparing your link…' : linkCopied ? 'Link copied ✓' : 'Copy connection link'}
                   </button>
                 </li>
                 <li>
-                  Open your wallet's <strong>WizardConnect</strong> screen. In Paytaca: <strong>Apps → WizardConnect → Paste URL</strong>.
+                  <span>
+                    Open your wallet's <strong>WizardConnect</strong> screen. In Paytaca: <strong>Apps → WizardConnect → Paste URL</strong>.
+                  </span>
                   {isAndroid() && (
-                    <a className="btn btn-ghost btn-block" href={PAYTACA_ANDROID_INTENT} style={{ marginTop: 10 }}>
+                    <a className="btn btn-ghost btn-block phone-step-btn" href={PAYTACA_ANDROID_INTENT}>
                       Open Paytaca
                     </a>
                   )}
                 </li>
                 <li>
-                  Paste the link and tap <strong>Connect</strong>.
+                  <span>
+                    Paste the link and tap <strong>Connect</strong>.
+                  </span>
                 </li>
-                <li>Come back to this page. It connects by itself.</li>
+                <li>
+                  <span>Come back to this page. It connects by itself.</span>
+                </li>
               </ol>
-              {w.uri && (
-                <p className="small muted" style={{ margin: 0 }}>
-                  Wallet app opens <span className="mono">wiz://</span> links?{' '}
-                  <a href={w.uri}>Open it directly</a>
-                </p>
-              )}
-              <details className="small muted">
-                <summary>On another device? Show the QR code</summary>
-                {qr && (
-                  <div className="qr-box" style={{ marginTop: 12 }}>
-                    <img src={qr} alt="WizardConnect QR code" />
-                  </div>
+              <div className="connect-extra small muted">
+                {w.uri && (
+                  <p>
+                    Wallet app opens <span className="mono">wiz://</span> links? <a href={w.uri}>Open it directly</a>
+                  </p>
                 )}
-              </details>
+                <details>
+                  <summary>On another device? Show the QR code</summary>
+                  {qr && (
+                    <div className="qr-box connect-qr">
+                      <img src={qr} alt="WizardConnect QR code" />
+                    </div>
+                  )}
+                </details>
+              </div>
             </>
           ) : (
-            <>
-              <p>In your Bitcoin Cash wallet, tap <strong>Scan</strong> and point it at this code.</p>
+            <div className="connect-desktop">
+              <p>
+                In your Bitcoin Cash wallet, tap <strong>Scan</strong> and point it at this code.
+              </p>
               <div className="qr-box">{qr ? <img src={qr} alt="Connection QR code. Scan it with your Bitcoin Cash wallet." /> : <div className="qr-wait"><span className="spinner" /></div>}</div>
-            </>
+            </div>
           )}
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="row small muted">
-              {w.state === 'connecting' || w.state === 'reconnecting' ? (
-                <>
-                  <span className="spinner" style={{ width: 14, height: 14 }} /> Waiting for your wallet…
-                </>
-              ) : (
-                <>Status: {w.state}</>
+
+          <footer className="connect-foot">
+            <div className="connect-status small muted">
+              <span className="row" style={{ gap: 8 }}>
+                {w.state === 'connecting' || w.state === 'reconnecting' ? (
+                  <>
+                    <span className="spinner" style={{ width: 14, height: 14 }} /> Waiting for your wallet…
+                  </>
+                ) : (
+                  <>Status: {w.state}</>
+                )}
+              </span>
+              {w.uri && !isPhone() && (
+                <button
+                  className="btn-link small"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(w.uri!).then(() => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    });
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy link'}
+                </button>
               )}
-            </span>
-            {w.uri && !isPhone() && (
-              <button
-                className="btn-link small"
-                onClick={() => {
-                  navigator.clipboard?.writeText(w.uri!).then(() => {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  });
-                }}
-              >
-                {copied ? 'Copied' : 'Copy link'}
+            </div>
+            {w.error && <div className="alert alert-error">{w.error}</div>}
+            <div className="connect-links small">
+              <a href={PAYTACA_URL} target="_blank" rel="noreferrer">
+                No wallet yet? Try Paytaca →
+              </a>
+              <button className="btn-link small" onClick={w.reconnect}>
+                Stuck? Start over
               </button>
-            )}
-          </div>
-          {w.error && <div className="alert alert-error">{w.error}</div>}
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <a className="small" href={PAYTACA_URL} target="_blank" rel="noreferrer">
-              No wallet yet? Try Paytaca →
-            </a>
-            <button className="btn-link small" onClick={w.reconnect}>
-              Stuck? Start over
-            </button>
-          </div>
+            </div>
+          </footer>
         </div>
       )}
     </Modal>

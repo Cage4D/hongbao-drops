@@ -593,8 +593,23 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
   .flow { display: none; }
 }
 
-/* Connect on a phone: copy the link, paste it in the wallet, come back. */
-.phone-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 14px; }
-.phone-steps li { counter-increment: step; position: relative; padding-left: 36px; color: var(--text); }
-.phone-steps li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 700 13px/1 var(--font-body); color: #fff; background: var(--flame-700); box-shadow: 0 0 0 1px var(--flame-500); }
-.phone-steps li:first-child::before { top: 18px; }
+/* ================================================================ connect modal */
+.connect { display: flex; flex-direction: column; }
+.connect-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; padding-right: 28px; /* clear the close button */ }
+.connect-head .eyebrow { margin: 0; }
+.connect-desktop { display: flex; flex-direction: column; gap: 16px; }
+.connect-desktop p { margin: 0; }
+/* Phone: copy the link, paste it in the wallet, come back. */
+.phone-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 20px; }
+.phone-steps li { counter-increment: step; display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 14px; row-gap: 12px; align-items: start; color: var(--text); line-height: 24px; }
+.phone-steps li::before { content: counter(step); grid-row: 1; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 13px/1 var(--font-body); color: #fff; background: var(--flame-700); box-shadow: 0 0 0 1px var(--flame-500); }
+.phone-steps li > * { grid-column: 2; }
+.phone-steps li.phone-step-action { align-items: center; }
+.phone-step-btn { margin: 0; }
+.connect-extra { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: rgba(5, 7, 11, 0.6); }
+.connect-extra p { margin: 0; }
+.connect-extra summary { cursor: var(--cur-hover); }
+.connect-qr { margin-top: 14px; }
+.connect-foot { display: flex; flex-direction: column; gap: 14px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+.connect-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 22px; }
+.connect-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
