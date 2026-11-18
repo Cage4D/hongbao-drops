@@ -78,6 +78,10 @@ pnpm --filter @hongbao/scripts stamp-to-wallet -- --mainnet --yes-mainnet \
 ```
 - **Funding tx:** 2 stamped shares, BCMR publication, identity output to the treasury.
 - **Claim tx:** about 1,500 sats + stamp to your Paytaca. **Check in Paytaca:** the sats arrive, a collectible appears, and the name and image show up. This is the check Chipnet couldn't do.
+- **This is a must-pass gate: Paytaca is a hackathon sponsor and the required wallet.** If any part fails, stop and diagnose before anything else:
+  1. Compare Paytaca's server with the chain: `https://watchtower.cash/api/balance/bch/<addr>/` and `/api/utxo/bch/<addr>/` vs `addr-check --mainnet <addr>`.
+  2. For a missing name/image: check whether Paytaca's metadata indexer knows the stamp, at `https://bcmr.paytaca.com/api/tokens/<category>/`. If not, compare our registry and OP_RETURN with a token that does display in Paytaca.
+  3. Ask the Paytaca team (sponsor channel). They can tell us what their indexer expects.
 - **Refund tx:** the keeper batch-refunds the other share to the demo wallet about 75 min later (15 min expiry + about 1 h median-time-past lag).
 - Total cost about 2,000 sats claimed + about 1,500 sats of fees ≈ **$0.008**.
 

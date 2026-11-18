@@ -19,6 +19,17 @@ Extras:
 
 Use the same plain words as the README: **lockbox**, **collectible stamp**, **leftovers return automatically**. Avoid jargon in the UI (no "UTXO", "P2SH", "BCMR", "gate").
 
+### Paytaca is required
+
+**Paytaca is a sponsor of BCH BLAZE 2026, so the whole product must work with Paytaca, on a phone, on mainnet.** It's the wallet the UI should name and link to everywhere: connect, install links in "Hold my share", the README's "Try it". Other WizardConnect wallets may work, but they aren't a goal.
+
+| With Paytaca | Status |
+|---|---|
+| Connect over WizardConnect and sign the stamped funding tx | ✅ proven on Chipnet (Phase 2, first try) |
+| Claim to a Paytaca address (no signing needed) | ✅ works on any network: the BCH + stamp land on-chain |
+| Paytaca **showing** the received BCH and the stamp (name + image) | ⏳ **only provable on mainnet**: Paytaca's Chipnet servers are stuck (§11). This is the **first check on Nov 19** |
+| The full judge flow on a phone (open link → connect Paytaca → claim → see it in Paytaca) | ⏳ mainnet, Phase 9 |
+
 ## 1. Environment
 
 | | |
@@ -180,7 +191,7 @@ Amounts the wallet needs: `totalSats` + 546 (identity, with stamps) + sponsor fe
 - **Paste address:** accept `q…` or `z…` for the current network. Both are the same locking script, so the BCH and stamp arrive either way. The `z…` form only tells sending software "this wallet understands tokens".
 - **Hold my share** (no wallet yet): `POST /envelopes/:id/holds {"fingerprint"?}` → `{ holdToken, heldUntil }`.
   - Store `holdToken` in `localStorage`, keyed by envelope.
-  - Show install links (Paytaca, Cashonize) and the countdown to `heldUntil` (15 min).
+  - Show a **Paytaca** install link (https://www.paytaca.com) and the countdown to `heldUntil` (15 min).
   - When they come back, claim with `holdToken` plus their new address.
   - Limits: 2 holds per IP per envelope per 15 min, and at most half the shares held at once. Beyond that you get `429 RATE_LIMITED`.
 
@@ -362,7 +373,7 @@ The fragment `#k=` never reaches the crawler, so previews can't leak the secret.
   - The wallet signs with `SIGHASH_ALL | FORKID | UTXOS`.
 - **Serialise for the relay:** the transaction as hex, and source outputs with hex bytes and `"<bigint: Xn>"` strings. Passing CashScript's `generateWcTransactionObject()` result directly throws *"Do not know how to serialize a BigInt"*. Copy `toRelayRequest()` from `wc-test`.
 - **Pairing can fail silently** (console: *"Key exchange timed out"*) while a saved session still makes the page look connected. Show the **real** connection state and offer **Reconnect**.
-- Paytaca signed the stamped genesis funding tx (N NFTs to a contract + OP_RETURN) on the first try. Cashonize wasn't tested over WizardConnect.
+- Paytaca signed the stamped genesis funding tx (N NFTs to a contract + OP_RETURN) on the first try. Paytaca is the wallet to build and test against (see "Paytaca is required").
 - **The WizardConnect addresses are part of the Paytaca wallet.** The address in Paytaca's app may differ only because Paytaca moves on to a new receive address after one has been used.
 
 ---
@@ -374,7 +385,10 @@ The fragment `#k=` never reaches the crawler, so previews can't leak the secret.
 - **A rare wait:** if someone else's claim of the same share is still unconfirmed, a claimer may get `ALREADY_CLAIMED` with *"try again in a few minutes"* (up to ~10 min on mainnet). That's deliberate; it stops one address getting two shares.
 - **Farm flags:** claims from one network (venue Wi-Fi) are flagged `SAME_IP` in sponsor dashboards. Flags never block a claim.
 - **Mainnet caps** apply to everyone per envelope: ≤ 10 shares, ≤ $0.50, ≤ 24 h. Aggregate caps only protect the project's own demo wallet. Show `BUDGET_CAP` messages as-is.
-- **Testing on Chipnet with Paytaca doesn't show balances.** Paytaca's Chipnet servers are stuck on an abandoned chain since a Nov 15 network upgrade. Coins and stamps do arrive, but Paytaca shows nothing. **Use Cashonize** (Chipnet setting) or the explorer to see Chipnet results. The Chipnet explorer even shows our stamp images. Mainnet Paytaca is in sync.
+- **Testing on Chipnet with Paytaca: connecting and signing work, balances don't show.** Paytaca's Chipnet servers have been stuck on an abandoned chain since the Nov 15 network upgrade (they report a balance of 0 for addresses that hold coins). So on Chipnet:
+  - WizardConnect connect + signing with Paytaca **work**: your page supplies the coins from Fulcrum, and Paytaca only signs.
+  - Coins and stamps sent to a Paytaca address **arrive** but **don't appear in the app**. Check them on the explorer (`https://chipnet.imaginary.cash/address/<addr>`; it even shows our stamp images) or with `pnpm --filter @hongbao/scripts addr-check -- <addr>`.
+  - Building the "see it in your wallet" screens against Paytaca on Chipnet isn't possible. Verify those on mainnet from Nov 19. Mainnet Paytaca is in sync (checked Nov 17).
 - **Known API copy nit:** the alt text says *"a classic red red envelope"* (the theme name is doubled). The backend will fix it; don't work around it.
 
 ## 12. What the backend needs back from you
