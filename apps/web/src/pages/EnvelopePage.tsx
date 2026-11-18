@@ -166,7 +166,7 @@ function EnvelopeView({
                     <span className="slip-unit">sats</span>
                   </>
                 ) : (
-                  <span className="slip-unit">🧧</span>
+                  <span className="slip-fu" lang="zh">福</span>
                 )
               }
               label={<span className={`tag tag-black ${pulse ? 'tag-bump' : ''}`} key={pulse}>{view.shares.left} of {view.shares.total} left</span>}

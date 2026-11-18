@@ -53,7 +53,7 @@ export function Send() {
   const [unit, setUnit] = useState<'usd' | 'sats'>('usd');
   const [sats, setSats] = useState<number>(parent ? Math.max(suggest, 6000) : 20_000);
   const [amountText, setAmountText] = useState('');
-  const [message, setMessage] = useState(parent ? 'Passing the luck on 🧧' : 'Happy Lunar New Year! 🧧');
+  const [message, setMessage] = useState(parent ? 'Passing the luck on!' : 'Happy Lunar New Year!');
   const [theme, setTheme] = useState<Theme>('lunar');
   const [expirySec, setExpirySec] = useState(24 * 3600);
   const [withStamps, setWithStamps] = useState(true);
@@ -316,7 +316,9 @@ export function Send() {
                 <div className="themes">
                   {(['lunar', 'classic-red', 'gold', 'christmas'] as const).map((t) => (
                     <button key={t} type="button" className="theme-opt" aria-pressed={theme === t} onClick={() => setTheme(t)}>
-                      <img src={`/themes/${t}.png`} alt="" />
+                      <span className="theme-env" aria-hidden="true">
+                        <Envelope theme={t} size={58} sealText="" inline />
+                      </span>
                       {THEMES[t].label}
                     </button>
                   ))}
