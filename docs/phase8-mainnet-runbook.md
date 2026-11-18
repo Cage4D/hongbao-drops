@@ -23,7 +23,7 @@ Default caps stay: `MAX_ENVELOPE_USD` 0.50, `MAX_SHARES` 10, `MAX_ACTIVE_MAINNET
 | Demo wallet (fund this, ≈ $3) | `bitcoincash:qr2e5eeur56d4qatra9fsxn230g4v2tsrujqjznd3p` |
 | Treasury (identity outputs + sponsor fees; never spent) | `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
 | Keys | `scripts/.state/mainnet/{wallet,treasury}.json`, mode 600, gitignored. **Back this folder up**: it's the only copy |
-| Scripts | `--mainnet` works only for `wallet`, `inspect`, `addr-check`, `send`, `seal-to-wallet`. Broadcasting also needs `--yes-mainnet`. `send` is capped at 50,000 sats, `seal-to-wallet` at 20,000. Every e2e suite refuses mainnet |
+| Scripts | `--mainnet` works only for `wallet`, `inspect`, `addr-check`, `send`, `seal-to-wallet`, `demo-envelope`. Broadcasting also needs `--yes-mainnet`. `send` is capped at 50,000 sats, `seal-to-wallet` at 20,000. Every e2e suite refuses mainnet |
 | Fulcrum (probed 2026-11-17) | `bch.imaginary.cash:50004` ✅, `fulcrum.greyh.at:50004` ✅ (both with `get_history`, same tip). The API refuses hosts on the wrong network (review-2 P1-5) |
 
 ## Nov 19 steps
@@ -88,8 +88,12 @@ pnpm --filter @hongbao/scripts seal-to-wallet -- --mainnet --yes-mainnet \
 ### 8. Budget check (Claude)
 `GET /admin/budget`: claimed ≈ 2,000 sats, under $1 spent, ledger matches state. Record all txids in `phase8-deploy.md`.
 
-### 9. Judges' demo envelope (needs the frontend URL)
-The share link is `https://<frontend>/e/<id>#k=<link secret>`, so it can only be made once the frontend's URL is known. Plan: a small `demo-envelope` script (mainnet-allowed, `--yes-mainnet`) that creates and funds via the API from the demo wallet, prints the share link, and registers it with `POST /admin/demo/refill`. Built when the frontend URL exists.
+### 9. Judges' demo envelope (Claude, after asking) 💸
+```bash
+pnpm --filter @hongbao/scripts demo-envelope -- --mainnet --dry-run        # checks only, no spend
+pnpm --filter @hongbao/scripts demo-envelope -- --mainnet --yes-mainnet    # 10 × 5,000 sats ≈ $0.10, 23.5 h
+```
+Creates and funds the envelope from the demo wallet, registers it with `POST /admin/demo/refill` (admin token read from `mainnet-secrets.env`, never printed), and prints the share link (also saved to `scripts/.state/mainnet/demo-link.txt`). It refuses while the current demo still has shares and time left. Every refill reuses one link key (`demo-link.json`), so only the slug changes. Then set `VITE_DEMO_URL` in Vercel project `hongbao-drops` (Production, Sensitive) and redeploy.
 
 ### 10. Phase 8 report → your approval → tag `phase-8` + push.
 
