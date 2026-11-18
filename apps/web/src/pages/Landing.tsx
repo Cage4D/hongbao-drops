@@ -64,9 +64,9 @@ export function Landing() {
                 <Link to="/send" className="btn btn-primary btn-lg">
                   Send a drop
                 </Link>
-                <a href="#how" className="btn btn-ghost btn-lg">
+                <Link to="/#how" className="btn btn-ghost btn-lg">
                   How it works
-                </a>
+                </Link>
               </>
             )}
           </div>

@@ -5,11 +5,27 @@ import { PAYTACA_URL } from '../lib/config';
 import { ConnectModal, WalletButton } from './ConnectModal';
 
 export function Layout() {
-  const { pathname, hash } = useLocation();
-  // Scroll to top on page change (but keep in-page #anchors and the #k= link secret alone).
+  const { pathname, hash, key } = useLocation();
+  // On every navigation: go to the #section if there is one, else to the top. The section may not
+  // exist yet (the page is still rendering, or the app just loaded), so retry for up to ~1.5 s.
+  // `key` changes even when clicking a link to the location you're already on.
   useEffect(() => {
-    if (!hash || hash.startsWith('#k=')) window.scrollTo(0, 0);
-  }, [pathname, hash]);
+    const id = hash && !hash.startsWith('#k=') ? decodeURIComponent(hash.slice(1)) : null;
+    if (!id) {
+      window.scrollTo(0, 0);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tryScroll = () => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else if (performance.now() - start < 1500) raf = requestAnimationFrame(tryScroll);
+      else window.scrollTo(0, 0); // no such section on this page: don't leave the user mid-page
+    };
+    raf = requestAnimationFrame(tryScroll);
+    return () => cancelAnimationFrame(raf);
+  }, [pathname, hash, key]);
   return (
     <>
       <Nav />
@@ -24,6 +40,8 @@ export function Layout() {
 
 function Nav() {
   const { cfg } = useNetwork();
+  const { pathname, hash } = useLocation();
+  const onHow = pathname === '/' && hash === '#how';
   return (
     <header className="nav">
       <nav aria-label="Main" className="nav-inner">
@@ -36,10 +54,12 @@ function Nav() {
           </span>
         )}
         <div className="nav-links">
-          <NavLink to="/" end>
+          <NavLink to="/" end className={({ isActive }) => (isActive && !onHow ? 'active' : '')}>
             Home
           </NavLink>
-          <a href="/#how">How it works</a>
+          <Link to="/#how" className={onHow ? 'active' : ''} aria-current={onHow ? 'location' : undefined}>
+            How it works
+          </Link>
           <NavLink to="/sponsor">Sponsors</NavLink>
         </div>
         <div className="nav-actions">
@@ -68,8 +88,8 @@ function Footer() {
           </div>
           <FooterCol title="Drops">
             <Link className="flink" to="/send">Send a drop</Link>
-            <a className="flink" href="/#how">How it works</a>
-            <a className="flink" href="/#safety">Is it safe?</a>
+            <Link className="flink" to="/#how">How it works</Link>
+            <Link className="flink" to="/#safety">Is it safe?</Link>
           </FooterCol>
           <FooterCol title="Sponsors">
             <Link className="flink" to="/sponsor">Sponsored drops</Link>

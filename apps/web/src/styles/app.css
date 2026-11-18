@@ -14,6 +14,8 @@ a:hover { color: var(--flame-200); }
 button { font: inherit; color: inherit; }
 ::selection { background: var(--flame-500); color: #fff; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Jumping to a #section lands below the fixed nav, not under it. */
+[id] { scroll-margin-top: calc(var(--nav-height) + 12px); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------------------------------------------------------------- type */
