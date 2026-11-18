@@ -1,4 +1,5 @@
-// Connect over WizardConnect. Desktop: scan the QR with Paytaca. Phone: open Paytaca directly.
+// Connect over WizardConnect (any BCH wallet that supports it; Paytaca suggested).
+// Desktop: scan the QR with the wallet. Phone: open the wallet directly.
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { useWallet } from '../lib/wallet';
@@ -44,13 +45,13 @@ export function ConnectModal() {
         <div className="stack">
           <p className="eyebrow">Step 1 · Connect</p>
           <h2 className="disp disp-md">
-            Link <span className="flame">Paytaca</span>
+            Link your <span className="flame">wallet</span>
           </h2>
           {isPhone() && w.uri ? (
             <>
-              <p>Open Paytaca on this phone and approve the connection.</p>
+              <p>Open your Bitcoin Cash wallet on this phone and approve the connection.</p>
               <a className="btn btn-primary btn-lg btn-block" href={w.uri}>
-                Open Paytaca
+                Open my wallet
               </a>
               <details className="small muted">
                 <summary>On another device? Show the QR code</summary>
@@ -63,8 +64,8 @@ export function ConnectModal() {
             </>
           ) : (
             <>
-              <p>In Paytaca, tap <strong>Scan</strong> and point it at this code.</p>
-              <div className="qr-box">{qr ? <img src={qr} alt="WizardConnect QR code. Scan it with Paytaca." /> : <div className="qr-wait"><span className="spinner" /></div>}</div>
+              <p>In your Bitcoin Cash wallet, tap <strong>Scan</strong> and point it at this code.</p>
+              <div className="qr-box">{qr ? <img src={qr} alt="Connection QR code. Scan it with your Bitcoin Cash wallet." /> : <div className="qr-wait"><span className="spinner" /></div>}</div>
             </>
           )}
           <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -94,7 +95,7 @@ export function ConnectModal() {
           {w.error && <div className="alert alert-error">{w.error}</div>}
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <a className="small" href={PAYTACA_URL} target="_blank" rel="noreferrer">
-              No Paytaca yet? Get it free →
+              No wallet yet? We suggest Paytaca (free) →
             </a>
             <button className="btn-link small" onClick={w.reconnect}>
               Stuck? Start over

@@ -11,7 +11,7 @@ import { CountUp } from '../components/ui';
 import { Sparks } from '../components/Sparks';
 
 const STEPS = [
-  { num: '01', tag: 'Connect', title: 'Link Paytaca', body: 'Scan one QR code with Paytaca. No account, no sign-up.' },
+  { num: '01', tag: 'Connect', title: 'Link a wallet', body: 'Scan one QR code with your Bitcoin Cash wallet. No account, no sign-up.' },
   { num: '02', tag: 'Fill', title: 'Fill the envelope', body: 'Pick an amount, how many people can open it, and a message.' },
   { num: '03', tag: 'Drop', title: 'Drop the link', body: 'Paste one link into your group chat. That link is the envelope.' },
   { num: '04', tag: 'Open', title: 'Race to open', body: 'First come, first served. Shares land in seconds, with a collectible stamp.' },
@@ -157,7 +157,7 @@ export function Landing() {
             {[
               ['Nobody can grab it early', "Once it's sealed, not even the sender can take it back before it expires."],
               ['Leftovers return automatically', "Shares nobody opened go back to the sender about an hour after the envelope expires. Nobody has to press a button."],
-              ['Openers sign nothing', 'No fees, no approvals, no BCH needed. Paste an address or connect Paytaca and the share arrives.'],
+              ['Openers sign nothing', 'No fees, no approvals, no BCH needed. Paste an address or connect a wallet and the share arrives.'],
               ['One share each', 'Whoever has the link can open it, but each person gets one share.'],
               ['A stamp to keep', 'Every share comes with a collectible stamp that shows up in your wallet.'],
             ].map(([t, b], i) => (
@@ -199,7 +199,7 @@ export function Landing() {
               <h3 className="disp disp-sm" style={{ marginTop: 10 }}>
                 No wallet yet?
               </h3>
-              <p>We hold your share for 15 minutes while you install Paytaca. Come back and it's still yours.</p>
+              <p>We hold your share for 15 minutes while you set up a wallet (we suggest Paytaca). Come back and it's still yours.</p>
             </article>
             <article className="card reveal">
               <span className="tag">Sponsored drops</span>

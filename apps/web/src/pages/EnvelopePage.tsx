@@ -439,7 +439,7 @@ function ClaimPanel({
 
       <div className="seg" role="tablist" aria-label="How do you want to receive it?">
         <button role="tab" aria-pressed={method === 'wallet'} aria-selected={method === 'wallet'} onClick={() => setMethod('wallet')}>
-          Paytaca
+          Wallet
           <small>connect</small>
         </button>
         <button role="tab" aria-pressed={method === 'paste'} aria-selected={method === 'paste'} onClick={() => setMethod('paste')}>
@@ -457,7 +457,7 @@ function ClaimPanel({
           {wallet.connected && wallet.receive0 ? (
             <>
               <p className="small muted">
-                Sending to your Paytaca wallet <span className="mono">{shortAddr(wallet.receive0.tokenAddress)}</span>
+                Sending to your wallet <span className="mono">{shortAddr(wallet.receive0.tokenAddress)}</span>
               </p>
               <button className="btn btn-primary btn-lg btn-block" onClick={claimWithWallet}>
                 Claim my share
@@ -465,9 +465,9 @@ function ClaimPanel({
             </>
           ) : (
             <>
-              <p className="small muted">Connect Paytaca and your share lands in it. You won't be asked to pay or sign anything.</p>
+              <p className="small muted">Connect your Bitcoin Cash wallet and your share lands in it. You won't be asked to pay or sign anything.</p>
               <button className="btn btn-primary btn-lg btn-block" onClick={wallet.connect}>
-                Connect Paytaca
+                Connect wallet
               </button>
             </>
           )}
@@ -490,7 +490,7 @@ function ClaimPanel({
               autoCapitalize="off"
               spellCheck={false}
             />
-            <span className="help">In Paytaca: Receive → copy. Any Bitcoin Cash address works.</span>
+            <span className="help">In your wallet: Receive → copy. Any Bitcoin Cash address works.</span>
           </div>
           <button className="btn btn-primary btn-lg btn-block" onClick={claimWithAddress} disabled={!addr.trim()}>
             Claim my share
@@ -518,15 +518,15 @@ function ClaimPanel({
               <ol className="hold-steps">
                 <li>
                   <a href={PAYTACA_URL} target="_blank" rel="noreferrer">
-                    Install Paytaca
+                    Get a Bitcoin Cash wallet
                   </a>{' '}
-                  (free, about a minute).
+                  (we suggest Paytaca: free, about a minute).
                 </li>
                 <li>Come back to this same link.</li>
-                <li>Connect Paytaca or paste its address below.</li>
+                <li>Connect your wallet or paste its address below.</li>
               </ol>
               <a className="btn btn-ghost btn-block" href={PAYTACA_URL} target="_blank" rel="noreferrer">
-                Get Paytaca
+                Get Paytaca (suggested)
               </a>
               <div className="field">
                 <label className="label" htmlFor="addr2">
@@ -543,7 +543,7 @@ function ClaimPanel({
                     className="btn btn-outline"
                     onClick={() => go(wallet.receive0!.tokenAddress, { holdToken: hold.holdToken, ...(wallet.fingerprint && { walletFingerprint: wallet.fingerprint }) })}
                   >
-                    Send to my Paytaca
+                    Send to my wallet
                   </button>
                 )}
               </div>
@@ -551,7 +551,7 @@ function ClaimPanel({
           ) : (
             <>
               <p className="small muted">
-                No wallet yet? We'll hold a share for you for <strong>15 minutes</strong> while you install Paytaca.
+                No wallet yet? We'll hold a share for you for <strong>15 minutes</strong> while you set up a wallet. We suggest Paytaca.
               </p>
               <button className="btn btn-primary btn-lg btn-block" onClick={holdShare}>
                 Hold my share
@@ -592,8 +592,8 @@ function Success({ r, view, priceUsd }: { r: ClaimResult; view: PublicEnvelopeVi
         </span>
       </div>
       <p>
-        Sent to <span className="mono">{shortAddr(r.recipientAddress)}</span>. It's already yours: the network has it, and it shows in Paytaca within seconds.
-        {cfg?.network === 'CHIPNET' && ' (On the test network Paytaca may not show it; the explorer will.)'}
+        Sent to <span className="mono">{shortAddr(r.recipientAddress)}</span>. It's already yours: the network has it, and it shows in your wallet within seconds.
+        {cfg?.network === 'CHIPNET' && ' (On the test network some wallets may not show it; the explorer will.)'}
       </p>
       {r.isNewWallet && (
         <div className="alert alert-ok">

@@ -382,7 +382,7 @@ export function Send() {
                       { key: 'scan', label: 'Checking your wallet' },
                       ...(step === 'prep' ? [{ key: 'prep', label: 'Preparing a coin', note: stepNote }] : []),
                       { key: 'create', label: 'Setting up the lockbox' },
-                      { key: 'sign', label: 'Approve in Paytaca', note: stepNote ?? 'Check your phone.' },
+                      { key: 'sign', label: 'Approve in your wallet', note: stepNote ?? 'Check your phone.' },
                       { key: 'confirm', label: 'Sealing the envelope', note: 'Waiting for the network to see it (a few seconds).' },
                     ]}
                   />
@@ -398,7 +398,7 @@ export function Send() {
                 {!wallet.connected ? (
                   <div className="stack">
                     <WalletButton small={false} />
-                    <p className="help center">Connect Paytaca to fund the envelope. You'll approve one payment.</p>
+                    <p className="help center">Connect a Bitcoin Cash wallet to fund the envelope. You'll approve one payment.</p>
                   </div>
                 ) : busy ? (
                   <button className="btn btn-outline btn-block" type="button" onClick={() => abort.current?.abort()}>
@@ -423,7 +423,7 @@ export function Send() {
 function insufficientText(e: InsufficientFunds, price: number | null): string {
   const short = Number(e.needSats - e.haveSats);
   const usd = satsToUsd(short, price);
-  return `Your wallet needs about ${fmtSats(short)} more sats${usd != null ? ` (${fmtUsd(usd)})` : ''} for this envelope and its network fee. Top up Paytaca or lower the amount.`;
+  return `Your wallet needs about ${fmtSats(short)} more sats${usd != null ? ` (${fmtUsd(usd)})` : ''} for this envelope and its network fee. Top up your wallet or lower the amount.`;
 }
 
 function Created({

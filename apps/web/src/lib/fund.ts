@@ -61,7 +61,7 @@ export async function createAndFund(opts: {
     forced = all.find((u) => u.txid === mustSpend.txid && u.vout === mustSpend.vout);
     if (!forced)
       throw new Error(
-        "We couldn't find your claimed coins in this wallet. Pass it on works from the Paytaca wallet you claimed into. If you just claimed, wait a few seconds and try again.",
+        "We couldn't find your claimed coins in this wallet. Pass it on works from the wallet you claimed into. If you just claimed, wait a few seconds and try again.",
       );
   }
   const stampReturn = forced?.token ? dustLimit(25, forced.token) + 100n : 0n;
@@ -120,7 +120,7 @@ export async function createAndFund(opts: {
   const outSum = outputs.reduce((s, o) => s + o.amount, 0n);
   const inputs = pickInputs(first, pool, outSum, outputs.length + 1);
 
-  onStep('sign', mustSpend ? 'Approve passing it on in Paytaca.' : 'Approve the envelope in Paytaca.');
+  onStep('sign', mustSpend ? 'Approve passing it on in your wallet.' : 'Approve the envelope in your wallet.');
   const { txid } = await wallet.signAndSend(
     inputs,
     outputs,

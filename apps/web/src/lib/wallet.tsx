@@ -1,4 +1,4 @@
-// WizardConnect wallet layer (Paytaca first). Lessons from Phase 2 (handoff §10):
+// WizardConnect wallet layer (any BCH wallet that speaks WizardConnect; Paytaca is the one we test and suggest). Lessons from Phase 2 (handoff §10):
 //  - the wallet only gives xpubs: derive addresses ourselves (p2pkh + token-aware z…)
 //  - fingerprint = sha256(utf8(receive xpub)), never the xpub itself
 //  - sign with broadcast:false, relay-safe serialisation, then broadcast ourselves
@@ -137,7 +137,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const scan = useCallback(async (): Promise<WalletUtxo[]> => {
     if (!cfg) throw new Error('Still loading the network, try again in a second.');
-    if (!addresses.length) throw new Error('Your wallet is not connected. Tap Reconnect and approve in Paytaca.');
+    if (!addresses.length) throw new Error('Your wallet is not connected. Tap Connect wallet and approve in your wallet.');
     const provider = chainProvider(cfg);
     const results = await Promise.all(addresses.map(async (addr) => ({ addr, utxos: await provider.getUtxos(addr.address) })));
     return results.flatMap(({ addr, utxos }) => utxos.map((u) => ({ ...u, addr })));
@@ -183,7 +183,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           { signal: ctrl.signal },
         );
       } catch (e) {
-        if (ctrl.signal.aborted) throw new Error(signal?.aborted ? 'Cancelled.' : 'Paytaca did not answer. Open Paytaca, or tap Reconnect and try again.');
+        if (ctrl.signal.aborted) throw new Error(signal?.aborted ? 'Cancelled.' : 'Your wallet did not answer. Open it, or reconnect and try again.');
         throw e;
       } finally {
         clearTimeout(timer);
