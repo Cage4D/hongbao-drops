@@ -8,6 +8,7 @@ import { useReveal } from '../lib/hooks';
 import { Dragon } from '../components/Dragon';
 import { Envelope } from '../components/Envelope';
 import { CountUp } from '../components/ui';
+import { Sparks } from '../components/Sparks';
 
 const STEPS = [
   { num: '01', tag: 'Connect', title: 'Link Paytaca', body: 'Scan one QR code with Paytaca. No account, no sign-up.' },
@@ -81,7 +82,8 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ how */}
-      <section id="how" className="section" aria-labelledby="how-title">
+      <section id="how" className="section has-sparks" aria-labelledby="how-title">
+        <Sparks count={10} />
         <div className="container">
           <p className="eyebrow reveal">Hongbao drops · how it works</p>
           <h2 id="how-title" className="disp disp-lg reveal">
@@ -109,7 +111,8 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ modes */}
-      <section className="section modes-section" aria-labelledby="modes-title">
+      <section className="section modes-section has-sparks" aria-labelledby="modes-title">
+        <Sparks count={14} />
         <div className="container">
           <p className="eyebrow reveal">Three ways to play</p>
           <h2 id="modes-title" className="disp disp-lg reveal">
@@ -135,7 +138,8 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ safety */}
-      <section id="safety" className="section safety" aria-labelledby="safety-title">
+      <section id="safety" className="section safety has-sparks" aria-labelledby="safety-title">
+        <Sparks count={9} />
         <div className="container safety-grid">
           <div>
             <p className="eyebrow reveal">Plain words</p>
@@ -171,7 +175,8 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ extras */}
-      <section className="section" aria-labelledby="extras-title">
+      <section className="section has-sparks" aria-labelledby="extras-title">
+        <Sparks count={10} />
         <div className="container">
           <p className="eyebrow reveal">More than a tip</p>
           <h2 id="extras-title" className="disp disp-lg reveal">
@@ -221,7 +226,8 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ cta */}
-      <section className="cta-band" aria-labelledby="cta-title">
+      <section className="cta-band has-sparks" aria-labelledby="cta-title">
+        <Sparks count={16} tone="light" />
         <div className="container cta-inner">
           <div>
             <h2 id="cta-title" className="disp disp-lg">
