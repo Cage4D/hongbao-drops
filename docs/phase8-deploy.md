@@ -158,6 +158,17 @@ The contract allowed exactly one claim output, so the share's value had to ride 
 
 **In the Paytaca app (builder, 2026-11-18): the BCH balance went up and "Hongbao Seal #2-1" shows with its name and image.** Watchtower picked the claim up only after it confirmed; the BCMR indexer had the collection within a minute. The Nov 19 must-pass gate is met.
 
+### Judges' demo envelope (2026-11-18)
+
+`demo-envelope --mainnet --yes-mainnet`: 10 × 5,000 sats with seals, 23.5 h, slug `gcbxxe` (id `cmwmlcdp5000208kxmg1ip6fc`, seq 5), registered with `/admin/demo/refill`. The share link (with its `#k=` secret) is in `scripts/.state/mainnet/demo-link.txt`, not in the repo.
+
+| Step | Txid |
+|---|---|
+| Prep (vout-0 coin for the seal category) | `03efd4ec50c337b6e5a9708028fac1e68f6b7c06e4273ffdd52cd9bfa800b871` |
+| Funding | `f212e603250e591d471dfacaf82e283838abea729ecadb704f1750fc1a2ca35a` |
+
+Two script bugs showed up on the way, fixed in `2638fe8`: the size-measuring draft's flat fee was too small for a 10-seal funding tx (refused at 0.99 sat/B before broadcast), and a stalled API call hung the run **after** the funding tx was broadcast. The envelope was recovered by hand (`POST /envelopes/<id>/funded` with the txid, then `/admin/demo/refill`). The failed attempts left two unfunded envelopes (seq 3 and 4, no coins), which expire on their own.
+
 ## Still to do
 
 - ~~**Keeper scheduler (builder)**~~ **Done 2026-11-17:** cron-job.org job `8882581`, `POST /internal/keeper/tick` every minute (UTC) with `Authorization: Bearer KEEPER_TOKEN`, created by `scripts/setup-keeper-cron.sh`. The script reads the cron-job.org API key (`~/.local/share/hongbao-drops/cronjob-api-key`) and `KEEPER_TOKEN` from files and never prints them. Re-running it updates the same job, e.g. after rotating the token on the mainnet switch. Check: `scripts/setup-keeper-cron.sh --status` and `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop stays configured.
