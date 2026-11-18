@@ -177,6 +177,20 @@ describe('quiz', () => {
     expect(limited.status).toBe(429);
     expect(limited.body.error.code).toBe('RATE_LIMITED');
   });
+
+  it('a hold needs the right answer too (a wrong one must not tie up a share)', async () => {
+    const env = await fundedEnvelope(t, { mode: 'QUIZ', quiz: { question: 'Which chain?', answers: ['Bitcoin Cash'] } });
+    const hold = (body: object) => t.http().post(`/envelopes/${env.id}/holds`).set('x-forwarded-for', '10.0.0.9').send(body);
+    const none = await hold({});
+    expect(none.status).toBe(403);
+    expect(none.body.error.code).toBe('WRONG_ANSWER');
+    const wrong = await hold({ answer: 'Dogecoin' });
+    expect(wrong.body.error).toMatchObject({ code: 'WRONG_ANSWER', attemptsLeft: 3 });
+    expect(await t.db.share.count({ where: { envelopeId: env.id, status: 'HELD' } })).toBe(0);
+    const ok = await hold({ answer: ' bitcoin cash ' });
+    expect(ok.status).toBe(201);
+    expect(ok.body.holdToken).toBeTruthy();
+  });
 });
 
 describe('refusals', () => {

@@ -131,7 +131,11 @@ export interface HealthResponse {
 // ------------------------------------------------------------------ claims (Phase 4)
 
 export const HoldRequestSchema = z
-  .object({ fingerprint: z.string().regex(/^[0-9a-f]{16,64}$/, 'hex wallet fingerprint').optional() })
+  .object({
+    fingerprint: z.string().regex(/^[0-9a-f]{16,64}$/, 'hex wallet fingerprint').optional(),
+    /** Quiz envelopes: the answer is checked before a share is held, as for a claim. */
+    answer: z.string().max(200).optional(),
+  })
   .strict();
 export type HoldRequest = z.infer<typeof HoldRequestSchema>;
 

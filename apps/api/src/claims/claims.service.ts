@@ -148,6 +148,9 @@ export class ClaimsService {
       if (mine) return { holdToken: mine.holdToken!, heldUntil: mine.reservedUntil!.toISOString() };
     }
     const ipHash = this.rate.ipHash(ip);
+    // A wrong answer must not hold a share: it would block it for others and fail at claim time.
+    // Checked first, so mistyped answers count against the quiz limit, not the hold limit.
+    await this.checkQuiz(env, ipHash, req.answer);
     await this.rate.hit(`hold:${env.id}:${ipHash}`, LIMITS.hold, HOLD_MS);
 
     const share = await this.db.$transaction(async (tx) => {
@@ -170,6 +173,23 @@ export class ClaimsService {
     this.log.log(`hold envelope=${env.id} share=${share.index} until=${share.reservedUntil!.toISOString()}`);
     await this.events.emit(env.id, 'held', { shareIndex: share.index, heldUntil: share.reservedUntil!.toISOString() });
     return { holdToken: share.holdToken!, heldUntil: share.reservedUntil!.toISOString() };
+  }
+
+  /**
+   * Quiz (spec §8.2): salted hashes of normalised answers; 5 wrong tries per IP per 10 min, shared by
+   * holds and claims. No-op for other modes.
+   */
+  private async checkQuiz(env: Envelope, ipHash: string, answer: string | undefined) {
+    if (env.mode !== 'QUIZ') return;
+    // Count, check and record under one lock so parallel guesses can't exceed the limit (review #7).
+    const verdict = await this.rate.locked(`wrong:${env.id}:${ipHash}`, WINDOW_MS, async (wrong, record) => {
+      if (wrong >= LIMITS.wrongAnswer) return { limited: true as const };
+      const ok = !!answer && env.quizAnswerHashes.includes(hashAnswer(env.quizSalt!, answer));
+      if (!ok) await record();
+      return { limited: false as const, ok, attemptsLeft: Math.max(0, LIMITS.wrongAnswer - wrong - 1) };
+    });
+    if (verdict.limited) throw new AppError('RATE_LIMITED');
+    if (!verdict.ok) throw new AppError('WRONG_ANSWER', { attemptsLeft: verdict.attemptsLeft });
   }
 
   // ------------------------------------------------------------------ POST /envelopes/:id/claims
@@ -206,18 +226,7 @@ export class ClaimsService {
       return this.approval(env, share, existing);
     }
 
-    // Quiz (spec §8.2): salted hashes of normalised answers; 5 wrong tries per IP per 10 min.
-    if (env.mode === 'QUIZ') {
-      // Count, check and record under one lock so parallel guesses can't exceed the limit (review #7).
-      const verdict = await this.rate.locked(`wrong:${env.id}:${ipHash}`, WINDOW_MS, async (wrong, record) => {
-        if (wrong >= LIMITS.wrongAnswer) return { limited: true as const };
-        const ok = !!req.answer && env.quizAnswerHashes.includes(hashAnswer(env.quizSalt!, req.answer));
-        if (!ok) await record();
-        return { limited: false as const, ok, attemptsLeft: Math.max(0, LIMITS.wrongAnswer - wrong - 1) };
-      });
-      if (verdict.limited) throw new AppError('RATE_LIMITED');
-      if (!verdict.ok) throw new AppError('WRONG_ANSWER', { attemptsLeft: verdict.attemptsLeft });
-    }
+    await this.checkQuiz(env, ipHash, req.answer);
 
     // Fresh-wallet check before reserving (doesn't hold a row lock during a network call).
     const hadHistory = await this.chain.hasHistory(recipientLB);
