@@ -14,7 +14,7 @@ import { store } from '../lib/storage';
 import { PAYTACA_URL } from '../lib/config';
 import { Envelope } from '../components/Envelope';
 import { Burst } from '../components/Burst';
-import { Countdown, Spinner, useToast } from '../components/ui';
+import { Countdown, Modal, Spinner, useToast } from '../components/ui';
 import { DropTree } from '../components/DropTree';
 import { NotFound } from './NotFound';
 
@@ -301,20 +301,114 @@ function ShareDots({ total, left }: { total: number; left: number }) {
   );
 }
 
+/** A sponsor's CTA link, or null if it isn't a plain http(s) URL we can show honestly. */
+function ctaTarget(raw: string | null): { url: URL; domain: string } | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    // The API only accepts https://; refuse anything else here too (javascript:, data:, …).
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    // new URL() gives the punycode (xn--) form of international names, so lookalikes show as such.
+    return { url, domain: url.hostname.replace(/^www\./, '') };
+  } catch {
+    return null;
+  }
+}
+
 function SponsorBar({ view }: { view: PublicEnvelopeView }) {
   const s = view.sponsor!;
+  const target = s.ctaLabel ? ctaTarget(s.ctaUrl) : null;
+  const [leaving, setLeaving] = useState(false);
   return (
     <div className="sponsor-bar">
       {s.logoUrl && <img src={s.logoUrl} alt="" className="sponsor-logo" />}
       <span>
         Sponsored by <strong>{s.name}</strong>
       </span>
-      {s.ctaUrl && s.ctaLabel && (
-        <a className="btn btn-sm btn-ghost" href={s.ctaUrl} target="_blank" rel="noreferrer noopener" onClick={() => api.ctaClick(view.id).catch(() => {})}>
-          {s.ctaLabel}
-        </a>
+      {target && (
+        <div className="sponsor-cta">
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => setLeaving(true)}
+            aria-haspopup="dialog"
+            aria-label={`${s.ctaLabel} (goes to ${target.domain})`}
+          >
+            <span className="sponsor-cta-label">{s.ctaLabel}</span>
+            <span className="sponsor-cta-domain inline" aria-hidden="true">
+              · {target.domain} ↗
+            </span>
+          </button>
+          {/* Narrow screens: the domain moves under the button instead of squeezing the label. */}
+          <span className="sponsor-cta-domain below" aria-hidden="true">
+            {target.domain} ↗
+          </span>
+        </div>
+      )}
+      {leaving && target && (
+        <LeaveDialog
+          sponsorName={s.name}
+          target={target}
+          onConfirm={() => {
+            // Count only confirmed visits; a failed count never blocks the link.
+            api.ctaClick(view.id).catch(() => {});
+            setLeaving(false);
+          }}
+          onClose={() => setLeaving(false)}
+        />
       )}
     </div>
+  );
+}
+
+/** "You're leaving Hongbao Drops": shows exactly where a sponsor link goes before opening it. */
+function LeaveDialog({
+  sponsorName,
+  target,
+  onConfirm,
+  onClose,
+}: {
+  sponsorName: string;
+  target: { url: URL; domain: string };
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const { url, domain } = target;
+  const href = url.href;
+  // Highlight the host inside the full address: scheme + "//" + host + rest.
+  const hostAt = href.indexOf(url.host);
+  const before = hostAt >= 0 ? href.slice(0, hostAt) : '';
+  const after = hostAt >= 0 ? href.slice(hostAt + url.host.length) : href;
+  return (
+    <Modal onClose={onClose} label="You're leaving Hongbao Drops">
+      <div className="stack leave-dialog">
+        <p className="eyebrow">Sponsor link</p>
+        <h2 className="disp disp-md">
+          You're leaving <span className="flame">Hongbao Drops</span>
+        </h2>
+        <p>
+          This link goes to a site run by <strong>{sponsorName}</strong>, not by Hongbao Drops.
+        </p>
+        <div className="leave-dest">
+          <span className="label">Destination</span>
+          <p className="mono leave-url">
+            {before}
+            <mark className="leave-host">{hostAt >= 0 ? url.host : ''}</mark>
+            {after}
+          </p>
+        </div>
+        <div className="alert alert-warn">
+          Hongbao Drops will never ask for your seed phrase, private keys or a payment to receive a share.
+        </div>
+        <div className="leave-actions">
+          <a className="btn btn-primary" href={href} target="_blank" rel="noreferrer noopener" onClick={onConfirm}>
+            Continue to {domain} ↗
+          </a>
+          <button className="btn btn-outline" onClick={onClose}>
+            Stay here
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
