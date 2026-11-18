@@ -1,7 +1,19 @@
 // Link-preview tags for envelope pages (handoff §9). Rendered on the server by middleware.ts,
 // because Telegram, WhatsApp and X fetch the page without running JavaScript.
 // Pure functions, no DOM: this runs in Vercel's edge runtime.
-import type { PublicEnvelopeView } from '@hongbao/shared';
+
+/**
+ * The fields of the API's PublicEnvelopeView (@hongbao/shared) that previews use. Declared here so
+ * the middleware compiles on its own on Vercel, where the workspace packages' types aren't built.
+ */
+export interface PreviewView {
+  status: string;
+  message: string | null;
+  sponsor: { name: string } | null;
+  remaining: { usd: number | null };
+  shares: { total: number; left: number };
+  og: { imageUrl: string; alt: string; width: number; height: number };
+}
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
@@ -16,7 +28,7 @@ export interface PreviewText {
   description: string;
 }
 
-export function previewText(v: PublicEnvelopeView): PreviewText {
+export function previewText(v: PreviewView): PreviewText {
   const title = v.sponsor ? `🧧 A red envelope from ${oneLine(v.sponsor.name, 60)}` : '🧧 A red envelope for you';
   const parts: string[] = [];
   if (v.message) parts.push(oneLine(v.message, 140));
@@ -34,7 +46,7 @@ export function previewText(v: PublicEnvelopeView): PreviewText {
 }
 
 /** The <head> tags. `pageUrl` must be origin + path only: never the #k= fragment or a query. */
-export function previewTags(v: PublicEnvelopeView, pageUrl: string): string {
+export function previewTags(v: PreviewView, pageUrl: string): string {
   const { title, description } = previewText(v);
   const m = (attr: 'property' | 'name', key: string, value: string | number) => `<meta ${attr}="${key}" content="${esc(String(value))}" />`;
   return [
@@ -58,7 +70,7 @@ export function previewTags(v: PublicEnvelopeView, pageUrl: string): string {
 }
 
 /** Swaps the default tags between <!--og--> and <!--/og--> in index.html. Null if the markers are gone. */
-export function injectPreview(html: string, v: PublicEnvelopeView, pageUrl: string): string | null {
+export function injectPreview(html: string, v: PreviewView, pageUrl: string): string | null {
   const start = html.indexOf('<!--og-->');
   const end = html.indexOf('<!--/og-->');
   if (start < 0 || end < start) return null;

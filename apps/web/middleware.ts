@@ -8,8 +8,7 @@
 // It must never slow down or break a claim: on any problem (API slow or down, unknown envelope,
 // unexpected HTML) it falls through to the normal static page.
 import { next } from '@vercel/functions';
-import type { PublicEnvelopeView } from '@hongbao/shared';
-import { injectPreview } from './src/lib/ogMeta';
+import { injectPreview, type PreviewView } from './src/lib/ogMeta';
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 const API_URL = (env.VITE_API_URL || 'https://hongbao-drops-api.vercel.app').replace(/\/$/, '');
@@ -36,7 +35,7 @@ export default async function middleware(request: Request): Promise<Response> {
       fetch(new URL('/index.html', url), { signal }),
     ]);
     if (!viewRes.ok || !pageRes.ok) return next();
-    const view = (await viewRes.json()) as PublicEnvelopeView;
+    const view = (await viewRes.json()) as PreviewView;
     const html = injectPreview(await pageRes.text(), view, `${url.origin}${url.pathname}`);
     if (!html) return next();
     return new Response(html, {
