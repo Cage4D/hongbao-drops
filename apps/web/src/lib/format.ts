@@ -16,6 +16,11 @@ export function fmtUsd(usd: number | null | undefined): string {
 }
 
 export const satsToUsd = (sats: number, price: number | null) => (price == null ? null : (sats / SATS_PER_BCH) * price);
+/**
+ * USD for an amount the API also priced. The API rounds to cents, so small shares come back as 0;
+ * with the live price we compute it from the sats instead (fmtUsd then shows "<$0.01").
+ */
+export const usdFor = (sats: number, apiUsd: number | null, price: number | null) => (price != null ? satsToUsd(sats, price) : apiUsd);
 export const usdToSats = (usd: number, price: number) => Math.round((usd / price) * SATS_PER_BCH);
 
 export function fmtDuration(sec: number): string {

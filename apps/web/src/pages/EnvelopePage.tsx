@@ -9,7 +9,7 @@ import { readLinkKey } from '../lib/link';
 import { checkAddress, claimCoinState, claimShare, type ClaimResult } from '../lib/claim';
 import { claimKey, envelopeHref, holdKey, type StoredClaim } from '../lib/local';
 import { useEnvelopeEvents, type ClaimedEvent } from '../lib/events';
-import { fmtBch, fmtSats, fmtUsd, satsToUsd, shortAddr, timeAgo } from '../lib/format';
+import { fmtBch, fmtSats, fmtUsd, shortAddr, timeAgo, usdFor } from '../lib/format';
 import { store } from '../lib/storage';
 import { PAYTACA_URL } from '../lib/config';
 import { Envelope } from '../components/Envelope';
@@ -141,6 +141,7 @@ function EnvelopeView({
   }, [live, view.recentClaims]);
 
   const brand = sponsor?.brandColor ?? null;
+  const remainingUsd = usdFor(view.remaining.sats, view.remaining.usd, priceUsd);
 
   return (
     <div className="page envelope-page" style={brand ? ({ '--brand': brand } as CSSProperties) : undefined}>
@@ -177,8 +178,8 @@ function EnvelopeView({
             )}
             <div className="env-numbers">
               <div>
-                <span className="disp flame env-big">{view.remaining.usd != null ? fmtUsd(view.remaining.usd) : fmtSats(view.remaining.sats)}</span>
-                <span className="small muted">{view.remaining.usd != null ? `${fmtSats(view.remaining.sats)} sats left inside` : 'sats left inside'}</span>
+                <span className="disp flame env-big">{remainingUsd != null ? fmtUsd(remainingUsd) : fmtSats(view.remaining.sats)}</span>
+                <span className="small muted">{remainingUsd != null ? `${fmtSats(view.remaining.sats)} sats left inside` : 'sats left inside'}</span>
               </div>
               {status === 'ACTIVE' && (
                 <div>
@@ -257,7 +258,7 @@ function EnvelopeView({
                       {c.isNewWallet && <span className="tag tag-dark">New wallet</span>}
                     </span>
                     <span className="feed-amt">
-                      <strong>{fmtSats(c.sats)}</strong> sats {c.usd != null && <span className="muted small">{fmtUsd(c.usd)}</span>}
+                      <strong>{fmtSats(c.sats)}</strong> sats {usdFor(c.sats, c.usd, priceUsd) != null && <span className="muted small">{fmtUsd(usdFor(c.sats, c.usd, priceUsd))}</span>}
                       <span className="small muted feed-time">{timeAgo(c.at)}</span>
                     </span>
                   </li>
@@ -482,15 +483,18 @@ function ClaimPanel({
     }
   };
 
+  // A held share is this device's: every way of claiming uses it (otherwise the hold sits unused,
+  // and on a small envelope the claim gets "all grabbed" while our own share is still held).
+  const holdExtra = () => (hold && new Date(hold.heldUntil).getTime() > Date.now() ? { holdToken: hold.holdToken } : {});
   const claimWithWallet = () => {
     if (!wallet.receive0) return wallet.connect();
-    go(wallet.receive0.tokenAddress, wallet.fingerprint ? { walletFingerprint: wallet.fingerprint } : {});
+    go(wallet.receive0.tokenAddress, { ...holdExtra(), ...(wallet.fingerprint && { walletFingerprint: wallet.fingerprint }) });
   };
   const claimWithAddress = () => {
     if (!cfg) return;
     const c = checkAddress(addr, cfg);
     if (!c.ok) return setError(c.error);
-    go(c.address, hold ? { holdToken: hold.holdToken } : {});
+    go(c.address, holdExtra());
   };
   const holdShare = async () => {
     setError(null);
@@ -631,12 +635,13 @@ function ClaimPanel({
                 <button className="btn btn-primary" onClick={claimWithAddress} disabled={!addr.trim()}>
                   Claim my held share
                 </button>
-                {wallet.connected && wallet.receive0 && (
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => go(wallet.receive0!.tokenAddress, { holdToken: hold.holdToken, ...(wallet.fingerprint && { walletFingerprint: wallet.fingerprint }) })}
-                  >
+                {wallet.connected && wallet.receive0 ? (
+                  <button className="btn btn-outline" onClick={claimWithWallet}>
                     Send to my wallet
+                  </button>
+                ) : (
+                  <button className="btn btn-outline" onClick={wallet.connect}>
+                    Connect wallet
                   </button>
                 )}
               </div>
@@ -667,7 +672,7 @@ function ClaimPanel({
 function Success({ r, view, priceUsd }: { r: StoredClaim; view: PublicEnvelopeView; priceUsd: number | null }) {
   const { cfg } = useNetwork();
   const navigate = useNavigate();
-  const usd = r.amountUsd ?? satsToUsd(r.amountSats, priceUsd);
+  const usd = usdFor(r.amountSats, r.amountUsd, priceUsd);
   const passOn = () => {
     const suggest = Math.floor(r.amountSats / 2);
     navigate(`/send?parent=${view.id}&coin=${r.txid}&suggest=${suggest}`);
