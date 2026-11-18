@@ -7,7 +7,6 @@
 // ember canvas (sprites, 1× resolution, paused offscreen and while scrolling). The dragon ignores
 // the cursor; it only floats on its own (the CSS breathing loop on .dr-body).
 import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
 import { prefersReducedMotion } from '../lib/hooks';
 
 export function Dragon({ intensity = 1, className = '' }: { intensity?: number; className?: string }) {
@@ -50,6 +49,7 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
     /** Fractional embers carried between frames (the rate scales with the dragon's size). */
     let owed = 0;
     const tick = (time: number) => {
+      // time is in seconds (from the requestAnimationFrame loop below).
       if (!visible || !canvas || !ctx) return;
       // Skip ember frames while scrolling: the main thread belongs to the scroll then.
       if (performance.now() < scrollingUntil) {
@@ -103,9 +103,14 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     };
-    gsap.ticker.add(tick);
+    let raf = 0;
+    const loop = (ms: number) => {
+      tick(ms / 1000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
     return () => {
-      gsap.ticker.remove(tick);
+      cancelAnimationFrame(raf);
       window.removeEventListener('scroll', onScroll);
       io.disconnect();
     };
@@ -121,13 +126,37 @@ export function Dragon({ intensity = 1, className = '' }: { intensity?: number; 
       <div className="dr-halo" aria-hidden="true" />
       <canvas className="dr-embers dr-layer" aria-hidden="true" />
       <div className="dr-body dr-layer">
-        <img className="dr-layer dr-core" src="/dragon.webp" alt="" fetchPriority="high" decoding="async" />
-        <img className="dr-layer dr-flames dr-flames-a" src="/dragon.webp" alt="" decoding="async" />
-        <img className="dr-layer dr-flames dr-flames-b" src="/dragon.webp" alt="" decoding="async" />
+        <DragonImg className="dr-layer dr-core" priority />
+        <DragonImg className="dr-layer dr-flames dr-flames-a" />
+        <DragonImg className="dr-layer dr-flames dr-flames-b" />
         <img className="dr-layer dr-bloom" src="/dragon-bloom.webp" alt="" decoding="async" />
         <span className="dr-eye" style={{ left: '47.7%', top: '52.6%' }} />
         <span className="dr-eye dr-eye-r" style={{ left: '54.6%', top: '52.6%' }} />
       </div>
     </div>
+  );
+}
+
+/**
+ * The dragon art at the right size. Phones always get the 800 px file: the dragon is ~500 CSS px
+ * there, and 3× screens would otherwise pull the 1600 px one (420 KB) for soft, glowing art.
+ * Elsewhere `sizes` follows the hero's sizing (the dragon's width tracks the screen height, see
+ * .hero in pages.css), so 1× screens get 800 px and 2× screens 1600 px. All three layers use the
+ * same URL, so it downloads once.
+ */
+function DragonImg({ className, priority }: { className: string; priority?: boolean }) {
+  return (
+    <picture>
+      <source media="(max-width: 640px)" srcSet="/dragon-800.webp" />
+      <img
+        className={className}
+        src="/dragon.webp"
+        srcSet="/dragon-800.webp 800w, /dragon.webp 1600w"
+        sizes="clamp(320px, calc(173vh - 985px), 1180px)"
+        alt=""
+        decoding="async"
+        {...(priority && { fetchPriority: 'high' as const })}
+      />
+    </picture>
   );
 }

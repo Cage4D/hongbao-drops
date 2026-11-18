@@ -3,7 +3,8 @@ import { binToHex, decodeCashAddress, secp256k1 } from '@bitauth/libauth';
 import { buildClaimTx } from '@hongbao/contract';
 import type { BroadcastResponse, ClaimRequest } from '@hongbao/shared';
 import { api } from './api';
-import { chainProvider, type NetCfg } from './network';
+import type { NetCfg } from './network';
+import { chainProvider } from './chain';
 
 export interface ClaimResult extends BroadcastResponse {
   envelopeId: string;

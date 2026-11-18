@@ -4,7 +4,8 @@
 //   node tools/bake-dragon.mjs            (from apps/web)
 //
 // Input:  tools/dragon-src.webp  (the original 1600×1101 art from the Blue Dragon design)
-// Output: public/dragon.webp        base image, re-encoded
+// Output: public/dragon.webp        base image, re-encoded (1600 px)
+//         public/dragon-800.webp    the same at 800 px, for phones
 //         public/dragon-bloom.webp  pre-blurred, brightened glow (was blur(10px) brightness(1.7) live)
 import sharp from 'sharp';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,8 @@ const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const src = here('./dragon-src.webp');
 
 await sharp(src).webp({ quality: 80, alphaQuality: 80, effort: 6 }).toFile(here('../public/dragon.webp'));
+// Phones (and 1× screens) get an 800 px-wide copy: the dragon is drawn at most ~600 CSS px wide there.
+await sharp(src).resize(800).webp({ quality: 80, alphaQuality: 80, effort: 6 }).toFile(here('../public/dragon-800.webp'));
 
 // Half resolution is plenty for a blur; σ is in output pixels (≈ the old 10px CSS blur at hero size).
 const { data, info } = await sharp(src)

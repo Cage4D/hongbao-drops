@@ -44,7 +44,8 @@
    tucks slightly under the nav (4%) and the copy rides up into the bottom gap (12%). */
 .hero {
   --pad-top: calc(72px + var(--blaze-h, 0px));
-  --copy-h: 445px; /* tag → main button, desktop */
+  --flow-h: 54px; /* the flow hint under the headline (FlowHint) */
+  --copy-h: calc(407px + var(--flow-h)); /* eyebrow → main button, desktop */
   --dh: clamp(220px, calc((100svh - var(--pad-top) - var(--copy-h) - 16px) / 0.84), 812px);
   position: relative;
   padding: var(--pad-top) 24px 72px;
@@ -55,7 +56,6 @@
 .hero .dragon { width: calc(var(--dh) * 1600 / 1101); max-width: none; margin: calc(var(--dh) * -0.04) 0 0; left: 50%; translate: -50% 0; }
 .hero-copy { position: relative; z-index: 2; max-width: 780px; margin: calc(var(--dh) * -0.12) auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
 .hero h1.disp-xl { font-size: clamp(48px, min(7vw, 10svh), 96px); }
-.hero-tag { margin-bottom: 14px; }
 .hero-lead { margin: 16px 0 0; max-width: 620px; }
 .hero-ctas { justify-content: center; margin-top: 24px; }
 .hero-stats { position: relative; z-index: 2; max-width: var(--container-max); margin: 72px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 56px; }
@@ -65,8 +65,10 @@
 @keyframes hero-in { from { opacity: 0; transform: translateY(24px) skewX(var(--skew-display)); } }
 .hero .hero-lead, .hero .hero-ctas { --skew-display: 0deg; }
 @media (max-width: 640px) {
-  .hero { --pad-top: calc(64px + var(--blaze-h, 0px)); --copy-h: 380px; padding: var(--pad-top) 16px 48px; }
+  .hero { --pad-top: calc(64px + var(--blaze-h, 0px)); --copy-h: calc(342px + var(--flow-h)); padding: var(--pad-top) 16px 48px; }
   .hero-lead { font-size: 17px; line-height: 26px; }
+  /* "Hongbao: red envelopes of Bitcoin Cash" on one line at 360-390 px. */
+  .hero-copy .eyebrow { font-size: 11px; letter-spacing: 0.1em; }
   .hero-stats { gap: 28px 40px; margin-top: 48px; }
   .hero-ctas .btn-lg { height: 54px; padding: 0 28px; font-size: 16px; }
 }
@@ -479,7 +481,8 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 }
 
 /* ================================================================ BCH BLAZE banner (home, top of the fixed header) */
-.blaze { position: relative; background: linear-gradient(90deg, #0040c0, #002a80); color: #fff; border-bottom: 1px solid rgba(155, 239, 255, 0.25); font: 600 13px/18px var(--font-body); }
+/* A calm dark bar (not a headline): navy, with the blue kept to a hairline. */
+.blaze { position: relative; background: linear-gradient(90deg, #071633, #0a1d45); color: #fff; border-bottom: 1px solid rgba(61, 169, 255, 0.35); font: 600 13px/18px var(--font-body); }
 .blaze-inner { max-width: 1440px; margin: 0 auto; padding: 6px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; }
 .blaze-row { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .blaze a { color: #fff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255, 255, 255, 0.55); }
@@ -487,11 +490,11 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .blaze a:focus-visible, .blaze-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
 .blaze-sep { color: rgba(255, 255, 255, 0.6); }
 .blaze-muted { color: var(--chip-text); font-weight: 400; }
-.blaze-addr { font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(0, 0, 0, 0.3); padding: 1px 6px; border-radius: 3px; user-select: all; }
+.blaze-addr { font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(155, 239, 255, 0.12); border: 1px solid rgba(155, 239, 255, 0.28); color: #e6f7ff; padding: 0 6px; border-radius: 3px; user-select: all; }
 .blaze-addr-short, .blaze-vote-short, .blaze-qr-short { display: none; }
-.blaze-btn { height: 24px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 3px; background: transparent; color: #fff; font: 700 12px/1 var(--font-body); letter-spacing: 0.02em; cursor: var(--cur-hover); transition: background 0.15s, border-color 0.15s; }
+.blaze-btn { height: 24px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 3px; background: transparent; color: #fff; font: 700 12px/1 var(--font-body); letter-spacing: 0.02em; cursor: var(--cur-hover); transition: background 0.15s, border-color 0.15s; }
 .blaze-btn:hover { background: rgba(255, 255, 255, 0.14); border-color: #fff; }
-.blaze-btn[aria-expanded='true'] { background: #fff; color: #002a80; }
+.blaze-btn[aria-expanded='true'] { background: #fff; color: #0a1d45; }
 .blaze-qr { position: absolute; top: calc(100% + 8px); right: max(16px, calc(50% - 560px)); z-index: 70; width: 300px; max-width: calc(100vw - 32px); padding: 16px; background: var(--surface); border: 1px solid var(--line-flame); border-radius: var(--radius-md); box-shadow: var(--shadow-modal); text-align: center; animation: pop-in 0.18s cubic-bezier(0.2, 1.3, 0.4, 1); }
 .blaze-qr .qr-box img { width: 220px; height: 220px; }
 .blaze-qr .qr-wait { width: 220px; height: 220px; }
@@ -528,3 +531,64 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .why-card p { margin: 0; }
 @media (max-width: 900px) { .why-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .why-frame, .why-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ================================================================ page loading (lazy routes) */
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 70vh; }
+.page-loading-env { opacity: 0.85; animation: float 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .page-loading-env { animation: none; } }
+
+/* ================================================================ hero: flow hint, note, live line */
+.hero-note { margin: 12px 0 0; font-size: 14px; line-height: 20px; color: var(--text-muted); }
+.hero-live { position: relative; z-index: 2; margin: 40px auto 0; text-align: center; font: 600 13px/16px var(--font-body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted); }
+.hero-live::before { content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 8px 2px 0; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); }
+
+.flow { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; height: 40px; }
+.flow-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--line-flame); border-radius: 999px; background: rgba(11, 14, 21, 0.85); font: 600 13px/18px var(--font-body); color: var(--text); white-space: nowrap; }
+.flow-link svg { color: var(--accent-text); flex: none; }
+.flow-url { font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted); }
+.flow-got strong { color: #fff; }
+.flow-seal { color: var(--flame-200); }
+.flow-arrow { color: var(--accent-text); font: 700 20px/1 var(--font-body); }
+.flow-env { display: grid; place-items: center; }
+/* 6 s loop: link dropped → envelope opens → "+2,148 sats + Hongbao Seal" → fade, repeat.
+   Transform and opacity only (compositor), like the dragon. */
+.flow-link, .flow-arrow, .flow-env, .flow-got, .flow-env .env-flap, .flow-env .env-seal, .flow-env .env-slip { will-change: transform, opacity; animation-duration: 6s; animation-iteration-count: infinite; animation-fill-mode: both; animation-timing-function: ease-out; }
+.flow-link { animation-name: flow-link; }
+.flow-arrow-1 { animation-name: flow-arrow-1; }
+.flow-env { animation-name: flow-env; }
+.flow-env .env-flap { animation-name: flow-flap; animation-timing-function: ease-in-out; }
+.flow-env .env-seal { animation-name: flow-seal; }
+.flow-env .env-slip { animation-name: flow-slip; }
+.flow-arrow-2 { animation-name: flow-arrow-2; }
+.flow-got { animation-name: flow-got; }
+@keyframes flow-link { 0% { opacity: 0; transform: translateX(-8px); } 8%, 88% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes flow-arrow-1 { 0%, 12% { opacity: 0; } 18%, 88% { opacity: 1; } 96%, 100% { opacity: 0; } }
+@keyframes flow-env { 0%, 16% { opacity: 0; transform: scale(0.85); } 24%, 88% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes flow-flap { 0%, 30% { transform: none; } 40%, 92% { transform: rotateX(180deg); } 100% { transform: none; } }
+@keyframes flow-seal { 0%, 30% { opacity: 1; } 35%, 92% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes flow-slip { 0%, 34% { transform: none; } 44%, 92% { transform: translateY(-40%); } 100% { transform: none; } }
+@keyframes flow-arrow-2 { 0%, 44% { opacity: 0; } 50%, 88% { opacity: 1; } 96%, 100% { opacity: 0; } }
+@keyframes flow-got { 0%, 48% { opacity: 0; transform: scale(0.8); } 56% { opacity: 1; transform: scale(1.06); } 60%, 88% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+.flow-paused, .flow-paused * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  /* A still picture of the end state. */
+  .flow * { animation: none !important; }
+  .flow-env .env-flap { transform: rotateX(180deg); }
+  .flow-env .env-seal { opacity: 0; }
+  .flow-env .env-slip { transform: translateY(-40%); }
+}
+@media (max-width: 640px) {
+  .flow { gap: 6px; }
+  .flow-url { display: none; }
+  .flow-chip { padding: 4px 9px; font-size: 12px; }
+}
+/* Short screens: the hint gives way first, so the main button stays on screen. */
+@media (max-height: 760px) {
+  .hero { --flow-h: 42px; }
+  .flow { margin-top: 8px; height: 34px; }
+  .flow-chip { padding: 3px 9px; }
+}
+@media (max-height: 680px) {
+  .hero { --flow-h: 0px; }
+  .flow { display: none; }
+}

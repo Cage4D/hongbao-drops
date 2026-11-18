@@ -1,7 +1,6 @@
 // BCH BLAZE 2026 banner: presentation, source code, and where to send EMBER2026 votes.
 // Home page only, at the very top (inside the fixed header, above the nav). Not dismissible.
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import QRCode from 'qrcode';
 import { BLAZE } from '../config/blaze';
 
 /** "zqxcan…hv8amd", for the narrow layout only (copy and QR always use the full address). */
@@ -33,7 +32,9 @@ export function BlazeBanner() {
 
   useEffect(() => {
     if (!qrOpen || qr) return;
-    QRCode.toDataURL(BLAZE.voteAddress, { margin: 1, width: 360, color: { dark: '#07080c', light: '#ffffff' } })
+    // The QR library loads only when someone opens the QR (keeps it out of the first download).
+    import('qrcode')
+      .then(({ default: QRCode }) => QRCode.toDataURL(BLAZE.voteAddress, { margin: 1, width: 360, color: { dark: '#07080c', light: '#ffffff' } }))
       .then(setQr)
       .catch(() => setQr(null));
   }, [qrOpen, qr]);

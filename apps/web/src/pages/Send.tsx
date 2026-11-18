@@ -4,7 +4,8 @@ import { Link, useSearchParams } from 'react-router';
 import QRCode from 'qrcode';
 import type { Mode, Theme } from '@hongbao/shared';
 import { useNetwork } from '../lib/network';
-import { useWallet, InsufficientFunds } from '../lib/wallet';
+import { useWallet } from '../lib/wallet';
+import { InsufficientFunds } from '../lib/txplan';
 import { FundingUnconfirmed, confirmFunding, createAndFund, type FundResult, type FundStep } from '../lib/fund';
 import { errorText } from '../lib/api';
 import { fmtBch, fmtDuration, fmtSats, fmtUsd, satsToUsd, usdToSats } from '../lib/format';
@@ -13,7 +14,7 @@ import { SENT_KEY, markPassedOn, type SentDrop } from '../lib/local';
 import { Envelope, THEMES } from '../components/Envelope';
 import { Burst } from '../components/Burst';
 import { CopyField, StepsLog, useToast } from '../components/ui';
-import { WalletButton } from '../components/ConnectModal';
+import { WalletButton } from '../components/WalletButton';
 
 const MIN_SHARE_SEAL = 2000;
 const MIN_SHARE_PLAIN = 1500;

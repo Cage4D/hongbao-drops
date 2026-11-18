@@ -1,6 +1,5 @@
 // Which network the API runs on (never hard-coded: read GET /health), plus the BCH price.
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { ElectrumNetworkProvider } from 'cashscript';
 import type { Network } from '@hongbao/shared';
 import { api } from './api';
 
@@ -71,14 +70,3 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 }
 
 export const useNetwork = () => useContext(Ctx);
-
-const providers = new Map<Network, ElectrumNetworkProvider>();
-/** One Fulcrum connection per network, created lazily. */
-export function chainProvider(cfg: NetCfg): ElectrumNetworkProvider {
-  let p = providers.get(cfg.network);
-  if (!p) {
-    p = new ElectrumNetworkProvider(cfg.network === 'MAINNET' ? 'mainnet' : 'chipnet', { hostname: cfg.fulcrum[0]! });
-    providers.set(cfg.network, p);
-  }
-  return p;
-}

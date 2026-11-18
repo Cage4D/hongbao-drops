@@ -1,12 +1,17 @@
-import { useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useNetwork } from '../lib/network';
 import { useWallet } from '../lib/wallet';
 import { PAYTACA_URL } from '../lib/config';
-import { ConnectModal, WalletButton } from './ConnectModal';
+import { WalletButton } from './WalletButton';
+import { PageLoading } from './PageLoading';
 import { BlazeBanner } from './BlazeBanner';
 
+// The connect modal carries the QR library: load it the first time it opens.
+const ConnectModal = lazy(() => import('./ConnectModal'));
+
 export function Layout() {
+  const { modalOpen } = useWallet();
   const { pathname, hash, key } = useLocation();
   // On every navigation: go to the #section if there is one, else to the top. The section may not
   // exist yet (the page is still rendering, or the app just loaded), so retry for up to ~1.5 s.
@@ -32,10 +37,16 @@ export function Layout() {
     <>
       <Nav />
       <main id="main">
-        <Outlet />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
       </main>
       <Footer />
-      <ConnectModal />
+      {modalOpen && (
+        <Suspense fallback={null}>
+          <ConnectModal />
+        </Suspense>
+      )}
     </>
   );
 }

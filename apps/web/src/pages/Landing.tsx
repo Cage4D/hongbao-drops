@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import type { GlobalStats } from '@hongbao/shared';
+import type { GlobalStats, Network } from '@hongbao/shared';
 import { api } from '../lib/api';
 import { DEMO_URL } from '../lib/config';
 import { fmtBch } from '../lib/format';
@@ -9,6 +9,8 @@ import { Dragon } from '../components/Dragon';
 import { Envelope } from '../components/Envelope';
 import { CountUp } from '../components/ui';
 import { Sparks } from '../components/Sparks';
+import { FlowHint } from '../components/FlowHint';
+import { useNetwork } from '../lib/network';
 
 const STEPS = [
   { num: '01', tag: 'Connect', title: 'Link a wallet', body: 'Scan one QR code with your Bitcoin Cash wallet. No account, no sign-up.' },
@@ -32,9 +34,55 @@ const WHY: [string, string][] = [
   ['Sponsored Drops', 'Brands put their name on envelopes and see their cost per activated new wallet, checkable on-chain.'],
 ];
 
+/** Hide the hero counters until there's this much to show (mainnet starts from an empty database). */
+export const MIN_ENVELOPES_FOR_STATS = 5;
+
+/** What the hero shows where the counters go: the numbers, one neutral line, or nothing. */
+export function statsMode(stats: Pick<GlobalStats, 'envelopes'> | null, network: Network | null): 'numbers' | 'line' | 'none' {
+  if (!stats) return 'none'; // loading or failed: nothing rather than dashes
+  if (stats.envelopes >= MIN_ENVELOPES_FOR_STATS) return 'numbers';
+  return network === 'MAINNET' ? 'line' : 'none';
+}
+
+export interface HeroCta {
+  label: string;
+  /** In-app route (Link) or full URL (plain link). */
+  to: string;
+  external: boolean;
+}
+/** Main + secondary hero buttons, and the reassurance line. A demo envelope makes "Try it free" the main action. */
+export function heroCtas(demoUrl: string): { primary: HeroCta; secondary: HeroCta; note: string | null } {
+  return demoUrl
+    ? {
+        primary: { label: 'Try it free', to: demoUrl, external: true },
+        secondary: { label: 'Send your own', to: '/send', external: false },
+        note: 'No wallet or BCH needed. Opening takes 10 seconds.',
+      }
+    : {
+        primary: { label: 'Send a drop', to: '/send', external: false },
+        secondary: { label: 'How it works', to: '/#how', external: false },
+        note: null,
+      };
+}
+
+function CtaButton({ cta, className }: { cta: HeroCta; className: string }) {
+  return cta.external ? (
+    <a href={cta.to} className={className}>
+      {cta.label}
+    </a>
+  ) : (
+    <Link to={cta.to} className={className}>
+      {cta.label}
+    </Link>
+  );
+}
+
 export function Landing() {
   const [stats, setStats] = useState<GlobalStats | null>(null);
+  const { cfg } = useNetwork();
   const root = useReveal<HTMLDivElement>();
+  const ctas = heroCtas(DEMO_URL);
+  const showStats = statsMode(stats, cfg?.network ?? null);
   useEffect(() => {
     api.globalStats().then(setStats).catch(() => {});
   }, []);
@@ -46,49 +94,33 @@ export function Landing() {
         <Sparks count={14} />
         <Dragon />
         <div className="hero-copy">
-          <span className="tag hero-tag">
-            <span className="dot" />
-            {DEMO_URL ? 'A drop is live now' : 'Lunar New Year · Hongbao'}
-          </span>
-          <p className="eyebrow">Red envelopes of Bitcoin Cash</p>
+          <p className="eyebrow">Hongbao: red envelopes of Bitcoin Cash</p>
           <h1 id="hero-title" className="disp disp-xl">
             Drop luck
             <br />
             <span className="flame">into the chat</span>
           </h1>
+          <FlowHint />
           <p className="lead hero-lead">
             Fill a red envelope with BCH and share it as one link. The first friends to open it each get a share and a
             Hongbao Seal. They don't need any BCH, and they sign nothing.
           </p>
           <div className="row hero-ctas">
-            {DEMO_URL ? (
-              <>
-                <a href={DEMO_URL} className="btn btn-primary btn-lg">
-                  Try it
-                </a>
-                <Link to="/send" className="btn btn-ghost btn-lg">
-                  Send your own
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/send" className="btn btn-primary btn-lg">
-                  Send a drop
-                </Link>
-                <Link to="/#how" className="btn btn-ghost btn-lg">
-                  How it works
-                </Link>
-              </>
-            )}
+            <CtaButton cta={ctas.primary} className="btn btn-primary btn-lg" />
+            <CtaButton cta={ctas.secondary} className="btn btn-ghost btn-lg" />
           </div>
+          {ctas.note && <p className="hero-note">{ctas.note}</p>}
         </div>
 
-        <div className="hero-stats">
-          <Stat value={stats?.envelopes ?? null} label="Envelopes dropped" />
-          <Stat value={stats?.claims ?? null} label="Shares opened" />
-          <Stat value={stats?.newWalletsOnboarded ?? null} label="New wallets" />
-          <Stat value={stats ? stats.bchGiftedSats : null} label="BCH gifted" format={(n) => fmtBch(Math.round(n), 5)} />
-        </div>
+        {showStats === 'numbers' && stats && (
+          <div className="hero-stats">
+            <Stat value={stats.envelopes} label="Envelopes dropped" />
+            <Stat value={stats.claims} label="Shares opened" />
+            <Stat value={stats.newWalletsOnboarded} label="New wallets" />
+            <Stat value={stats.bchGiftedSats} label="BCH gifted" format={(n) => fmtBch(Math.round(n), 5)} />
+          </div>
+        )}
+        {showStats === 'line' && <p className="hero-live">Live on Bitcoin Cash mainnet</p>}
       </section>
 
       {/* ------------------------------------------------------------ how */}
@@ -281,7 +313,7 @@ export function Landing() {
   );
 }
 
-function Stat({ value, label, format = (n) => Math.round(n).toLocaleString('en-US') }: { value: number | null; label: string; format?: (n: number) => string }) {
+function Stat({ value, label, format = (n) => Math.round(n).toLocaleString('en-US') }: { value: number; label: string; format?: (n: number) => string }) {
   return (
     <div className="stat">
       <p className="num disp flame" style={{ margin: 0 }}>

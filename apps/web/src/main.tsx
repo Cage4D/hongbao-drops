@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import './styles/tokens.css';
@@ -9,12 +9,15 @@ import { WalletProvider } from './lib/wallet';
 import { ToastProvider } from './components/ui';
 import { Layout } from './components/Layout';
 import { Landing } from './pages/Landing';
-import { Send } from './pages/Send';
-import { EnvelopePage } from './pages/EnvelopePage';
-import { Sponsor } from './pages/Sponsor';
-import { CampaignPublic } from './pages/CampaignPublic';
 import { NotFound } from './pages/NotFound';
-import { Activity } from './pages/Activity';
+
+// Everything but the landing page loads on demand: it keeps the wallet, transaction and QR code
+// out of the first download.
+const Send = lazy(() => import('./pages/Send').then((m) => ({ default: m.Send })));
+const EnvelopePage = lazy(() => import('./pages/EnvelopePage').then((m) => ({ default: m.EnvelopePage })));
+const Sponsor = lazy(() => import('./pages/Sponsor').then((m) => ({ default: m.Sponsor })));
+const CampaignPublic = lazy(() => import('./pages/CampaignPublic').then((m) => ({ default: m.CampaignPublic })));
+const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 
 const router = createBrowserRouter([
   {
