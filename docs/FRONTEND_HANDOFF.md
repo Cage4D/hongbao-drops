@@ -270,6 +270,7 @@ Base: `https://hongbao-drops-api.vercel.app`. JSON bodies (`content-type: applic
 | `GET /envelopes/:id/events` | | SSE stream (§8) |
 | `GET /envelopes/:id/tree` | | `TreeResponse` |
 | `POST /envelopes/:id/cta-click` | | `204`, when a sponsor's CTA is clicked (counted once per IP per hour) |
+| `POST /wallets/activity` | `{ lockingBytecodes: string[] }` (the connected wallet's own P2PKH locking bytecodes, 1–40) | `WalletActivityResponse`: sealed envelopes it sent (pass-ons have `parentEnvelopeId`), shares it claimed (each with `passedOn` if it was re-gifted), totals. 30 per IP per 10 min. Powers the site's "My drops" page |
 
 `CreateEnvelopeRequest` fields:
 

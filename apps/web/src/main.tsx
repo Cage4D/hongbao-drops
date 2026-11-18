@@ -14,6 +14,7 @@ import { EnvelopePage } from './pages/EnvelopePage';
 import { Sponsor } from './pages/Sponsor';
 import { CampaignPublic } from './pages/CampaignPublic';
 import { NotFound } from './pages/NotFound';
+import { Activity } from './pages/Activity';
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: '/', element: <Landing /> },
       { path: '/send', element: <Send /> },
       { path: '/sponsor', element: <Sponsor /> },
+      { path: '/activity', element: <Activity /> },
       { path: '/c/:campaignId', element: <CampaignPublic /> },
       { path: '/e/:id', element: <EnvelopePage /> },
       // Short links: /<6-char slug>#k=…

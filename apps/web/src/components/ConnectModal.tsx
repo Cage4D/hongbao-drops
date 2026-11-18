@@ -2,6 +2,7 @@
 // Desktop: scan the QR with the wallet. Phone: open the wallet directly.
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { Link } from 'react-router';
 import { useWallet } from '../lib/wallet';
 import { useNetwork } from '../lib/network';
 import { PAYTACA_URL } from '../lib/config';
@@ -195,6 +196,9 @@ function WalletMenu({ cls }: { cls: string }) {
               </a>
             )}
           </div>
+          <Link className="btn btn-primary btn-sm btn-block" role="menuitem" to="/activity" onClick={() => setOpen(false)} style={{ marginTop: 12 }}>
+            My drops & activity
+          </Link>
           <hr className="hr" style={{ margin: '14px 0' }} />
           <button className="btn btn-sm btn-block wallet-disconnect" role="menuitem" onClick={disconnect} disabled={leaving}>
             {leaving ? 'Disconnecting…' : 'Disconnect'}

@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useNetwork } from '../lib/network';
+import { useWallet } from '../lib/wallet';
 import { PAYTACA_URL } from '../lib/config';
 import { ConnectModal, WalletButton } from './ConnectModal';
 
@@ -42,6 +43,7 @@ function Nav() {
   const { cfg } = useNetwork();
   const { pathname, hash } = useLocation();
   const onHow = pathname === '/' && hash === '#how';
+  const { connected } = useWallet();
   return (
     <header className="nav">
       <nav aria-label="Main" className="nav-inner">
@@ -61,6 +63,7 @@ function Nav() {
             How it works
           </Link>
           <NavLink to="/sponsor">Sponsors</NavLink>
+          {connected && <NavLink to="/activity">My drops</NavLink>}
         </div>
         <div className="nav-actions">
           <Link to="/send" className="btn btn-primary btn-sm nav-hide-xs">
@@ -90,6 +93,7 @@ function Footer() {
             <Link className="flink" to="/send">Send a drop</Link>
             <Link className="flink" to="/#how">How it works</Link>
             <Link className="flink" to="/#safety">Is it safe?</Link>
+            <Link className="flink" to="/activity">My drops</Link>
           </FooterCol>
           <FooterCol title="Sponsors">
             <Link className="flink" to="/sponsor">Sponsored drops</Link>

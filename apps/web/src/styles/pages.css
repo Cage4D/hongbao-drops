@@ -411,3 +411,39 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .wallet-addr { color: #fff; margin: 0 0 12px; font-size: 12px; line-height: 18px; }
 .wallet-disconnect { background: transparent; border-color: rgba(255, 77, 106, 0.5); color: var(--danger); }
 .wallet-disconnect:hover:not(:disabled) { background: rgba(255, 77, 106, 0.12); border-color: var(--danger); color: #fff; }
+
+/* ================================================================ activity */
+.activity-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.activity-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+.activity-stat { display: flex; flex-direction: column; gap: 6px; padding: 18px; }
+.activity-stat-n { font-size: 36px; line-height: 1; }
+@media (max-width: 900px) { .activity-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.activity-tabs { margin: 32px 0 16px; max-width: 520px; }
+.activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.activity-item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s, transform 0.2s;
+  animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.activity-item:hover { border-color: var(--line-flame); transform: translateY(-1px); }
+.activity-env { display: grid; place-items: center; }
+.activity-stamp { width: 64px; height: 64px; border-radius: 6px; }
+.activity-main { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.activity-msg { margin: 0; color: #fff; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-bar { height: 6px; border-radius: 999px; background: var(--surface-raised); overflow: hidden; max-width: 320px; }
+.activity-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--flame-200), var(--flame-500)); box-shadow: 0 0 8px rgba(0, 163, 255, 0.6); animation: grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: left; }
+.activity-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
+.activity-amt { font-size: 28px; line-height: 1; }
+.activity-empty { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px 24px; }
+@media (max-width: 640px) {
+  .activity-item { grid-template-columns: 48px minmax(0, 1fr); }
+  .activity-side { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; text-align: left; flex-wrap: wrap; }
+  .activity-stamp { width: 48px; height: 48px; }
+}

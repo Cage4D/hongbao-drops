@@ -18,6 +18,7 @@ import type {
   PublicCampaignStats,
   PublicEnvelopeView,
   TreeResponse,
+  WalletActivityResponse,
 } from '@hongbao/shared';
 import { API_URL } from './config';
 
@@ -132,6 +133,8 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, 'UNAUTHORIZED', "Couldn't download the CSV. Check your sponsor key.");
     return res.blob();
   },
+  /** Drops, claims and pass-ons of the connected wallet (its own derived P2PKH locking bytecodes). */
+  walletActivity: (lockingBytecodes: string[]) => req<WalletActivityResponse>('POST', '/wallets/activity', { lockingBytecodes }),
   eventsUrl: (id: string) => `${API_URL}/envelopes/${id}/events`,
 };
 

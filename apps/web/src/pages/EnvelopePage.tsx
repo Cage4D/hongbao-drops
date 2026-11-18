@@ -6,7 +6,8 @@ import { api, ApiError, errorText } from '../lib/api';
 import { useNetwork } from '../lib/network';
 import { useWallet } from '../lib/wallet';
 import { readLinkKey } from '../lib/link';
-import { checkAddress, claimShare, type ClaimResult } from '../lib/claim';
+import { checkAddress, claimCoinState, claimShare, type ClaimResult } from '../lib/claim';
+import { claimKey, envelopeHref, holdKey, type StoredClaim } from '../lib/local';
 import { useEnvelopeEvents, type ClaimedEvent } from '../lib/events';
 import { fmtBch, fmtSats, fmtUsd, satsToUsd, shortAddr, timeAgo } from '../lib/format';
 import { store } from '../lib/storage';
@@ -23,8 +24,6 @@ interface StoredHold {
   holdToken: string;
   heldUntil: string;
 }
-const claimKey = (id: string) => `hongbao:claim:${id}`;
-const holdKey = (id: string) => `hongbao:hold:${id}`;
 
 export function EnvelopePage() {
   const { id: idParam, slug } = useParams();
@@ -111,7 +110,7 @@ function EnvelopeView({
   priceUsd: number | null;
 }) {
   const { cfg } = useNetwork();
-  const [claimed, setClaimed] = useState<ClaimResult | null>(() => store.get<ClaimResult>(claimKey(view.id)));
+  const [claimed, setClaimed] = useState<StoredClaim | null>(() => store.get<StoredClaim>(claimKey(view.id)));
   const [phase, setPhase] = useState<Phase>(claimed ? 'done' : 'sealed');
   const [fire, setFire] = useState(0);
   const [expiredNow, setExpiredNow] = useState(false);
@@ -571,7 +570,7 @@ function ClaimPanel({
 }
 
 // ------------------------------------------------------------------ success
-function Success({ r, view, priceUsd }: { r: ClaimResult; view: PublicEnvelopeView; priceUsd: number | null }) {
+function Success({ r, view, priceUsd }: { r: StoredClaim; view: PublicEnvelopeView; priceUsd: number | null }) {
   const { cfg } = useNetwork();
   const navigate = useNavigate();
   const usd = r.amountUsd ?? satsToUsd(r.amountSats, priceUsd);
@@ -579,6 +578,16 @@ function Success({ r, view, priceUsd }: { r: ClaimResult; view: PublicEnvelopeVi
     const suggest = Math.floor(r.amountSats / 2);
     navigate(`/send?parent=${view.id}&coin=${r.txid}&suggest=${suggest}`);
   };
+  // A share can be passed on once: the pass-on spends the claimed coin. Check it's still there.
+  const [coin, setCoin] = useState<'checking' | 'unspent' | 'spent' | 'unknown'>(r.passedOn ? 'spent' : 'checking');
+  useEffect(() => {
+    if (!cfg || r.passedOn) return;
+    let alive = true;
+    claimCoinState(cfg, r.recipientAddress, r.txid).then((s) => alive && setCoin(s));
+    return () => {
+      alive = false;
+    };
+  }, [cfg, r.passedOn, r.recipientAddress, r.txid]);
   return (
     <div className="success stack">
       <div className="success-amount">
@@ -606,11 +615,26 @@ function Success({ r, view, priceUsd }: { r: ClaimResult; view: PublicEnvelopeVi
           <figcaption className="small muted">Your collectible stamp. It's in your wallet too.</figcaption>
         </figure>
       )}
+      {r.passedOn ? (
+        <div className="alert alert-ok">
+          <strong>You passed it on.</strong> This share went into a new envelope.{' '}
+          <Link to={r.passedOn.url ? r.passedOn.url.replace(location.origin, '') : envelopeHref(r.passedOn.id, r.passedOn.slug)}>Watch your pass-on →</Link>
+        </div>
+      ) : (
+        coin === 'spent' && (
+          <div className="alert">
+            <strong>Already moved.</strong> These coins have been passed on or spent, so this share can't be passed on again.{' '}
+            <Link to="/activity">See your activity →</Link>
+          </div>
+        )
+      )}
       <div className="row">
-        <button className="btn btn-primary btn-lg" onClick={passOn}>
-          Pass it on
-        </button>
-        <Link className="btn btn-ghost btn-lg" to="/send">
+        {!r.passedOn && coin !== 'spent' && (
+          <button className="btn btn-primary btn-lg" onClick={passOn} disabled={coin === 'checking'}>
+            Pass it on
+          </button>
+        )}
+        <Link className={`btn btn-lg ${r.passedOn || coin === 'spent' ? 'btn-primary' : 'btn-ghost'}`} to="/send">
           Send your own
         </Link>
       </div>

@@ -48,3 +48,19 @@ export function checkAddress(input: string, cfg: NetCfg): { ok: true; address: s
     return { ok: false, error: "That address type can't receive this share." };
   return { ok: true, address: withPrefix };
 }
+
+/**
+ * Is the claimed coin (claimTxid:0) still unspent? 'spent' only when the network knows the claim
+ * tx but its output is gone, so a server that hasn't seen the claim yet can't hide Pass it on.
+ */
+export async function claimCoinState(cfg: NetCfg, recipientAddress: string, claimTxid: string): Promise<'unspent' | 'spent' | 'unknown'> {
+  const provider = chainProvider(cfg);
+  try {
+    const utxos = await provider.getUtxos(recipientAddress);
+    if (utxos.some((u) => u.txid === claimTxid && u.vout === 0)) return 'unspent';
+    await provider.getRawTransaction(claimTxid); // throws if the network doesn't know it (yet)
+    return 'spent';
+  } catch {
+    return 'unknown';
+  }
+}

@@ -9,6 +9,7 @@ import { createAndFund, type FundResult, type FundStep } from '../lib/fund';
 import { errorText } from '../lib/api';
 import { fmtBch, fmtDuration, fmtSats, fmtUsd, satsToUsd, usdToSats } from '../lib/format';
 import { store } from '../lib/storage';
+import { SENT_KEY, markPassedOn, type SentDrop } from '../lib/local';
 import { Envelope, THEMES } from '../components/Envelope';
 import { Burst } from '../components/Burst';
 import { CopyField, StepsLog, useToast } from '../components/ui';
@@ -17,18 +18,6 @@ import { WalletButton } from '../components/ConnectModal';
 const MIN_SHARE_STAMP = 2000;
 const MIN_SHARE_PLAIN = 1500;
 
-export interface SentDrop {
-  id: string;
-  slug: string;
-  url: string;
-  totalSats: number;
-  shareCount: number;
-  theme: Theme;
-  message?: string;
-  createdAt: string;
-  parent?: string;
-}
-export const SENT_KEY = 'hongbao:sent';
 
 const EXPIRY_CHOICES = [
   { sec: 3600, label: '1 hour' },
@@ -154,6 +143,8 @@ export function Send() {
         { id: r.created.id, slug: r.created.slug, url: r.url, totalSats: sats, shareCount, theme, message: message.trim(), createdAt: new Date().toISOString(), ...(parent && { parent }) },
         ...sent,
       ].slice(0, 30));
+      // The claimed share is now spent: the claim page shows this pass-on instead of the button.
+      if (parent) markPassedOn(parent, { id: r.created.id, slug: r.created.slug, url: r.url });
       setResult(r);
     } catch (e) {
       setError(e instanceof InsufficientFunds ? insufficientText(e, priceUsd) : errorText(e));

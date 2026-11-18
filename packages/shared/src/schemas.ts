@@ -324,3 +324,56 @@ export interface GlobalStats {
   passOnEnvelopes: number;
   generatedAt: string;
 }
+
+// ------------------------------------------------------------------ wallet activity (Phase 9)
+
+/** P2PKH locking bytecode (hex). The site sends the connected wallet's own derived addresses. */
+const P2pkhLockingSchema = z.string().regex(/^76a914[0-9a-f]{40}88ac$/, 'P2PKH locking bytecode hex');
+
+export const WalletActivityRequestSchema = z
+  .object({ lockingBytecodes: z.array(P2pkhLockingSchema).min(1).max(40) })
+  .strict();
+export type WalletActivityRequest = z.infer<typeof WalletActivityRequestSchema>;
+
+/** An envelope the wallet sent (funded ones only). Never includes the link secret: the server never had it. */
+export interface WalletSentEnvelope {
+  id: string;
+  slug: string;
+  status: string;
+  mode: Mode;
+  theme: Theme;
+  message: string | null;
+  total: { sats: number; usd: number | null };
+  remaining: { sats: number; usd: number | null };
+  shares: { total: number; claimed: number; left: number };
+  refundedSats: number;
+  expiry: number;
+  createdAt: string;
+  fundingTxid: string | null;
+  /** Set when this envelope was a pass-on of a share the wallet had claimed. */
+  parentEnvelopeId: string | null;
+}
+
+/** A share the wallet claimed. */
+export interface WalletClaim {
+  envelopeId: string;
+  slug: string;
+  theme: Theme;
+  mode: Mode;
+  message: string | null;
+  amountSats: number;
+  amountUsd: number | null;
+  claimTxid: string | null;
+  recipientAddress: string;
+  isNewWallet: boolean | null;
+  stamp: { imageUrl: string } | null;
+  at: string;
+  /** The envelope this wallet made from it with Pass it on, if any. */
+  passedOn: { id: string; slug: string } | null;
+}
+
+export interface WalletActivityResponse {
+  sent: WalletSentEnvelope[];
+  claimed: WalletClaim[];
+  totals: { sentCount: number; sentSats: number; claimedCount: number; claimedSats: number; passOnCount: number };
+}

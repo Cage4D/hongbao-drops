@@ -61,7 +61,7 @@ export async function createAndFund(opts: {
     forced = all.find((u) => u.txid === mustSpend.txid && u.vout === mustSpend.vout);
     if (!forced)
       throw new Error(
-        "We couldn't find your claimed coins in this wallet. Pass it on works from the wallet you claimed into. If you just claimed, wait a few seconds and try again.",
+        "Those claimed coins aren't in this wallet any more: they've already been passed on or spent, or you claimed into a different wallet. A share can only be passed on once. (If you claimed seconds ago, wait a moment and try again.)",
       );
   }
   const stampReturn = forced?.token ? dustLimit(25, forced.token) + 100n : 0n;
