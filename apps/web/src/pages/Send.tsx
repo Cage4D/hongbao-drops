@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import QRCode from 'qrcode';
 import type { Mode, Theme } from '@hongbao/shared';
 import { useNetwork } from '../lib/network';
-import { WalletSilent, useWallet } from '../lib/wallet';
+import { useWallet } from '../lib/wallet';
 import { InsufficientFunds } from '../lib/txplan';
 import { FundingUnconfirmed, confirmFunding, createAndFund, type FundResult, type FundStep } from '../lib/fund';
 import { errorText } from '../lib/api';
@@ -53,8 +53,6 @@ export function Send() {
   const [step, setStep] = useState<FundStep | null>(null);
   const [stepNote, setStepNote] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
-  // The wallet never answered: offer a fresh pairing next to Try again.
-  const [silent, setSilent] = useState(false);
   const [result, setResult] = useState<FundResult | null>(null);
   /** Funded on-chain but not confirmed by the API yet: retry only the check, never fund again. */
   const [pending, setPending] = useState<FundResult | null>(null);
@@ -129,7 +127,6 @@ export function Send() {
   };
 
   const fail = (e: unknown) => {
-    setSilent(e instanceof WalletSilent);
     if (e instanceof FundingUnconfirmed) {
       setPending(e.pending);
       setError(`Your envelope is sent and the money is in the lockbox, but we couldn't confirm it yet (${errorText(e.cause)}). Your link is saved under “Your recent drops”. Tap Check again in a moment.`);
@@ -139,7 +136,6 @@ export function Send() {
   const submit = async () => {
     if (!cfg || problems.length) return;
     setError(null);
-    setSilent(false);
     if (pending) {
       setStep('confirm');
       try {
@@ -416,22 +412,6 @@ export function Send() {
               {error && (
                 <div className="alert alert-error" style={{ marginTop: 12 }} role="alert">
                   {error}
-                  {silent && (
-                    <div style={{ marginTop: 10 }}>
-                      <button
-                        className="btn btn-outline btn-sm"
-                        type="button"
-                        onClick={() => {
-                          setError(null);
-                          setSilent(false);
-                          setStep(null);
-                          void wallet.reconnect();
-                        }}
-                      >
-                        Connect again
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
 

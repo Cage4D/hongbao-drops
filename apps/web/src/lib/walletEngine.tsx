@@ -137,7 +137,13 @@ export default function WalletEngine({
           { signal: ctrl.signal },
         );
       } catch (e) {
-        if (ctrl.signal.aborted) throw signal?.aborted ? new Error('Cancelled.') : new WalletSilent();
+        if (ctrl.signal.aborted) {
+          if (signal?.aborted) throw new Error('Cancelled.');
+          // The wallet is gone (most often disconnected in its app, whose disconnect message got
+          // lost). Stop showing it as connected: the user connects again with a fresh pairing.
+          void wc.disconnect();
+          throw new WalletSilent();
+        }
         throw e;
       } finally {
         clearTimeout(timer);
@@ -146,7 +152,7 @@ export default function WalletEngine({
       const txid = await provider.sendRawTransaction(res.signedTransaction);
       return { txid, change: changeSats === null ? null : { vout: outputs.length, sats: changeSats, addr: change } };
     },
-    [cfg, wc.manager],
+    [cfg, wc.manager, wc.disconnect],
   );
 
   // A fresh pairing after dropping the old session. The hook refuses connect() while it is still

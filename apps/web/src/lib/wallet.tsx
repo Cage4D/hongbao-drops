@@ -31,7 +31,7 @@ export interface SignResult {
  */
 export class WalletSilent extends Error {
   constructor() {
-    super("Your wallet didn't answer. If you disconnected Hongbao Drops in your wallet app, connect again.");
+    super("Your wallet didn't answer, so it's no longer connected here. Connect it again to continue.");
     this.name = 'WalletSilent';
   }
 }
