@@ -12,7 +12,7 @@ pragma cashscript ^0.14.0;
 //  - after expiry ANYONE may batch-refund shares, but only to the sender's refund script.
 //  - nobody, including the sender, can take funds back before expiry.
 //
-// Deployed as P2SH32: at 222 bytes with constructor args it exceeds the 201-byte P2S limit
+// Deployed as P2SH32: with constructor args it exceeds the 201-byte P2S limit
 // (docs/findings.md §1). Layla is used via the do…while loop in refundBatch (OP_BEGIN/OP_UNTIL).
 contract Hongbao(
     pubkey linkPk,                // public key of the link secret (#k= in the share URL)
@@ -22,10 +22,12 @@ contract Hongbao(
     int maxFee                    // max sats each spent share may pay in network fee
 ) {
     // Claim exactly one share to exactly one recipient.
+    // Output 0 carries the seal (if any). An optional output 1 pays plain BCH to the same
+    // recipient: wallets only count token-free outputs as BCH balance (Paytaca, mainnet 2026-11-18),
+    // so a seal share sends the seal on a dust output and the rest of the value on output 1.
     function claim(sig linkSig, datasig gateSig) {
-        // One share in, one output out: no batching several shares, no skimming outputs.
+        // One share in, at most two outputs out: no batching several shares, no skimming outputs.
         require(tx.inputs.length == 1);
-        require(tx.outputs.length == 1);
 
         // Proof of holding the link secret. Signs the whole tx (SIGHASH_ALL|UTXOS by default).
         require(checkSig(linkSig, linkPk));
@@ -37,43 +39,66 @@ contract Hongbao(
         bytes outpoint = tx.inputs[0].outpointTransactionHash + toPaddedBytes(tx.inputs[0].outpointIndex, 4);
         require(checkDataSig(gateSig, recipient + outpoint, gatePk));
 
-        // The share pays its own network fee (claimer needs zero BCH); claimer gets the rest.
-        require(tx.outputs[0].value >= tx.inputs[0].value - maxFee);
-
-        // The seal NFT (if any) must go to the claimer unchanged. tokenCategory includes the
-        // capability byte, so capability changes are caught too. Token-less shares compare
-        // empty == empty and 0 == 0, so the recipient output must be token-less as well.
+        // The seal NFT (if any) must go to the claimer unchanged on output 0. tokenCategory includes
+        // the capability byte, so capability changes are caught too. Token-less shares compare
+        // empty == empty and 0 == 0, so output 0 must be token-less as well.
         require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
         require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
         require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+
+        int paid = tx.outputs[0].value;
+        if (tx.outputs.length == 2) {
+            // The BCH output: same recipient, no token.
+            require(tx.outputs[1].lockingBytecode == recipient);
+            require(tx.outputs[1].tokenCategory == 0x);
+            paid = paid + tx.outputs[1].value;
+        } else {
+            require(tx.outputs.length == 1);
+        }
+
+        // The share pays its own network fee (claimer needs zero BCH); claimer gets the rest.
+        require(paid >= tx.inputs[0].value - maxFee);
     }
 
     // After expiry, anyone (the keeper) can refund up to ~20 shares in one tx.
-    // Input i is refunded by output i, so every share's seal stays separate.
+    // Input i is refunded by output i, so every share's seal stays separate. An optional extra
+    // output (index = input count) collects plain BCH for the sender, so seal outputs can hold
+    // just dust and the refunded value shows as BCH in the sender's wallet.
     function refundBatch() {
         // tx.time compiles to OP_CHECKLOCKTIMEVERIFY: tx locktime must be >= expiry and the
         // input sequence non-final; the network only accepts it once median time passes locktime.
         require(tx.time >= expiry);
 
         int inputCount = tx.inputs.length;
-        require(tx.outputs.length == inputCount);
+        int outputCount = tx.outputs.length;
+        require(outputCount == inputCount || outputCount == inputCount + 1);
 
         bytes self = tx.inputs[this.activeInputIndex].lockingBytecode;
+        int inSum = 0;
+        int outSum = 0;
         int i = 0;
         do {
             // Every input is a share of THIS envelope (no mixing in other UTXOs).
             require(tx.inputs[i].lockingBytecode == self);
-            // Every output goes to the sender, and loses at most maxFee.
+            // Every output goes to the sender.
             require(tx.outputs[i].lockingBytecode == refundLockingBytecode);
-            require(tx.outputs[i].value >= tx.inputs[i].value - maxFee);
             // Seal i goes back unchanged on output i.
             require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
             require(tx.outputs[i].nftCommitment == tx.inputs[i].nftCommitment);
             require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);
+            inSum = inSum + tx.inputs[i].value;
+            outSum = outSum + tx.outputs[i].value;
             i = i + 1;
         } while (i < inputCount);
 
-        // cashc requires a function to end with require(); also documents loop completion.
-        require(i == inputCount);
+        if (outputCount > inputCount) {
+            // The BCH output: to the sender, no token.
+            require(tx.outputs[inputCount].lockingBytecode == refundLockingBytecode);
+            require(tx.outputs[inputCount].tokenCategory == 0x);
+            outSum = outSum + tx.outputs[inputCount].value;
+        }
+
+        // The sender loses at most maxFee per share in network fees.
+        require(outSum >= inSum - maxFee * inputCount);
     }
 }

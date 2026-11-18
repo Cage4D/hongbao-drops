@@ -108,7 +108,7 @@ describe('lifecycle with seals (genesis in the funding tx)', () => {
     const gateSig = signGateApproval(gatePriv, gateMessage(claimer, share.txid, share.vout));
     await new TransactionBuilder({ provider })
       .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), gateSig))
-      .addOutput({ to: claimer, amount: share.satoshis - 500n, token: share.token })
+      .addOutput({ to: claimer, amount: share.satoshis - 700n, token: share.token })
       .send();
     const [caught] = await provider.getUtxosForLockingBytecode(claimer);
     expect(caught?.token?.nft?.commitment).toBe('0700000001');
@@ -117,7 +117,7 @@ describe('lifecycle with seals (genesis in the funding tx)', () => {
     const left = await provider.getUtxosForLockingBytecode(contract.lockingBytecode);
     const refund = new TransactionBuilder({ provider });
     for (const s of left) refund.addInput(s, contract.unlock.refundBatch());
-    for (const s of left) refund.addOutput({ to: sender, amount: s.satoshis - 400n, token: s.token });
+    for (const s of left) refund.addOutput({ to: sender, amount: s.satoshis - 600n, token: s.token });
     await refund.setLocktime(EXPIRY).send();
     const back = await provider.getUtxosForLockingBytecode(sender);
     expect(back.filter((u) => u.token).map((u) => u.token?.nft?.commitment).sort()).toEqual([

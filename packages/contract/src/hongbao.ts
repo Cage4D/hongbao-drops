@@ -8,7 +8,7 @@ import artifact from './artifacts/Hongbao.js';
 export const hongbaoArtifact = artifact;
 export const CASHSCRIPT_VERSION = '0.14.0';
 
-/** Default per-input fee cap. Claim ≈ 483 B, refund ≈ 341 B per share → ~2 sat/B headroom. */
+/** Default per-input fee cap. Claim ≈ 590 B (≈ 625 split), refund ≈ 450 B per share → ~1.6 sat/B headroom. */
 export const DEFAULT_MAX_FEE = 1_000n;
 /** Smallest share the API accepts (docs/findings.md §3): keeps claim/refund outputs above dust. */
 export const MIN_SHARE_SATS_WITH_SEAL = 2_000n;

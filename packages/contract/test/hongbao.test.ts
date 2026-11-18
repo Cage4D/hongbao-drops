@@ -77,7 +77,7 @@ describe('claim', () => {
     const share = addShare(provider, contract);
     await new TransactionBuilder({ provider })
       .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
-      .addOutput({ to: claimer, amount: SHARE - 500n })
+      .addOutput({ to: claimer, amount: SHARE - 700n })
       .send();
     expect(await provider.getUtxosForLockingBytecode(claimer)).toHaveLength(1);
   });
@@ -88,7 +88,7 @@ describe('claim', () => {
     const share = addShare(provider, contract, token);
     await new TransactionBuilder({ provider })
       .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
-      .addOutput({ to: claimer, amount: SHARE - 500n, token })
+      .addOutput({ to: claimer, amount: SHARE - 700n, token })
       .send();
     const [received] = await provider.getUtxosForLockingBytecode(claimer);
     expect(received?.token?.nft?.commitment).toBe(token.nft?.commitment);
@@ -109,7 +109,7 @@ describe('claim', () => {
     await expectFail(
       new TransactionBuilder({ provider })
         .addInput(share, contract.unlock.claim(new SignatureTemplate(otherPriv), approve(share, claimer)))
-        .addOutput({ to: claimer, amount: SHARE - 500n })
+        .addOutput({ to: claimer, amount: SHARE - 700n })
         .send(),
       'checkSig(linkSig, linkPk)',
     );
@@ -121,7 +121,7 @@ describe('claim', () => {
     await expectFail(
       new TransactionBuilder({ provider })
         .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
-        .addOutput({ to: attacker, amount: SHARE - 500n })
+        .addOutput({ to: attacker, amount: SHARE - 700n })
         .send(),
       'checkDataSig(gateSig',
     );
@@ -133,7 +133,7 @@ describe('claim', () => {
     await expectFail(
       new TransactionBuilder({ provider })
         .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer, otherPriv)))
-        .addOutput({ to: claimer, amount: SHARE - 500n })
+        .addOutput({ to: claimer, amount: SHARE - 700n })
         .send(),
       'checkDataSig(gateSig',
     );
@@ -146,7 +146,7 @@ describe('claim', () => {
     await expectFail(
       new TransactionBuilder({ provider })
         .addInput(shareB, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(shareA, claimer)))
-        .addOutput({ to: claimer, amount: SHARE - 500n })
+        .addOutput({ to: claimer, amount: SHARE - 700n })
         .send(),
       'checkDataSig(gateSig',
     );
@@ -160,11 +160,11 @@ describe('claim', () => {
         .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
         .addOutput({ to: claimer, amount: SHARE - MAX_FEE - 1n })
         .send(),
-      'tx.outputs[0].value >= tx.inputs[0].value - maxFee',
+      'paid >= tx.inputs[0].value - maxFee',
     );
   });
 
-  it('#7 claim with 2 outputs (skimming) ❌', async () => {
+  it('#7 claim with a second output to someone else (skimming) ❌', async () => {
     const { provider, contract } = setup();
     const share = addShare(provider, contract);
     await expectFail(
@@ -173,8 +173,67 @@ describe('claim', () => {
         .addOutput({ to: claimer, amount: SHARE - 2_000n })
         .addOutput({ to: attacker, amount: 1_000n })
         .send(),
+      'tx.outputs[1].lockingBytecode == recipient',
+    );
+  });
+
+  it('#7b claim with 3 outputs ❌', async () => {
+    const { provider, contract } = setup();
+    const share = addShare(provider, contract);
+    await expectFail(
+      new TransactionBuilder({ provider })
+        .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
+        .addOutput({ to: claimer, amount: SHARE - 3_000n })
+        .addOutput({ to: claimer, amount: 1_000n })
+        .addOutput({ to: claimer, amount: 1_000n })
+        .send(),
       'tx.outputs.length == 1',
     );
+  });
+
+  describe('split claim: seal on output 0, plain BCH on output 1 (wallets count only token-free outputs)', () => {
+    it('#7c valid split claim with a seal', async () => {
+      const { provider, contract } = setup();
+      const token = seal();
+      const share = addShare(provider, contract, token);
+      await new TransactionBuilder({ provider })
+        .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
+        .addOutput({ to: claimer, amount: 666n, token })
+        .addOutput({ to: claimer, amount: SHARE - 666n - 800n })
+        .send();
+      const got = await provider.getUtxosForLockingBytecode(claimer);
+      expect(got).toHaveLength(2);
+      expect(got.filter((u) => !u.token).map((u) => u.satoshis)).toEqual([SHARE - 666n - 800n]);
+    });
+
+    it('#7d split claim whose BCH output also carries a token ❌', async () => {
+      const { provider, contract } = setup();
+      const token = seal(1);
+      const share = addShare(provider, contract, token);
+      // Single input (#8): a token on output 1: a token on output 1 can only come from the share itself.
+      await expectFail(
+        new TransactionBuilder({ provider })
+          .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
+          .addOutput({ to: claimer, amount: 666n })
+          .addOutput({ to: claimer, amount: SHARE - 666n - 800n, token })
+          .send(),
+        'tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory',
+      );
+    });
+
+    it('#7e split claim paying more than maxFee ❌', async () => {
+      const { provider, contract } = setup();
+      const token = seal();
+      const share = addShare(provider, contract, token);
+      await expectFail(
+        new TransactionBuilder({ provider })
+          .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
+          .addOutput({ to: claimer, amount: 666n, token })
+          .addOutput({ to: claimer, amount: SHARE - 666n - MAX_FEE - 1n })
+          .send(),
+        'paid >= tx.inputs[0].value - maxFee',
+      );
+    });
   });
 
   it('#8 claim spending 2 shares in one tx ❌', async () => {
@@ -198,7 +257,7 @@ describe('claim', () => {
       await expectFail(
         new TransactionBuilder({ provider })
           .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
-          .addOutput({ to: claimer, amount: SHARE - 500n })
+          .addOutput({ to: claimer, amount: SHARE - 700n })
           .send(),
         'tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory',
       );
@@ -212,7 +271,7 @@ describe('claim', () => {
       await expectFail(
         new TransactionBuilder({ provider })
           .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
-          .addOutput({ to: claimer, amount: SHARE - 500n, token: minted })
+          .addOutput({ to: claimer, amount: SHARE - 700n, token: minted })
           .send(),
         'tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory',
       );
@@ -227,7 +286,7 @@ describe('claim', () => {
           .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
           .addOutput({
             to: claimer,
-            amount: SHARE - 500n,
+            amount: SHARE - 700n,
             token: { ...token, nft: { capability: 'mutable', commitment: '0100000002' } },
           })
           .send(),
@@ -244,7 +303,7 @@ describe('claim', () => {
           .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
           .addOutput({
             to: claimer,
-            amount: SHARE - 500n,
+            amount: SHARE - 700n,
             token: { ...token, nft: { capability: 'none', commitment: '0100000001' } },
           })
           .send(),
@@ -263,7 +322,7 @@ function refundTx(
 ) {
   const tb = new TransactionBuilder({ provider });
   for (const s of shares) tb.addInput(s, contract.unlock.refundBatch());
-  const outputs = opts.outputs ?? shares.map((s) => ({ amount: s.satoshis - (opts.fee ?? 400n), token: s.token }));
+  const outputs = opts.outputs ?? shares.map((s) => ({ amount: s.satoshis - (opts.fee ?? 600n), token: s.token }));
   for (const o of outputs) tb.addOutput({ to: opts.to ?? sender, amount: o.amount, ...(o.token && { token: o.token }) });
   return tb.setLocktime(opts.locktime ?? EXPIRY);
 }
@@ -316,8 +375,8 @@ describe('refundBatch', () => {
     const tb = new TransactionBuilder({ provider })
       .addInput(ours, contract.unlock.refundBatch())
       .addInput(theirs, other.contract.unlock.refundBatch())
-      .addOutput({ to: sender, amount: SHARE - 400n })
-      .addOutput({ to: sender, amount: SHARE - 400n })
+      .addOutput({ to: sender, amount: SHARE - 600n })
+      .addOutput({ to: sender, amount: SHARE - 600n })
       .setLocktime(EXPIRY);
     await expectFail(tb.send(), 'tx.inputs[i].lockingBytecode == self');
   });
@@ -327,8 +386,8 @@ describe('refundBatch', () => {
       const { provider, contract } = setup();
       const shares = [addShare(provider, contract), addShare(provider, contract)];
       await expectFail(
-        refundTx(provider, contract, shares, { outputs: [{ amount: 2n * SHARE - 800n }] }).send(),
-        'tx.outputs.length == inputCount',
+        refundTx(provider, contract, shares, { outputs: [{ amount: 2n * SHARE - 1_200n }] }).send(),
+        'outputCount == inputCount || outputCount == inputCount + 1',
       );
     });
 
@@ -338,8 +397,8 @@ describe('refundBatch', () => {
       await expectFail(
         refundTx(provider, contract, shares, {
           outputs: [
-            { amount: SHARE - 400n, token: shares[1]!.token },
-            { amount: SHARE - 400n, token: shares[0]!.token },
+            { amount: SHARE - 600n, token: shares[1]!.token },
+            { amount: SHARE - 600n, token: shares[0]!.token },
           ],
         }).send(),
         'tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory',
@@ -352,7 +411,59 @@ describe('refundBatch', () => {
     const shares = [addShare(provider, contract), addShare(provider, contract)];
     await expectFail(
       refundTx(provider, contract, shares, { fee: MAX_FEE + 1n }).send(),
-      'tx.outputs[i].value >= tx.inputs[i].value - maxFee',
+      'outSum >= inSum - maxFee * inputCount',
     );
+  });
+
+  describe('pooled BCH output (seals back on dust outputs, value as plain BCH)', () => {
+    const pooled = (shares: SpendableUtxo[], extra: { amount: bigint; to?: Uint8Array; token?: TokenDetails }[]) => {
+      const fee = 600n * BigInt(shares.length);
+      const total = shares.reduce((s, u) => s + u.satoshis, 0n);
+      return {
+        outputs: [...shares.map((u) => ({ amount: 666n, token: u.token })), ...extra.map((e) => ({ amount: e.amount, token: e.token }))],
+        bch: total - fee - 666n * BigInt(shares.length),
+      };
+    };
+
+    it('#17 valid pooled refund of 3 seal shares', async () => {
+      const { provider, contract } = setup();
+      const shares = [1, 2, 3].map((i) => addShare(provider, contract, seal(i)));
+      const { bch } = pooled(shares, []);
+      await refundTx(provider, contract, shares, { outputs: pooled(shares, [{ amount: bch }]).outputs }).send();
+      const got = await provider.getUtxosForLockingBytecode(sender);
+      expect(got.filter((u) => u.token)).toHaveLength(3);
+      expect(got.filter((u) => !u.token).map((u) => u.satoshis)).toEqual([bch]);
+    });
+
+    it('#18 pooled output to another address ❌', async () => {
+      const { provider, contract } = setup();
+      const shares = [1, 2].map((i) => addShare(provider, contract, seal(i)));
+      const { bch } = pooled(shares, []);
+      const tb = new TransactionBuilder({ provider });
+      for (const u of shares) tb.addInput(u, contract.unlock.refundBatch());
+      for (const u of shares) tb.addOutput({ to: sender, amount: 666n, token: u.token! });
+      tb.addOutput({ to: attacker, amount: bch }).setLocktime(EXPIRY);
+      await expectFail(tb.send(), 'tx.outputs[inputCount].lockingBytecode == refundLockingBytecode');
+    });
+
+    it('#19 two extra outputs ❌', async () => {
+      const { provider, contract } = setup();
+      const shares = [1, 2].map((i) => addShare(provider, contract, seal(i)));
+      const { bch } = pooled(shares, []);
+      await expectFail(
+        refundTx(provider, contract, shares, { outputs: pooled(shares, [{ amount: bch / 2n }, { amount: bch / 2n }]).outputs }).send(),
+        'outputCount == inputCount || outputCount == inputCount + 1',
+      );
+    });
+
+    it('#20 pooled refund taking more than maxFee per share ❌', async () => {
+      const { provider, contract } = setup();
+      const shares = [1, 2].map((i) => addShare(provider, contract, seal(i)));
+      const { bch } = pooled(shares, []);
+      await expectFail(
+        refundTx(provider, contract, shares, { outputs: pooled(shares, [{ amount: bch - 2n * (MAX_FEE - 600n) - 1n }]).outputs }).send(),
+        'outSum >= inSum - maxFee * inputCount',
+      );
+    });
   });
 });

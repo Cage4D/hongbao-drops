@@ -44,6 +44,19 @@ describe('planRefund (review-2 P1-1)', () => {
     await provider.sendRawTransaction(p.hex);
   });
 
+  it('pools the value of seal shares into one plain-BCH output for the sender', async () => {
+    const { provider, plan } = setup([{ sats: 5_000n, seal: true }, { sats: 5_000n, seal: true }, { sats: 5_000n, seal: true }]);
+    const p = plan()!;
+    await provider.sendRawTransaction(p.hex);
+    const back = await provider.getUtxosForLockingBytecode(p2pkh(pub(key('sender'))));
+    expect(back.filter((u) => u.token)).toHaveLength(3);
+    expect(back.filter((u) => u.token).every((u) => u.satoshis === 666n)).toBe(true);
+    const plain = back.filter((u) => !u.token);
+    expect(plain).toHaveLength(1);
+    expect(back.reduce((s, u) => s + u.satoshis, 0n)).toBe(p.refundedSats);
+    expect(plain[0]!.satoshis).toBe(p.refundedSats - 3n * 666n);
+  });
+
   it('leaves a coin that cannot cover its fee behind and still refunds the rest', async () => {
     const { provider, utxos, plan } = setup([{ sats: 10_000n }, { sats: 700n }, { sats: 10_000n }, { sats: 300n }]);
     const p = plan()!;

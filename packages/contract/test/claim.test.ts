@@ -37,8 +37,12 @@ describe('buildClaimTx', () => {
     expect(fee).toBe(BigInt(hex.length / 2));
     expect(amount).toBe(10_000n - fee);
     await provider.sendRawTransaction(hex);
-    const [got] = await provider.getUtxosForLockingBytecode(recipient);
-    expect(got?.token?.nft?.commitment).toBe('0100000001');
+    // Seal on a dust output, the rest as plain BCH: wallets only count token-free outputs as balance.
+    const got = await provider.getUtxosForLockingBytecode(recipient);
+    const sealOut = got.find((u) => u.token);
+    expect(sealOut?.token?.nft?.commitment).toBe('0100000001');
+    expect(sealOut?.satoshis).toBe(dustLimit(recipient.length, token));
+    expect(got.filter((u) => !u.token).map((u) => u.satoshis)).toEqual([10_000n - fee - dustLimit(recipient.length, token)]);
   });
 });
 
@@ -72,9 +76,21 @@ describe('minimum share sizes (review #4)', () => {
     await provider.sendRawTransaction(run().hex);
   });
 
-  it('claims a seal-bearing share of exactly MIN_SHARE_SATS_WITH_SEAL (2,000)', async () => {
+  it('claims a seal-bearing share of exactly MIN_SHARE_SATS_WITH_SEAL (2,000), still split', async () => {
     const { provider, run } = await setup(MIN_SHARE_SATS_WITH_SEAL, true);
     await provider.sendRawTransaction(run().hex);
+    const got = await provider.getUtxosForLockingBytecode(p2pkh(pub(key('claimer'))));
+    expect(got).toHaveLength(2);
+    expect(got.find((u) => !u.token)!.satoshis).toBeGreaterThanOrEqual(546n);
+  });
+
+  it('falls back to one output when a seal share is too small to split', async () => {
+    // 666 seal dust + ~625 fee + 546 plain dust > 1,700, but 1,700 still covers a single output.
+    const { provider, run } = await setup(1_700n, true);
+    await provider.sendRawTransaction(run().hex);
+    const got = await provider.getUtxosForLockingBytecode(p2pkh(pub(key('claimer'))));
+    expect(got).toHaveLength(1);
+    expect(got[0]!.token).toBeDefined();
   });
 
   it('refuses with a clear error below dust', async () => {

@@ -17,7 +17,7 @@ export interface ClaimTxInput {
   feeRate?: number;
 }
 
-/** Returns the signed claim tx hex. The share pays its own fee; the claimer gets the rest. */
+/** Returns the signed claim tx hex. The share pays its own fee; the claimer gets the rest (`amount`, all outputs). */
 export function buildClaimTx(i: ClaimTxInput): { hex: string; fee: bigint; amount: bigint } {
   const contract = hongbaoContract(
     {
@@ -41,27 +41,42 @@ export function buildClaimTx(i: ClaimTxInput): { hex: string; fee: bigint; amoun
     lockingBytecode: contract.lockingBytecode,
     ...(token && { token }),
   };
-  const build = (amount: bigint) =>
-    new TransactionBuilder({ provider: i.provider })
+  const to = hexToBin(i.recipientLockingBytecode);
+  // A seal share pays the seal on a dust output and the rest as plain BCH on a second output to the
+  // same recipient: wallets (Paytaca) only count token-free outputs as BCH balance.
+  const build = (amount: bigint, bch?: bigint) => {
+    const tb = new TransactionBuilder({ provider: i.provider })
       .addInput(utxo, contract.unlock.claim(new SignatureTemplate(i.linkPrivateKey), hexToBin(i.gateSig)))
-      .addOutput({ to: hexToBin(i.recipientLockingBytecode), amount, ...(token && { token }) })
-      .build();
-  // Measure with the output at exactly the dust limit: the amount is always 8 bytes, so the value
-  // doesn't change the size, and measuring never builds a sub-dust output (review #4). (CashScript
-  // refuses to build below 1 sat/B, so the full value can't be used either.)
-  const dust = dustLimit(i.recipientLockingBytecode.length / 2, token);
+      .addOutput({ to, amount, ...(token && { token }) });
+    if (bch !== undefined) tb.addOutput({ to, amount: bch });
+    return tb.build();
+  };
+  const dust = dustLimit(to.length, token);
+  const plainDust = dustLimit(to.length);
   if (sats <= dust) throw new Error(`share of ${sats} sats is too small to claim (dust ${dust})`);
-  let measured: string;
-  try {
-    measured = build(dust);
-  } catch (e) {
-    // Even measuring at dust pays < 1 sat/B: the share can't cover its own fee.
-    if (/fee per byte/i.test((e as Error).message)) throw new Error(`share of ${sats} sats is too small to claim (can't cover the fee)`);
-    throw e;
-  }
-  const size = BigInt(measured.length / 2);
-  const fee = size * BigInt(i.feeRate ?? 1);
+  // Measure with outputs at exactly their dust limits: amounts are always 8 bytes, so the values
+  // don't change the size, and measuring never builds a sub-dust output (review #4). (CashScript
+  // refuses to build below 1 sat/B, so the full value can't be used either.)
+  const measure = (split: boolean) => {
+    try {
+      return BigInt(build(dust, split ? plainDust : undefined).length / 2) * BigInt(i.feeRate ?? 1);
+    } catch (e) {
+      // Even measuring at dust pays < 1 sat/B: the share can't cover its own fee.
+      if (/fee per byte/i.test((e as Error).message)) return null;
+      throw e;
+    }
+  };
   const maxFee = BigInt(i.constructorArgs.maxFee);
+  if (token) {
+    const fee = measure(true);
+    if (fee !== null && fee <= maxFee && sats - fee - dust >= plainDust) {
+      const bch = sats - fee - dust;
+      return { hex: build(dust, bch), fee, amount: dust + bch };
+    }
+    // Too small to split: everything rides on the seal output (still a valid claim).
+  }
+  const fee = measure(false);
+  if (fee === null) throw new Error(`share of ${sats} sats is too small to claim (can't cover the fee)`);
   if (fee > maxFee) throw new Error(`fee ${fee} exceeds the envelope's maxFee ${maxFee}`);
   const amount = sats - fee;
   if (amount < dust) throw new Error(`share of ${sats} sats is too small to claim (${amount} after fee < ${dust} dust)`);
