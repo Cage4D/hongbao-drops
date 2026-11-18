@@ -186,7 +186,7 @@ No **blockers** remain: the judge's claim path (open → paste address or connec
 
 **m4. Pass it on's default amount is never the 50% it suggests** (not fixed, UX call). `Send.tsx:43` uses `max(suggest, 6000)`. A typical claimed share (2,000–3,000 sats) halved is below the 3 × 2,000 minimum, so the form always opens at 6,000 sats, more than the claimer received. They need other coins in the wallet ("needs about 5,949 more sats" for a 2,071-sat claim). On mainnet with ~$0.05 shares (~24,000 sats) the 50% default is fine. Option: suggest 1 share without stamps when the claim is small.
 
-**m5. Most stamped envelopes need two wallet approvals** (not a bug, UX note). The funding tx's change is never at vout 0, so a wallet rarely has a vout-0 coin and the prep self-send runs almost every time (all 6 harness envelopes from the script wallet needed it). The UI says "signature 1 of 2", so it is explained.
+**m5. Most stamped envelopes need two wallet approvals** (not a bug, UX note). The funding tx's change is never at vout 0, so a wallet rarely has a vout-0 coin and the prep self-send runs almost every time (4 of the 5 stamped envelopes funded from the script wallet needed it). The UI says "signature 1 of 2", so it is explained.
 
 **m6. `RATE_LIMITED` on create after the prep signature** (not fixed, minor). `POST /envelopes` is limited to 20/h per IP and runs after the prep tx. When the limit hits, the user has already approved a (harmless) self-send. Hit during this test run, not likely for a judge.
 
