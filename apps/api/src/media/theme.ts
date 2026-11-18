@@ -1,4 +1,4 @@
-// Theme palettes shared by link-preview cards and stamps (spec §9: classic-red, gold, christmas, lunar).
+// Theme palettes shared by link-preview cards and seals (spec §9: classic-red, gold, christmas, lunar).
 // The frontend session styles to match these values.
 import type { Theme } from '@hongbao/shared';
 

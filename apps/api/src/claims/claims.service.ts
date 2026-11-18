@@ -33,7 +33,7 @@ import { truncateAddress } from '../common/address.js';
 import { hashAnswer } from '../envelopes/envelopes.service.js';
 import { EventsService } from '../events/events.service.js';
 import { BudgetService } from '../budget/budget.service.js';
-import { stampAlt } from '../media/stamp.js';
+import { sealAlt } from '../media/seal.js';
 import type { Claim, Envelope, Prisma, Share } from '../generated/prisma/client.js';
 
 export const RESERVATION_MS = 120_000;
@@ -111,7 +111,7 @@ export class ClaimsService {
         outpointTxid: share.outpointTxid,
         outpointIndex: share.outpointIndex,
         sats: toNum(share.sats),
-        tokenCategory: share.nftCommitment ? env.stampCategory : null,
+        tokenCategory: share.nftCommitment ? env.sealCategory : null,
         nftCommitment: share.nftCommitment,
       },
       gateSig: binToHex(gateSig),
@@ -374,10 +374,10 @@ export class ClaimsService {
     if (output && output.valueSatoshis < share.sats - BigInt(env.maxFee)) reasons.push('the network fee is above the envelope limit');
     if (output && share.nftCommitment) {
       const t = output.token;
-      if (!t || binToHex(t.category) !== env.stampCategory || !t.nft || binToHex(t.nft.commitment) !== share.nftCommitment) {
-        reasons.push('the stamp must go to the claimer unchanged');
+      if (!t || binToHex(t.category) !== env.sealCategory || !t.nft || binToHex(t.nft.commitment) !== share.nftCommitment) {
+        reasons.push('the seal must go to the claimer unchanged');
       }
-    } else if (output?.token) reasons.push('unexpected token on a stamp-less share');
+    } else if (output?.token) reasons.push('unexpected token on a seal-less share');
     if (reasons.length) throw new AppError('INVALID_REQUEST', { reasons });
 
     const txid = await this.chain.broadcast(rawTx);
@@ -411,7 +411,7 @@ export class ClaimsService {
           isNewWallet: claim.isNewWallet,
           luckiest: env.mode === 'LUCKY' && amount > (prevMax._max.amountSats ?? 0n),
           txid,
-          stamp: share.nftCommitment,
+          seal: share.nftCommitment,
           sharesLeft: left,
         },
         db,
@@ -439,13 +439,13 @@ export class ClaimsService {
       txid,
       amountSats: toNum(amount),
       amountUsd: this.price.toUsd(amount, p),
-      stamp:
-        share?.nftCommitment && env.stampCategory
+      seal:
+        share?.nftCommitment && env.sealCategory
           ? {
-              category: env.stampCategory,
+              category: env.sealCategory,
               commitment: share.nftCommitment,
-              imageUrl: `${api}/stamps/${env.stampCategory}/${share.nftCommitment}.png`,
-              alt: stampAlt({ theme: env.theme, seq: env.seq, index: share.index, shareCount: env.shareCount }),
+              imageUrl: `${api}/seals/${env.sealCategory}/${share.nftCommitment}.png`,
+              alt: sealAlt({ theme: env.theme, seq: env.seq, index: share.index, shareCount: env.shareCount }),
             }
           : null,
     };

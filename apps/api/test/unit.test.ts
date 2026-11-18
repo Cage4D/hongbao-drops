@@ -11,7 +11,7 @@ import type { NetworkProvider } from 'cashscript';
 import { addSenderUtxo, key, p2pkh, pub, sender, senderPriv, testConfig } from './helpers.js';
 
 describe('verifyFundingTx: genesis input', () => {
-  it('flags a stamped envelope whose input 0 is not <category>:0', async () => {
+  it('flags a seal-bearing envelope whose input 0 is not <category>:0', async () => {
     const provider = new MockNetworkProvider();
     const utxo = addSenderUtxo(provider);
     const contract = hongbaoContract(
@@ -23,7 +23,7 @@ describe('verifyFundingTx: genesis input', () => {
     const outs = fundingOutputs({
       contract,
       shareAmounts: [5_000n],
-      stamps: { category: utxo.txid, envelopeSeq: 1, identityLockingBytecode: treasury, bcmr },
+      seals: { category: utxo.txid, envelopeSeq: 1, identityLockingBytecode: treasury, bcmr },
     });
     const hex = await new TransactionBuilder({ provider })
       .addInput(utxo, new SignatureTemplate(senderPriv).unlockP2PKH())
@@ -37,8 +37,8 @@ describe('verifyFundingTx: genesis input', () => {
       mode: 'LUCKY' as const,
       shareCount: 1,
       totalSats: 5_000n,
-      withStamps: true,
-      stampCategory: utxo.txid,
+      withSeals: true,
+      sealCategory: utxo.txid,
       bcmrHash: Buffer.from(bcmr.registryHash).toString('hex'),
       bcmrUri: 'x/y.json',
       sponsorFeeSats: 0n,
@@ -46,7 +46,7 @@ describe('verifyFundingTx: genesis input', () => {
       treasuryLockingBytecode: Buffer.from(treasury).toString('hex'),
     };
     expect(verifyFundingTx(tx, expected)).toMatchObject({ ok: true });
-    const wrong = verifyFundingTx(tx, { ...expected, stampCategory: 'ab'.repeat(32) });
+    const wrong = verifyFundingTx(tx, { ...expected, sealCategory: 'ab'.repeat(32) });
     expect(wrong.ok).toBe(false);
     if (!wrong.ok) expect(wrong.reasons[0]).toMatch(/input 0 must spend/);
   });

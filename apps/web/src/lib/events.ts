@@ -10,8 +10,8 @@ export interface ClaimedEvent {
   isNewWallet: boolean | null;
   luckiest: boolean;
   txid: string;
-  /** NFT commitment of the stamp, if any. */
-  stamp: string | null;
+  /** NFT commitment of the seal, if any. */
+  seal: string | null;
   sharesLeft: number;
   at: string;
 }

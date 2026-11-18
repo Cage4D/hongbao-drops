@@ -14,7 +14,7 @@ Like Review 1, this one found no way to take funds, redirect them, refund early 
 
 | # | Sev | Finding | Fix | Test |
 |---|---|---|---|---|
-| P1-1 | HIGH | Keeper never refunded no-stamp shares under 1,546 sats (dust + maxFee), though the API accepts 1,500. A mixed envelope went `REFUNDED` with small shares left | `planRefund()` (contract package) replaces `refundableUtxos`. It uses the **measured** per-input fee (~340 sat), drops near-dust coins from the batch instead of failing it, and reports what's left over. `buildRefundTx` measures with inflated input values, so CashScript's own fee check can't fire before "too small to refund" (found by the new test). Envelope status now comes from `settle()`, not from the batch | `refund.test.ts` (shares at exactly 1,500 / 2,000; dust left behind; null; >20 batched); `lifecycle › P1-1` (4,500 sats / 3 shares, refunded, `REFUNDED`) |
+| P1-1 | HIGH | Keeper never refunded no-seal shares under 1,546 sats (dust + maxFee), though the API accepts 1,500. A mixed envelope went `REFUNDED` with small shares left | `planRefund()` (contract package) replaces `refundableUtxos`. It uses the **measured** per-input fee (~340 sat), drops near-dust coins from the batch instead of failing it, and reports what's left over. `buildRefundTx` measures with inflated input values, so CashScript's own fee check can't fire before "too small to refund" (found by the new test). Envelope status now comes from `settle()`, not from the batch | `refund.test.ts` (shares at exactly 1,500 / 2,000; dust left behind; null; >20 batched); `lifecycle › P1-1` (4,500 sats / 3 shares, refunded, `REFUNDED`) |
 | P1-2 | HIGH | Envelopes emptied outside the keeper/API stayed `ACTIVE`/`EXPIRED`; `locked` summed `totalSats` of those rows, so 3 of them filled `MAX_ACTIVE_MAINNET_SATS` for good | `settle()` after reconcile and refunds: `EXHAUSTED` (all claimed, emits `exhausted`) or `REFUNDED` once no share is unspent. `locked` = sats of **unspent shares** of funded envelopes (+ pending in their first hour) | `lifecycle › P1-2` ×2 (external refund → `REFUNDED`; last claim broadcast directly → `EXHAUSTED`); `budget › P1-2/P1-3` |
 | P1-3 | HIGH | The ledger missed claims recorded by reconcile, so `BUDGET_TOTAL_USD` undercounted. Dropped claims double-counted | Caps and `/admin/budget` derive **spent = CLAIMED share sats** from state, so every path counts. `LedgerEntry` is now an idempotent audit log (per kind + txid + envelope), also written by reconcile (claims and external refunds); a dropped claim's entry is removed. `/admin/budget` shows the ledger next to the state for comparison | `budget › P1-2/P1-3`; `admin › summarises…` (ledger agrees with state) |
 | P1-4 | MED | `BUDGET_TOTAL_USD` and the USD caps were skipped when the price was unknown (fresh mainnet DB + CoinGecko failure) | Caps fall back to `BUDGET_FALLBACK_BCH_USD` (default **$500**, ~2.4× today, so strict). `/admin/budget` shows `priceLive` | `budget › P1-4` ×2 |
@@ -42,7 +42,7 @@ Like Review 1, this one found no way to take funds, redirect them, refund early 
 
 ## Test gaps closed
 
-Refunds at minimum share sizes; status and `locked` after external refund or claim; spending after reconcile; price unknown; wrong-network Fulcrum; GET tick; SSE DB error and per-IP limit; CSV formula injection (also now escapes leading tab/CR); a stamped sponsored drop with the fee at the 546-sat floor.
+Refunds at minimum share sizes; status and `locked` after external refund or claim; spending after reconcile; price unknown; wrong-network Fulcrum; GET tick; SSE DB error and per-IP limit; CSV formula injection (also now escapes leading tab/CR); a seal-bearing sponsored drop with the fee at the 546-sat floor.
 
 ## New / changed config
 
@@ -63,7 +63,7 @@ Refunds at minimum share sizes; status and `locked` after external refund or cla
 - **Stale-connection fix (`b0b11d2`) seen in production:** between 13:30 and 13:38 UTC, cron ticks found the Fulcrum socket dead 5 times (`was stale … reconnecting`) and all returned 200. Without the fix each of those requests would have been a 503.
 - **All four e2e suites pass against production:**
   - `api-e2e`: `ACTIVE` via [29ac208d…](https://chipnet.imaginary.cash/tx/29ac208d852f9e37dc02e6f25d395c5adc68fb5ac18c2d44f16eb4ec2df4b00d).
-  - `claims-e2e`: 3 parallel stamped claims, `ENVELOPE_EMPTY`, `ALREADY_CLAIMED`, hold + quiz.
+  - `claims-e2e`: 3 parallel seal-bearing claims, `ENVELOPE_EMPTY`, `ALREADY_CLAIMED`, hold + quiz.
   - `lifecycle-e2e`: SSE `claimed` + `passedOn`, 2-generation tree, activation.
   - `campaign-e2e --single-ip`: every claim and fee reconciled with the chain; the public page leaks no addresses.
 - **Script fix found by the re-test:** the e2e scripts measured draft txs with a flat 1,000-sat fee placeholder, which broke once the script wallet held ~20 coins. Fixed with `draftFee(inputs)` (`b48ca23`).

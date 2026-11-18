@@ -11,8 +11,8 @@ export const CASHSCRIPT_VERSION = '0.14.0';
 /** Default per-input fee cap. Claim ≈ 483 B, refund ≈ 341 B per share → ~2 sat/B headroom. */
 export const DEFAULT_MAX_FEE = 1_000n;
 /** Smallest share the API accepts (docs/findings.md §3): keeps claim/refund outputs above dust. */
-export const MIN_SHARE_SATS_WITH_STAMP = 2_000n;
-export const MIN_SHARE_SATS_NO_STAMP = 1_500n;
+export const MIN_SHARE_SATS_WITH_SEAL = 2_000n;
+export const MIN_SHARE_SATS_NO_SEAL = 1_500n;
 /** Keeper batch cap: refundBatch re-checks every pair from every input (O(n²)). */
 export const MAX_REFUND_BATCH = 20;
 /** nLockTime values below this are block heights, not timestamps. */
@@ -82,11 +82,11 @@ export function signGateApproval(gatePrivateKey: Uint8Array, message: Uint8Array
 }
 
 /**
- * Stamp NFT commitment: u32le(envelopeSeq) ‖ u8(shareIndex), with shareIndex 1-based.
+ * Seal NFT commitment: u32le(envelopeSeq) ‖ u8(shareIndex), with shareIndex 1-based.
  * BCMR reads sequential-NFT commitments as VM numbers; the last byte is the most significant,
  * so it must be non-zero (minimal encoding) and < 0x80 (positive). See findings §5.
  */
-export function stampCommitment(envelopeSeq: number, shareIndex: number): Uint8Array {
+export function sealCommitment(envelopeSeq: number, shareIndex: number): Uint8Array {
   if (!Number.isInteger(envelopeSeq) || envelopeSeq < 0 || envelopeSeq > 0xffffffff) {
     throw new Error('envelopeSeq must fit in 4 bytes');
   }

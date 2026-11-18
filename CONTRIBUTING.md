@@ -6,10 +6,10 @@ The judge-facing overview is in [README.md](README.md). The original brief is [H
 
 | Path | What |
 |---|---|
-| `packages/contract` | CashScript 0.14 contract (`Hongbao.cash`), compiled artifact and builders: `fundingOutputs`, `buildClaimTx`, `planRefund`/`buildRefundTx`, `dustLimit`, `gateMessage`, `stampCommitment`. `spikes/` holds Phase 0 experiments. Contract walkthrough: [contracts/README.md](packages/contract/contracts/README.md) |
+| `packages/contract` | CashScript 0.14 contract (`Hongbao.cash`), compiled artifact and builders: `fundingOutputs`, `buildClaimTx`, `planRefund`/`buildRefundTx`, `dustLimit`, `gateMessage`, `sealCommitment`. `spikes/` holds Phase 0 experiments. Contract walkthrough: [contracts/README.md](packages/contract/contracts/README.md) |
 | `packages/shared` | Zod schemas, API types (imported by the frontend) and the error catalog |
-| `apps/api` | NestJS 12 + Prisma 7 + Postgres API: envelopes, claims (the gate), keeper, SSE events, media (OG cards, stamps, BCMR), campaigns, admin, `/health` |
-| `scripts` | Chipnet tools (`wallet`, `fund`, `claim`, `refund`, `send`, `inspect`, `addr-check`) and e2e suites (`api-e2e`, `claims-e2e`, `lifecycle-e2e`, `campaign-e2e`, `stamp-to-wallet`). All take `--api <url>` |
+| `apps/api` | NestJS 12 + Prisma 7 + Postgres API: envelopes, claims (the gate), keeper, SSE events, media (OG cards, seals, BCMR), campaigns, admin, `/health` |
+| `scripts` | Chipnet tools (`wallet`, `fund`, `claim`, `refund`, `send`, `inspect`, `addr-check`) and e2e suites (`api-e2e`, `claims-e2e`, `lifecycle-e2e`, `campaign-e2e`, `seal-to-wallet`). All take `--api <url>` |
 | `apps/wc-test` | Throwaway WizardConnect test page (Phase 2) |
 | `docs/` | Phase notes, decisions ([findings.md](docs/findings.md)), the two external reviews' fixes, deploy notes and the mainnet runbook |
 
@@ -42,7 +42,7 @@ pnpm --filter @hongbao/api exec tsc -p tsconfig.json --noEmit --strict false
 
 ## Scripts and networks
 
-Scripts run on **Chipnet** unless told otherwise. `--mainnet` works only for the manual tools (`wallet`, `inspect`, `addr-check`, `send`, `stamp-to-wallet`), and broadcasting on mainnet additionally needs `--yes-mainnet`. The e2e suites always refuse mainnet. Examples:
+Scripts run on **Chipnet** unless told otherwise. `--mainnet` works only for the manual tools (`wallet`, `inspect`, `addr-check`, `send`, `seal-to-wallet`), and broadcasting on mainnet additionally needs `--yes-mainnet`. The e2e suites always refuse mainnet. Examples:
 
 ```bash
 pnpm --filter @hongbao/scripts wallet

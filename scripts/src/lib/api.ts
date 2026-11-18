@@ -29,7 +29,7 @@ export const check = (cond: boolean, msg: string) => {
 };
 
 /**
- * Create an envelope via the API and fund it from the script wallet (stamps need a vout-0 input;
+ * Create an envelope via the API and fund it from the script wallet (seals need a vout-0 input;
  * makes a prep tx when necessary). Returns the API response, the link secret and the funding txid.
  */
 export async function createAndFund(
@@ -39,7 +39,7 @@ export async function createAndFund(
   wallet: KeyPair = walletKey(),
 ): Promise<{ env: CreateEnvelopeResponse; linkPriv: Uint8Array; fundingTxid: string }> {
   const signer = new SignatureTemplate(wallet.priv);
-  const withStamps = over.withStamps !== false;
+  const withSeals = over.withSeals !== false;
   // Coins just received via the API (e.g. a claim) may not have reached our Fulcrum server yet.
   let utxos: SpendableUtxo[] = [];
   for (let i = 0; i < 15 && utxos.length === 0; i++) {
@@ -49,7 +49,7 @@ export async function createAndFund(
   if (utxos.length === 0) throw new Error(`no spendable coins at ${wallet.address} after 30 s`);
 
   let input0 = utxos.find((u) => u.vout === 0 && u.satoshis > 30_000n);
-  if (withStamps && !input0) {
+  if (withSeals && !input0) {
     const total = utxos.reduce((s, u) => s + u.satoshis, 0n);
     const mk = (amt: bigint) => {
       const tb = new TransactionBuilder({ provider });
@@ -69,8 +69,8 @@ export async function createAndFund(
     senderAddress: wallet.address,
     linkPk: binToHex(secp256k1.derivePublicKeyCompressed(linkPriv) as Uint8Array),
     expiry: Math.floor(Date.now() / 1000) + 15 * 60,
-    withStamps,
-    ...(withStamps && { stampCategory: input0.txid }),
+    withSeals,
+    ...(withSeals && { sealCategory: input0.txid }),
     ...over,
   });
   if (created.status !== 201) throw new Error(`create failed: ${JSON.stringify(created.body)}`);

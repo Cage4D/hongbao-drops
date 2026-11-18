@@ -8,7 +8,7 @@ At ~$213/BCH, $3 ≈ **1,410,000 sats**. The server cap is set **below** what th
 
 | Use | USD | Notes |
 |---|---|---|
-| Nov 19 checks | ≤ $0.05 | One 2-share stamped envelope of 4,000 sats: one share to your Paytaca, one refunded. Fees ≈ $0.003 |
+| Nov 19 checks | ≤ $0.05 | One 2-share seal-bearing envelope of 4,000 sats: one share to your Paytaca, one refunded. Fees ≈ $0.003 |
 | Judges' demo envelopes | $1.10 | Refilled one at a time via `/admin/demo/refill` |
 | "BLAZE Drop" campaign (Phase 9) | $0.90 | |
 | Buffer inside the cap | ≈ $0.45 | |
@@ -23,7 +23,7 @@ Default caps stay: `MAX_ENVELOPE_USD` 0.50, `MAX_SHARES` 10, `MAX_ACTIVE_MAINNET
 | Demo wallet (fund this, ≈ $3) | `bitcoincash:qr2e5eeur56d4qatra9fsxn230g4v2tsrujqjznd3p` |
 | Treasury (identity outputs + sponsor fees; never spent) | `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
 | Keys | `scripts/.state/mainnet/{wallet,treasury}.json`, mode 600, gitignored. **Back this folder up**: it's the only copy |
-| Scripts | `--mainnet` works only for `wallet`, `inspect`, `addr-check`, `send`, `stamp-to-wallet`. Broadcasting also needs `--yes-mainnet`. `send` is capped at 50,000 sats, `stamp-to-wallet` at 20,000. Every e2e suite refuses mainnet |
+| Scripts | `--mainnet` works only for `wallet`, `inspect`, `addr-check`, `send`, `seal-to-wallet`. Broadcasting also needs `--yes-mainnet`. `send` is capped at 50,000 sats, `seal-to-wallet` at 20,000. Every e2e suite refuses mainnet |
 | Fulcrum (probed 2026-11-17) | `bch.imaginary.cash:50004` ✅, `fulcrum.greyh.at:50004` ✅ (both with `get_history`, same tip). The API refuses hosts on the wrong network (review-2 P1-5) |
 
 ## Nov 19 steps
@@ -72,15 +72,15 @@ Each request is refused before anything is created: `shareCount: 11` → 422 `MA
 
 ### 7. First real envelope: funding + claim to Paytaca + batch refund (Claude, after asking) 💸
 ```bash
-pnpm --filter @hongbao/scripts stamp-to-wallet -- --mainnet --yes-mainnet \
+pnpm --filter @hongbao/scripts seal-to-wallet -- --mainnet --yes-mainnet \
   --to <your Paytaca mainnet address> --api https://hongbao-drops-api.vercel.app \
   --shares 2 --sats 4000 --expiry-minutes 15
 ```
-- **Funding tx:** 2 stamped shares, BCMR publication, identity output to the treasury.
-- **Claim tx:** about 1,500 sats + stamp to your Paytaca. **Check in Paytaca:** the sats arrive, a collectible appears, and the name and image show up. This is the check Chipnet couldn't do.
+- **Funding tx:** 2 seal-bearing shares, BCMR publication, identity output to the treasury.
+- **Claim tx:** about 1,500 sats + seal to your Paytaca. **Check in Paytaca:** the sats arrive, a collectible appears, and the name and image show up. This is the check Chipnet couldn't do.
 - **This is a must-pass gate: Paytaca is a hackathon sponsor and the required wallet.** If any part fails, stop and diagnose before anything else:
   1. Compare Paytaca's server with the chain: `https://watchtower.cash/api/balance/bch/<addr>/` and `/api/utxo/bch/<addr>/` vs `addr-check --mainnet <addr>`.
-  2. For a missing name/image: check whether Paytaca's metadata indexer knows the stamp, at `https://bcmr.paytaca.com/api/tokens/<category>/`. If not, compare our registry and OP_RETURN with a token that does display in Paytaca.
+  2. For a missing name/image: check whether Paytaca's metadata indexer knows the seal, at `https://bcmr.paytaca.com/api/tokens/<category>/`. If not, compare our registry and OP_RETURN with a token that does display in Paytaca.
   3. Ask the Paytaca team (sponsor channel). They can tell us what their indexer expects.
 - **Refund tx:** the keeper batch-refunds the other share to the demo wallet about 75 min later (15 min expiry + about 1 h median-time-past lag).
 - Total cost about 2,000 sats claimed + about 1,500 sats of fees ≈ **$0.008**.

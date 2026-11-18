@@ -1,5 +1,5 @@
 // The red envelope itself, drawn in CSS so it can open. Colours follow the envelope's theme
-// (the stamps use the same four themes); "lunar" is the blue dragon house style.
+// (the seals use the same four themes); "lunar" is the blue dragon house style.
 import type { CSSProperties, ReactNode } from 'react';
 import type { Theme } from '@hongbao/shared';
 

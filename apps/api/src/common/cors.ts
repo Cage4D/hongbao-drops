@@ -5,6 +5,7 @@
 // unaffected; it is not an auth layer (the rate limits and the one-share-per-claimer rules are).
 import type { CorsOptions, CorsOptionsDelegate } from '@nestjs/common/interfaces/external/cors-options.interface.js';
 import type { Request } from 'express';
+import { LEGACY_MEDIA_PREFIX } from './legacy.js';
 
 /** The frontend: production, its Vercel aliases and preview deploys, and local dev. */
 const DEFAULT_ORIGINS: (string | RegExp)[] = [
@@ -14,8 +15,8 @@ const DEFAULT_ORIGINS: (string | RegExp)[] = [
   /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
 ];
 
-/** Public, read-only, safe for any site: stamp images, wallet metadata, preview cards, health. */
-const OPEN_PATHS = /^\/(bcmr|stamps|og)\/|^\/health\/?$/;
+/** Public, read-only, safe for any site: seal images (and their legacy redirect), wallet metadata, preview cards, health. */
+const OPEN_PATHS = new RegExp(`^/(bcmr|seals|${LEGACY_MEDIA_PREFIX}|og)/|^/health/?$`);
 
 /** Extra exact origins from CORS_ORIGINS (comma-separated), e.g. a custom domain. */
 export function allowedOrigins(env: NodeJS.ProcessEnv = process.env): (string | RegExp)[] {

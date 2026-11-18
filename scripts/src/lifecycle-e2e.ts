@@ -35,7 +35,7 @@ check(!!health.body.keeper.lastRunAt, `/health shows keeper heartbeat ${health.b
 
 // ------------------------------------------------------------ 2. SSE shows claims
 console.log('\n2. Live events');
-const root = await createAndFund(call, provider, { shareCount: 2, mode: 'EQUAL', totalSats: 20_000, withStamps: false, message: 'Pass it on!' });
+const root = await createAndFund(call, provider, { shareCount: 2, mode: 'EQUAL', totalSats: 20_000, withSeals: false, message: 'Pass it on!' });
 console.log(`   root envelope funded: ${EXPLORER_TX}${root.fundingTxid} (slug ${root.env.slug})`);
 
 const events: { event: string; data: Record<string, unknown> }[] = [];
@@ -74,7 +74,7 @@ console.log('\n3. Pass it on');
 const child = await createAndFund(
   call,
   provider,
-  { shareCount: 2, mode: 'LUCKY', totalSats: 6_000, withStamps: false, parentEnvelopeId: root.env.id, message: 'Re-gifted!' },
+  { shareCount: 2, mode: 'LUCKY', totalSats: 6_000, withSeals: false, parentEnvelopeId: root.env.id, message: 'Re-gifted!' },
   claimer,
 );
 console.log(`   claimer re-gifted from their claimed coins: ${EXPLORER_TX}${child.fundingTxid} (slug ${child.env.slug})`);

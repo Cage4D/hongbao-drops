@@ -75,7 +75,7 @@ model Campaign {
 
 model Envelope {
   id                    String         @id @default(cuid())
-  seq                   Int            @unique @default(autoincrement()) // gate key index + stamp commitment prefix
+  seq                   Int            @unique @default(autoincrement()) // gate key index + seal commitment prefix
   slug                  String         @unique
   network               Network
   senderAddress         String
@@ -90,8 +90,8 @@ model Envelope {
   quizQuestion          String?
   quizAnswerHashes      String[]
   quizSalt              String?
-  withStamps            Boolean        @default(true)
-  stampCategory         String? // Phase 0 decision: txid of the vout-0 outpoint input 0 spends
+  withSeals             Boolean        @default(true)
+  sealCategory          String? // Phase 0 decision: txid of the vout-0 outpoint input 0 spends
   bcmrRegistry          String? // exact registry bytes committed on-chain (served verbatim)
   bcmrHash              String? // hex sha256(bcmrRegistry)
   bcmrUri               String? // URI committed in the OP_RETURN (no protocol = https)
@@ -130,7 +130,7 @@ model Share {
   id            String      @id @default(cuid())
   envelopeId    String
   envelope      Envelope    @relation(fields: [envelopeId], references: [id])
-  index         Int // 1-based, matches the stamp commitment's last byte
+  index         Int // 1-based, matches the seal commitment's last byte
   outpointTxid  String
   outpointIndex Int
   sats          BigInt

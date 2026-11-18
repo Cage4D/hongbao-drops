@@ -10,8 +10,8 @@ import {
 import { ElectrumNetworkProvider } from 'cashscript';
 import {
   DEFAULT_MAX_FEE,
-  MIN_SHARE_SATS_NO_STAMP,
-  MIN_SHARE_SATS_WITH_STAMP,
+  MIN_SHARE_SATS_NO_SEAL,
+  MIN_SHARE_SATS_WITH_SEAL,
   equalSplit,
   fundingOutputs,
   hongbaoContract,
@@ -39,7 +39,7 @@ import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
 import { truncateAddress } from '../common/address.js';
 import { EventsService } from '../events/events.service.js';
-import { stampAlt } from '../media/stamp.js';
+import { sealAlt } from '../media/seal.js';
 import { ogAlt } from '../media/og.js';
 import { LIMITS, RateLimitService } from '../ratelimit/rate-limit.service.js';
 import { buildBcmrRegistry } from './bcmr.js';
@@ -109,15 +109,15 @@ export class EnvelopesService {
     const bad = (path: string, message: string) => new AppError('INVALID_REQUEST', { issues: [{ path, message }] });
 
     const refundLockingBytecode = this.lockingBytecodeOf(req.senderAddress, 'senderAddress');
-    const withStamps = req.withStamps && c.ENABLE_STAMPS;
-    if (withStamps && !req.stampCategory) throw bad('stampCategory', 'required when withStamps is true');
+    const withSeals = req.withSeals && c.ENABLE_SEALS;
+    if (withSeals && !req.sealCategory) throw bad('sealCategory', 'required when withSeals is true');
 
     const now = Math.floor(Date.now() / 1000);
     if (req.expiry < now + c.MIN_EXPIRY_SECONDS) throw bad('expiry', `must be at least ${c.MIN_EXPIRY_SECONDS}s from now`);
     if (req.expiry > now + c.MAX_EXPIRY_SECONDS) throw bad('expiry', `must be at most ${c.MAX_EXPIRY_SECONDS}s from now`);
 
     const totalSats = BigInt(req.totalSats);
-    const minShare = withStamps ? MIN_SHARE_SATS_WITH_STAMP : MIN_SHARE_SATS_NO_STAMP;
+    const minShare = withSeals ? MIN_SHARE_SATS_WITH_SEAL : MIN_SHARE_SATS_NO_SEAL;
     if (totalSats < minShare * BigInt(req.shareCount)) {
       throw bad('totalSats', `must be at least ${minShare * BigInt(req.shareCount)} sats (${minShare} per share)`);
     }
@@ -175,8 +175,8 @@ export class EnvelopesService {
               quizQuestion: req.quiz?.question ?? null,
               quizAnswerHashes,
               quizSalt,
-              withStamps,
-              stampCategory: withStamps ? req.stampCategory! : null,
+              withSeals,
+              sealCategory: withSeals ? req.sealCategory! : null,
               totalSats,
               shareCount: req.shareCount,
               message: req.message || null,
@@ -194,9 +194,9 @@ export class EnvelopesService {
       }
       const gatePk = binToHex(this.keys.gatePublicKey(row.seq));
       const contract = this.contractFor({ ...row, gatePk });
-      const bcmr = withStamps
+      const bcmr = withSeals
         ? buildBcmrRegistry({
-            category: req.stampCategory!,
+            category: req.sealCategory!,
             envelopeSeq: row.seq,
             shareCount: req.shareCount,
             theme: req.theme,
@@ -225,14 +225,14 @@ export class EnvelopesService {
 
   private createResponse(e: Envelope): CreateEnvelopeResponse {
     const contract = this.contractFor(e);
-    const minShare = e.withStamps ? MIN_SHARE_SATS_WITH_STAMP : MIN_SHARE_SATS_NO_STAMP;
+    const minShare = e.withSeals ? MIN_SHARE_SATS_WITH_SEAL : MIN_SHARE_SATS_NO_SEAL;
     const shareAmounts = e.mode === 'LUCKY' ? luckySplit(e.totalSats, e.shareCount, minShare) : equalSplit(e.totalSats, e.shareCount);
     const outputs = fundingOutputs({
       contract,
       shareAmounts,
-      ...(e.withStamps && {
-        stamps: {
-          category: e.stampCategory!,
+      ...(e.withSeals && {
+        seals: {
+          category: e.sealCategory!,
           envelopeSeq: e.seq,
           identityLockingBytecode: hexToBin(this.treasuryLockingBytecode),
           bcmr: { registryHash: hexToBin(e.bcmrHash!), uris: [e.bcmrUri!] },
@@ -245,7 +245,7 @@ export class EnvelopesService {
     const fundingTemplate: CreateEnvelopeResponse['fundingTemplate'] = outputs.map((o, i) => {
       const lb = typeof o.to === 'string' ? contract.lockingBytecode : binToHex(o.to);
       const purpose: RequiredOutput['purpose'] | 'SHARE' =
-        lb === contract.lockingBytecode ? 'SHARE' : lb.startsWith('6a') ? 'BCMR' : e.withStamps && i === 0 ? 'IDENTITY' : 'SPONSOR_FEE';
+        lb === contract.lockingBytecode ? 'SHARE' : lb.startsWith('6a') ? 'BCMR' : e.withSeals && i === 0 ? 'IDENTITY' : 'SPONSOR_FEE';
       return {
         outputIndex: i,
         purpose,
@@ -300,8 +300,8 @@ export class EnvelopesService {
       mode: env.mode,
       shareCount: env.shareCount,
       totalSats: env.totalSats,
-      withStamps: env.withStamps,
-      stampCategory: env.stampCategory,
+      withSeals: env.withSeals,
+      sealCategory: env.sealCategory,
       bcmrHash: env.bcmrHash,
       bcmrUri: env.bcmrUri,
       sponsorFeeSats: env.sponsorFeeSats,
@@ -419,12 +419,12 @@ export class EnvelopesService {
       shares: { total: e.shareCount, claimed, left: e.status === 'PENDING_FUNDING' ? e.shareCount : unclaimed.length },
       expiry: e.expiry,
       secondsLeft: Math.max(0, e.expiry - now),
-      withStamps: e.withStamps,
-      stamp: e.stampCategory
+      withSeals: e.withSeals,
+      seal: e.sealCategory
         ? {
-            category: e.stampCategory,
-            imageUrl: `${api}/stamps/${e.stampCategory}/collection.png`,
-            alt: stampAlt({ theme: e.theme, seq: e.seq, index: null, shareCount: e.shareCount, sponsorName: sponsor?.name ?? null }),
+            category: e.sealCategory,
+            imageUrl: `${api}/seals/${e.sealCategory}/collection.png`,
+            alt: sealAlt({ theme: e.theme, seq: e.seq, index: null, shareCount: e.shareCount, sponsorName: sponsor?.name ?? null }),
           }
         : null,
       og: {

@@ -2,18 +2,18 @@
 // frontend. Building the output list in one place keeps the three in agreement.
 //
 // Output order:
-//   [0]      identity output → treasury    (stamps only: keeps the BCMR authchain alive, findings §5)
-//   [1..N]   shares → contract              (each with one immutable stamp NFT when stamps are on)
+//   [0]      identity output → treasury    (seals only: keeps the BCMR authchain alive, findings §5)
+//   [1..N]   shares → contract              (each with one immutable seal NFT when seals are on)
 //   [next]   sponsor fee → treasury          (sponsored drops only)
-//   [next]   BCMR OP_RETURN                  (stamps only)
+//   [next]   BCMR OP_RETURN                  (seals only)
 //   [last]   change → sender                 (added by the caller)
 //
-// CashTokens genesis rule: the stamp category = txid of the outpoint spent by input 0, and that
+// CashTokens genesis rule: the seal category = txid of the outpoint spent by input 0, and that
 // outpoint MUST be at output index 0. The caller ensures this (or makes a "prep" tx first).
 import type { Output } from 'cashscript';
 import { binToHex, encodeDataPush, sha256 } from '@bitauth/libauth';
 import type { HongbaoContract } from './hongbao.js';
-import { MIN_SHARE_SATS_NO_STAMP, MIN_SHARE_SATS_WITH_STAMP, stampCommitment } from './hongbao.js';
+import { MIN_SHARE_SATS_NO_SEAL, MIN_SHARE_SATS_WITH_SEAL, sealCommitment } from './hongbao.js';
 
 /** Plain P2PKH dust; the identity output only needs to exist, not carry value. */
 export const IDENTITY_OUTPUT_SATS = 546n;
@@ -22,8 +22,8 @@ export interface FundingPlan {
   contract: HongbaoContract;
   /** One entry per share, in share order (share i ↔ shareIndex i+1). */
   shareAmounts: bigint[];
-  /** Present when the envelope mints stamps. */
-  stamps?: {
+  /** Present when the envelope mints seals. */
+  seals?: {
     /** Display-hex txid of the vout-0 outpoint that input 0 spends (= the new token category). */
     category: string;
     /** Envelope sequence number (also the gate key index). */
@@ -53,41 +53,41 @@ export function bcmrOpReturn(registryHash: Uint8Array, uris: string[]): Uint8Arr
 
 /** The outputs of a funding tx, excluding change. Throws on any plan the API would reject. */
 export function fundingOutputs(plan: FundingPlan): Output[] {
-  const { contract, shareAmounts, stamps, sponsorFee } = plan;
+  const { contract, shareAmounts, seals, sponsorFee } = plan;
   if (shareAmounts.length < 1 || shareAmounts.length > 127) throw new Error('shareCount must be 1..127');
-  const minShare = stamps ? MIN_SHARE_SATS_WITH_STAMP : MIN_SHARE_SATS_NO_STAMP;
+  const minShare = seals ? MIN_SHARE_SATS_WITH_SEAL : MIN_SHARE_SATS_NO_SEAL;
   shareAmounts.forEach((a, i) => {
     if (a < minShare) throw new Error(`share ${i + 1} is ${a} sats, below the ${minShare}-sat minimum`);
   });
-  if (stamps && !/^[0-9a-f]{64}$/.test(stamps.category)) {
-    throw new Error('stamps.category must be a lowercase 64-hex txid');
+  if (seals && !/^[0-9a-f]{64}$/.test(seals.category)) {
+    throw new Error('seals.category must be a lowercase 64-hex txid');
   }
 
   const outputs: Output[] = [];
-  if (stamps) outputs.push({ to: stamps.identityLockingBytecode, amount: IDENTITY_OUTPUT_SATS });
+  if (seals) outputs.push({ to: seals.identityLockingBytecode, amount: IDENTITY_OUTPUT_SATS });
 
   shareAmounts.forEach((amount, i) => {
     outputs.push({
       to: contract.tokenAddress,
       amount,
-      ...(stamps && {
+      ...(seals && {
         token: {
-          category: stamps.category,
+          category: seals.category,
           amount: 0n,
-          nft: { capability: 'none' as const, commitment: binToHex(stampCommitment(stamps.envelopeSeq, i + 1)) },
+          nft: { capability: 'none' as const, commitment: binToHex(sealCommitment(seals.envelopeSeq, i + 1)) },
         },
       }),
     });
   });
 
   if (sponsorFee) outputs.push({ to: sponsorFee.lockingBytecode, amount: sponsorFee.amount });
-  if (stamps) outputs.push({ to: bcmrOpReturn(stamps.bcmr.registryHash, stamps.bcmr.uris), amount: 0n });
+  if (seals) outputs.push({ to: bcmrOpReturn(seals.bcmr.registryHash, seals.bcmr.uris), amount: 0n });
   return outputs;
 }
 
 /** Index of share i (0-based) inside the funding tx: shifted by one when an identity output leads. */
-export function shareOutputIndex(shareIdx0: number, withStamps: boolean): number {
-  return shareIdx0 + (withStamps ? 1 : 0);
+export function shareOutputIndex(shareIdx0: number, withSeals: boolean): number {
+  return shareIdx0 + (withSeals ? 1 : 0);
 }
 
 /**

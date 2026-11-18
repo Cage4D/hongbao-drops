@@ -5,7 +5,7 @@ Tested on **Chipnet only**. No mainnet coins were touched. Production API `https
 ## Summary
 
 - **Backend:** every spec requirement I could exercise is met or met as amended. All 233 automated tests pass and all four Chipnet e2e suites pass against production. I found **no backend bug that breaks a claim**. Three copy nits and one UX question are listed for a decision (backend changes need your OK).
-- **Frontend:** the claim flow works end to end in a real (headless) browser: paste an address, Hold my share, quiz, live second tab, success screen with stamp, double claim, empty/expired/refunded, broken links, sponsor CTA. Its funding and pass-on code also works on Chipnet: the app's own `fund.ts`/`claim.ts` was run with the script wallet signing locally (see "How the flows were driven").
+- **Frontend:** the claim flow works end to end in a real (headless) browser: paste an address, Hold my share, quiz, live second tab, success screen with seal, double claim, empty/expired/refunded, broken links, sponsor CTA. Its funding and pass-on code also works on Chipnet: the app's own `fund.ts`/`claim.ts` was run with the script wallet signing locally (see "How the flows were driven").
 - **Fixed in 6 small commits (not pushed):** 4 major and 3 minor frontend bugs, listed below. None touches the API.
 - **Must still be checked with Paytaca by hand:** WizardConnect connect + sign after the fee-planning change (commit `03d43e1`), and claiming through the **Wallet** tab after Hold my share (commit `a62150c`). I can't drive a phone wallet.
 
@@ -16,7 +16,7 @@ Tested on **Chipnet only**. No mainnet coins were touched. Production API `https
 | Rendering, clicks, phone width | Headless Chromium (Playwright 1.63) on the local frontend, at 1280 px and 375 px. Screenshots checked by eye |
 | Creating and funding envelopes | Creating through the UI needs a WizardConnect wallet. Instead, a harness ran the **frontend's own** `createAndFund()` (`apps/web/src/lib/fund.ts`) and `planChange()`/`txBuilder()` (the same code `wallet.tsx` uses), signing locally with the Chipnet script wallet in place of the WizardConnect sign request |
 | Claims outside the browser | The frontend's own `claimShare()` (`apps/web/src/lib/claim.ts`) |
-| Confirming coins and stamps | `pnpm --filter @hongbao/scripts addr-check` / `inspect` (Paytaca's Chipnet view is stuck; known) |
+| Confirming coins and seals | `pnpm --filter @hongbao/scripts addr-check` / `inspect` (Paytaca's Chipnet view is stuck; known) |
 
 ## 1. Spec conformance (§5–§10)
 
@@ -26,15 +26,15 @@ Tested on **Chipnet only**. No mainnet coins were touched. Production API `https
 |---|---|---|---|
 | 5 | P2S deploy | **Met as amended**: P2SH32 (F, "Deploy as P2S? No") | Contract 222 B > 201 B P2S limit |
 | 5 | Loop-based `refundBatch()` (Layla) | **Met** | Live: refund tx `da46d56d…` spent 2 shares in one batch (locktime = expiry) |
-| 5.1 | Fan-out shares + stamp NFT per share in one genesis tx | **Met** | Funding `0a1c5e41…`: identity, 3 stamped shares, BCMR OP_RETURN, change |
+| 5.1 | Fan-out shares + seal NFT per share in one genesis tx | **Met** | Funding `0a1c5e41…`: identity, 3 seal-bearing shares, BCMR OP_RETURN, change |
 | 5.1 | vout-0 rule / prep tx | **Met** | Frontend made a prep tx when no vout-0 coin existed (`ebbfefc5…`), and none on pass-on (claimed coin is vout 0) |
 | 5.1 | BCMR OP_RETURN | **Met** (+ output 0 identity to treasury, F) | Template `IDENTITY:546, SHARE…, BCMR:0` |
-| 5.1 | Stamps optional | **Met** | No-stamp envelope `6f7ae426…` (1,500-sat shares) |
+| 5.1 | Seals optional | **Met** | No-seal envelope `6f7ae426…` (1,500-sat shares) |
 | 5.2 | Constructor params | **Met** | `constructorArgs` in approvals |
 | 5.3 | `claim` / `refundBatch` semantics | **Met as amended** (`toPaddedBytes`, trailing `require`, F) | Contract tests |
 | 5.4 | 16-case test matrix | **Met**: all 16, plus #2b, #4b, #12b, 4 NFT-tamper variants | `packages/contract/test/hongbao.test.ts`, 58/58 contract tests pass |
 | 6.1 | Link keypair in browser; only `linkPk` sent | **Met** | `link.ts`; no request carried `k=` in any browser run (request log watched) |
-| 6.1 | `POST /envelopes` → address + required outputs | **Met as amended**: `stampCategory` field and `fundingTemplate` (F) | |
+| 6.1 | `POST /envelopes` → address + required outputs | **Met as amended**: `sealCategory` field and `fundingTemplate` (F) | |
 | 6.1 | On-chain verification before `ACTIVE` | **Met** | api-e2e: `NOT_FUNDED` → `FUNDING_MISMATCH` (wrong envelope) → `ACTIVE` |
 | 6.1 | Share link `/e/<id>#k=` and `/<slug>#k=` | **Met** | Both forms load and claim |
 | 6.2 | Three entry paths (wallet / hold / paste) | **Met**; wallet path not driven (needs Paytaca) | Paste and hold verified in browser |
@@ -52,7 +52,7 @@ Tested on **Chipnet only**. No mainnet coins were touched. Production API `https
 | 8.5 | SSE `claimed/held/refunded/exhausted/passedOn` | **Met** | Replay of `claimed` + `passedOn` with documented payloads; live update in a 2nd tab |
 | 8.5 | `/tree` | **Met** | `generations 2, reach 1, viral 1` |
 | 8.5 | Sponsors, campaigns, stats, CSV, public | **Met** | campaign-e2e reconciles every number with chain; browser flow below |
-| 8.5 | `/og`, `/bcmr`, `/stamps`, `/stats/global`, `/health` | **Met** | OG 200 PNG ~1 s; stamps load in the page |
+| 8.5 | `/og`, `/bcmr`, `/seals`, `/stats/global`, `/health` | **Met** | OG 200 PNG ~1 s; seals load in the page |
 | 8.5 | `/admin/budget`, `/admin/demo/refill` | **Not verified live** (operator endpoints; covered by API tests) | |
 | 8.6 | Error catalog: 9 codes, human messages | **Met** (+4 added codes) | Messages shown as-is in the UI; 7 of 9 seen live |
 | 9 | Approval < 500 ms | **Partly verified** | 0.86 s end to end from the test machine, but a plain GET takes 0.65–0.99 s from here, so the server share couldn't be isolated |
@@ -84,7 +84,7 @@ Chipnet e2e against production (`--api https://hongbao-drops-api.vercel.app`):
 | Suite | Result |
 |---|---|
 | `api-e2e` | ✅ create → `NOT_FUNDED` → `FUNDING_MISMATCH` → `ACTIVE` (slug `6hynyt`) |
-| `claims-e2e` | ✅ 3 parallel stamped claims, `ENVELOPE_EMPTY`, `ALREADY_CLAIMED` (q… and z…), hold + wrong/right quiz |
+| `claims-e2e` | ✅ 3 parallel seal-bearing claims, `ENVELOPE_EMPTY`, `ALREADY_CLAIMED` (q… and z…), hold + wrong/right quiz |
 | `lifecycle-e2e` | ✅ on the 2nd run with `--allow-no-refunds`. The 1st run stopped at "0 expired envelopes refunded": the production cron keeper had already refunded everything, which is the case that flag exists for. Then: SSE `claimed` + `passedOn`, 2-generation tree |
 | `campaign-e2e --single-ip` | ✅ funnel, fees = max(3%, 546), CTA spoofing ignored, CSV rows, every claim and fee reconciled on-chain, public page leaks no addresses |
 
@@ -104,26 +104,26 @@ Chipnet e2e against production (`--api https://hongbao-drops-api.vercel.app`):
 | Check | Result |
 |---|---|
 | vout-0 / prep-tx rule | ✅ largest vout-0 BCH coin as input 0, else a self-send prep tx whose output 0 becomes input 0. Seen live |
-| `fundingTemplate` outputs in exact order, change last | ✅ template mapped 1:1 (stamps as `capability: 'none'` NFTs); on pass-on the old stamp output comes after the template, then change |
+| `fundingTemplate` outputs in exact order, change last | ✅ template mapped 1:1 (seals as `capability: 'none'` NFTs); on pass-on the old seal output comes after the template, then change |
 | Fee scales with inputs, no flat 1,000-sat placeholder | ✅ no flat placeholder, but the size measurement could miss the change output: **bug M1 (fixed)** |
 | Relay-safe WizardConnect serialisation (BigInt) | ✅ `toRelayRequest()` hex-encodes bytes and writes `"<bigint: Xn>"`; `broadcast: false`, the page broadcasts itself |
 | `buildClaimTx` uses `ap.recipientLockingBytecode` | ✅ |
 | Link secret only in `#k=` | ✅ never in a query string, `og:url` (origin + path only, checked with curl), logs (no `console.*` in `apps/web/src`) or analytics (none in the bundle). It is kept in this origin's `localStorage` for the sender's own drops ("Your recent drops"), which is by design |
-| Pass it on returns the old stamp, doesn't burn it | ✅ live: pass-on `637103fd…` output 5 = 766 sats + the original stamp (`37b91160… 3200000001`) back on the claimer's address |
+| Pass it on returns the old seal, doesn't burn it | ✅ live: pass-on `637103fd…` output 5 = 766 sats + the original seal (`37b91160… 3200000001`) back on the claimer's address |
 
 ## 5. End to end in the browser (Chipnet)
 
 | Flow | Result |
 |---|---|
-| Create EQUAL / LUCKY / QUIZ, with and without stamps, sponsored | ✅ with the frontend's own `createAndFund()` (above); all became `ACTIVE`. Through the UI with a real wallet: **not verified** |
+| Create EQUAL / LUCKY / QUIZ, with and without seals, sponsored | ✅ with the frontend's own `createAndFund()` (above); all became `ACTIVE`. Through the UI with a real wallet: **not verified** |
 | Copy link | Link format checked; clipboard not exercised headless |
-| Claim by pasted address | ✅ "Money arrived" in ~2 s, BCH + stamp image (alt text present), "Welcome to Bitcoin Cash!" for a fresh address |
+| Claim by pasted address | ✅ "Money arrived" in ~2 s, BCH + seal image (alt text present), "Welcome to Bitcoin Cash!" for a fresh address |
 | Live update in a 2nd tab | ✅ "3 of 3 left" → "2 of 3 left" and the feed row appeared within ~2 s |
 | Hold my share, return later | ✅ at 375 px: held "15m 00s"; another device meanwhile got `ENVELOPE_EMPTY` (see B3); returning re-opens the hold tab; claim with the held share works |
 | Quiz wrong → right | ✅ "Not quite — try again. · 3 tries left", then success |
 | Double claim | ✅ "You've already grabbed one from this envelope 🧧" |
 | Empty / expired / refunded | ✅ "Too slow!…" / "This one has closed…" + "Send your own" |
-| Success screen with stamp | ✅ |
+| Success screen with seal | ✅ |
 | Pass it on → tree | ✅ pass-on form loads ("Gift it forward"); tree: "This drop reached 1 person across 2 generations" |
 | Sponsor: create → key once → campaign → dashboard → CSV → public page | ✅ "Continue" stays disabled until "I saved my sponsor key" is ticked; CSV downloads with the claim header; `/c/:id` shows the same numbers |
 | Sponsored envelope page | ✅ "Sponsored by Browser Tea", CTA shows the domain, "You're leaving Hongbao Drops" dialog, opens with `noopener`; dashboard counted exactly 1 click |
@@ -184,9 +184,9 @@ No **blockers** remain: the judge's claim path (open → paste address or connec
 - Repro: open `/<slug>#k=<key of a different envelope>`, claim. The gate approves, then the network rejects the tx: "Something in that request doesn't look right."
 - Fix: compare the key with the approval's `linkPk` first: "This link's key belongs to a different envelope. Ask the sender to send the full link again."
 
-**m4. Pass it on's default amount is never the 50% it suggests** (not fixed, UX call). `Send.tsx:43` uses `max(suggest, 6000)`. A typical claimed share (2,000–3,000 sats) halved is below the 3 × 2,000 minimum, so the form always opens at 6,000 sats, more than the claimer received. They need other coins in the wallet ("needs about 5,949 more sats" for a 2,071-sat claim). On mainnet with ~$0.05 shares (~24,000 sats) the 50% default is fine. Option: suggest 1 share without stamps when the claim is small.
+**m4. Pass it on's default amount is never the 50% it suggests** (not fixed, UX call). `Send.tsx:43` uses `max(suggest, 6000)`. A typical claimed share (2,000–3,000 sats) halved is below the 3 × 2,000 minimum, so the form always opens at 6,000 sats, more than the claimer received. They need other coins in the wallet ("needs about 5,949 more sats" for a 2,071-sat claim). On mainnet with ~$0.05 shares (~24,000 sats) the 50% default is fine. Option: suggest 1 share without seals when the claim is small.
 
-**m5. Most stamped envelopes need two wallet approvals** (not a bug, UX note). The funding tx's change is never at vout 0, so a wallet rarely has a vout-0 coin and the prep self-send runs almost every time (4 of the 5 stamped envelopes funded from the script wallet needed it). The UI says "signature 1 of 2", so it is explained.
+**m5. Most seal-bearing envelopes need two wallet approvals** (not a bug, UX note). The funding tx's change is never at vout 0, so a wallet rarely has a vout-0 coin and the prep self-send runs almost every time (4 of the 5 seal-bearing envelopes funded from the script wallet needed it). The UI says "signature 1 of 2", so it is explained.
 
 **m6. `RATE_LIMITED` on create after the prep signature** (not fixed, minor). `POST /envelopes` is limited to 20/h per IP and runs after the prep tx. When the limit hits, the user has already approved a (harmless) self-send. Hit during this test run, not likely for a judge.
 
@@ -194,8 +194,8 @@ No **blockers** remain: the judge's claim path (open → paste address or connec
 
 | # | Item | Where | Suggestion |
 |---|---|---|---|
-| B1 | Alt text "a classic red **red** envelope" (known nit, handoff §11) | `apps/api/src/media/og.ts:79`, `media/stamp.ts:53-54` (theme label `classic red`) | Label `classic` for the alt text, or drop "red envelope" when the label ends in "red" |
-| B2 | Collection stamp art says "**1 STAMPS**" | `apps/api/src/media/stamp.ts:26` | `${n} STAMP${n === 1 ? '' : 'S'}` |
+| B1 | Alt text "a classic red **red** envelope" (known nit, handoff §11) | `apps/api/src/media/og.ts:79`, `media/seal.ts:53-54` (theme label `classic red`) | Label `classic` for the alt text, or drop "red envelope" when the label ends in "red" |
+| B2 | Collection seal art says "**1 SEALS**" | `apps/api/src/media/seal.ts:26` | `${n} SEAL${n === 1 ? '' : 'S'}` |
 | B3 | While every remaining share is **held**, other claimers get `ENVELOPE_EMPTY` "Too slow! All the red envelopes have been grabbed." but the page still says "1 of 1 left" | `apps/api/src/claims/claims.service.ts:293` | A `reason` such as "The last shares are being held for people setting up a wallet. Check back in 15 minutes." (frontend already shows `reason`) |
 | B4 | On **Chipnet**, refunds land ~5 min **before** the shown expiry (envelope REFUNDED with 271 s on the countdown). Chipnet's median time past runs ~340 s ahead of the wall clock, and the CLTV check uses MTP. Mainnet's MTP runs ~1 h behind, so not a mainnet issue | keeper / chain | No change needed; the page already shows "This one has closed". Mention it if anyone tests on Chipnet |
 
@@ -218,14 +218,14 @@ All are frontend-only; none changes the API or its contract. Pushing `main` rede
 
 ## 9. Not verified
 
-- **Paytaca over WizardConnect after `03d43e1`.** `signAndSend` now plans change with `txplan.ts`. The same code funded 7 envelopes from Node, but the WizardConnect request itself wasn't exercised. **Fund one stamped envelope with Paytaca on Chipnet before mainnet.**
+- **Paytaca over WizardConnect after `03d43e1`.** `signAndSend` now plans change with `txplan.ts`. The same code funded 7 envelopes from Node, but the WizardConnect request itself wasn't exercised. **Fund one seal-bearing envelope with Paytaca on Chipnet before mainnet.**
 - **Wallet-tab claim after Hold my share (M3 fix).** Needs a connected wallet.
 - **Activity page with a wallet**, copy-to-clipboard, the native share sheet, Telegram/WhatsApp share buttons.
-- **Paytaca showing the BCH and the stamp:** mainnet only, Nov 19 (Paytaca's Chipnet servers are stuck; arrivals checked with `addr-check`).
+- **Paytaca showing the BCH and the seal:** mainnet only, Nov 19 (Paytaca's Chipnet servers are stuck; arrivals checked with `addr-check`).
 - **Mainnet caps, `/admin/budget`, `/admin/demo/refill`, the demo link and the landing "Try it" button:** after the Nov 19 switch.
 - **Server-side claim approval time** (< 500 ms target): only end-to-end time was measurable.
 - **The 福 glyph** on the sealed envelope rendered as a box in headless Chromium, which has no CJK font. Phones have one; check on a device.
 
 ## Test artefacts (Chipnet)
 
-Envelopes created via the frontend code: `tvbs9h` (EQUAL, stamps), `fgh84u` (LUCKY), `4fygsu` (QUIZ), `g6exdz` (no stamps, refunded `da46d56d…`), `rmwbay` (1 share, hold test), `xx3sfv` (pass-on of `fgh84u`, tx `637103fd…`), `cw8hpv` (sponsored, campaign "Browser launch"). Funding txs: `0a1c5e41…`, `a1e86533…`, `b70f07f4…`, `6f7ae426…`, `d029dc10…`, `37357951…`.
+Envelopes created via the frontend code: `tvbs9h` (EQUAL, seals), `fgh84u` (LUCKY), `4fygsu` (QUIZ), `g6exdz` (no seals, refunded `da46d56d…`), `rmwbay` (1 share, hold test), `xx3sfv` (pass-on of `fgh84u`, tx `637103fd…`), `cw8hpv` (sponsored, campaign "Browser launch"). Funding txs: `0a1c5e41…`, `a1e86533…`, `b70f07f4…`, `6f7ae426…`, `d029dc10…`, `37357951…`.

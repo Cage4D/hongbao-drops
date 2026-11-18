@@ -1,6 +1,6 @@
 // Phase 2 go/no-go page (throwaway, not the product frontend).
 // Question: can a real WizardConnect wallet (Paytaca / Cashonize) sign the Hongbao funding tx on
-// Chipnet — including the CashTokens genesis (N stamp NFTs to a P2SH32 contract + BCMR OP_RETURN)?
+// Chipnet — including the CashTokens genesis (N seal NFTs to a P2SH32 contract + BCMR OP_RETURN)?
 import { StrictMode, useCallback, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useWizardConnect, WizardConnectQRDialog } from '@wizardconnect/react';
@@ -190,9 +190,9 @@ function App() {
     await scan();
   });
 
-  const fund = (withStamps: boolean) =>
+  const fund = (withSeals: boolean) =>
     run(async () => {
-      const input0 = withStamps ? vout0! : utxos[0]!;
+      const input0 = withSeals ? vout0! : utxos[0]!;
       const seq = Math.floor(Date.now() / 1000) % 1_000_000;
       const linkPriv = generatePrivateKey();
       const gatePriv = generatePrivateKey();
@@ -208,12 +208,12 @@ function App() {
       );
       const shareAmounts = equalSplit(7_500n, 3);
       const category = input0.txid;
-      const registry = JSON.stringify({ name: `Hongbao Stamp #${seq}`, category });
+      const registry = JSON.stringify({ name: `Hongbao Seal #${seq}`, category });
       const outputs = fundingOutputs({
         contract,
         shareAmounts,
-        ...(withStamps && {
-          stamps: {
+        ...(withSeals && {
+          seals: {
             category,
             envelopeSeq: seq,
             identityLockingBytecode: receive0!.lockingBytecode, // test only; product → treasury
@@ -227,10 +227,10 @@ function App() {
         inputs,
         outputs,
         receive0!,
-        withStamps ? 'Hongbao: fund envelope (3 shares + 3 stamps)' : 'Hongbao: fund envelope (3 shares)',
+        withSeals ? 'Hongbao: fund envelope (3 shares + 3 seals)' : 'Hongbao: fund envelope (3 shares)',
         log,
       );
-      log(`Funding tx ${withStamps ? 'WITH stamps (genesis)' : 'BCH-only'}: ${EXPLORER}${txid}`);
+      log(`Funding tx ${withSeals ? 'WITH seals (genesis)' : 'BCH-only'}: ${EXPLORER}${txid}`);
       // Same shape as scripts/.state/envelopes/<name>.json so the CLI can claim / refund it.
       setEnvelopeJson(
         JSON.stringify(
@@ -243,16 +243,16 @@ function App() {
             refundLockingBytecodeHex: binToHex(receive0!.lockingBytecode),
             expiry,
             maxFee: DEFAULT_MAX_FEE.toString(),
-            withStamps,
-            stampCategory: withStamps ? category : undefined,
+            withSeals,
+            sealCategory: withSeals ? category : undefined,
             fundingTxid: txid,
             contractAddress: contract.tokenAddress,
             shares: shareAmounts.map((sats, i) => ({
               index: i + 1,
               txid,
-              vout: shareOutputIndex(i, withStamps),
+              vout: shareOutputIndex(i, withSeals),
               sats: sats.toString(),
-              commitment: outputs[shareOutputIndex(i, withStamps)]?.token?.nft?.commitment,
+              commitment: outputs[shareOutputIndex(i, withSeals)]?.token?.nft?.commitment,
               status: 'AVAILABLE',
             })),
           },
@@ -292,7 +292,7 @@ function App() {
               token-aware: <code>{receive0.tokenAddress}</code>
             </p>
           )}
-          <p>Balance: {total.toString()} sats in {utxos.length} UTXOs (stamped funding needs a vout-0 UTXO ≥ 9,500)</p>
+          <p>Balance: {total.toString()} sats in {utxos.length} UTXOs (seal-bearing funding needs a vout-0 UTXO ≥ 9,500)</p>
           <ol>
             <li>
               <button onClick={fund(false)} disabled={busy || !receive0 || total < 10_000n}>
@@ -307,7 +307,7 @@ function App() {
             </li>
             <li>
               <button onClick={fund(true)} disabled={busy || !receive0 || !vout0}>
-                Sign funding WITH stamps (genesis + BCMR) ← the go/no-go
+                Sign funding WITH seals (genesis + BCMR) ← the go/no-go
               </button>
             </li>
           </ol>

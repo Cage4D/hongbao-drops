@@ -1,4 +1,4 @@
-// Phase 6: link-preview cards, stamp artwork, BCMR registries.
+// Phase 6: link-preview cards, seal artwork, BCMR registries.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { binToHex, sha256 } from '@bitauth/libauth';
 import type { CreateEnvelopeResponse } from '@hongbao/shared';
@@ -39,39 +39,39 @@ describe('GET /og/:id.png', () => {
   });
 });
 
-describe('stamps', () => {
+describe('seals', () => {
   let env: CreateEnvelopeResponse;
   let category: string;
   let commitment: string;
   beforeEach(async () => {
-    env = await fundedEnvelope(t, { withStamps: true, theme: 'christmas' });
+    env = await fundedEnvelope(t, { withSeals: true, theme: 'christmas' });
     category = env.fundingTemplate[1]!.token!.category;
     commitment = env.fundingTemplate[1]!.token!.nftCommitment;
   });
 
-  it('serves each share stamp as SVG and 512×512 PNG, cached forever', async () => {
-    const svg = await binary(t.http().get(`/stamps/${category}/${commitment}.svg`));
+  it('serves each share seal as SVG and 512×512 PNG, cached forever', async () => {
+    const svg = await binary(t.http().get(`/seals/${category}/${commitment}.svg`));
     expect(svg.status).toBe(200);
     expect(svg.headers['content-type']).toMatch(/image\/svg\+xml/);
     expect(svg.headers['cache-control']).toMatch(/immutable/);
     expect((svg.body as Buffer).toString()).toContain(`#${env.envelopeSeq}-1`);
-    const png = await binary(t.http().get(`/stamps/${category}/${commitment}.png`));
+    const png = await binary(t.http().get(`/seals/${category}/${commitment}.png`));
     expect(pngSize(png.body as Buffer)).toEqual({ w: 512, h: 512 });
-    expect((await binary(t.http().get(`/stamps/${category}/collection.png`))).status).toBe(200);
+    expect((await binary(t.http().get(`/seals/${category}/collection.png`))).status).toBe(200);
   });
 
   it('404s commitments that are not this envelope\'s shares', async () => {
     const seqHex = commitment.slice(0, 8);
     for (const bad of [`${seqHex}00`, `${seqHex}04`, `ffffffff01`, 'zz', 'collection.gif']) {
-      expect((await t.http().get(`/stamps/${category}/${bad.includes('.') ? bad : `${bad}.svg`}`)).status).toBe(404);
+      expect((await t.http().get(`/seals/${category}/${bad.includes('.') ? bad : `${bad}.svg`}`)).status).toBe(404);
     }
-    expect((await t.http().get(`/stamps/${'00'.repeat(32)}/collection.svg`)).status).toBe(404);
+    expect((await t.http().get(`/seals/${'00'.repeat(32)}/collection.svg`)).status).toBe(404);
   });
 });
 
 describe('GET /bcmr/:category.json', () => {
   it('serves the exact registry bytes whose sha256 is committed on-chain, and its URIs resolve', async () => {
-    const env = await fundedEnvelope(t, { withStamps: true, shareCount: 2, totalSats: 10_000 });
+    const env = await fundedEnvelope(t, { withSeals: true, shareCount: 2, totalSats: 10_000 });
     const category = env.fundingTemplate[1]!.token!.category;
     const r = await t.http().get(`/bcmr/${category}.json`).buffer(true).parse((res, cb) => {
       let d = '';

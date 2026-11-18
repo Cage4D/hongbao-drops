@@ -14,13 +14,22 @@ const STEPS = [
   { num: '01', tag: 'Connect', title: 'Link a wallet', body: 'Scan one QR code with your Bitcoin Cash wallet. No account, no sign-up.' },
   { num: '02', tag: 'Fill', title: 'Fill the envelope', body: 'Pick an amount, how many people can open it, and a message.' },
   { num: '03', tag: 'Drop', title: 'Drop the link', body: 'Paste one link into your group chat. That link is the envelope.' },
-  { num: '04', tag: 'Open', title: 'Race to open', body: 'First come, first served. Shares land in seconds, with a collectible stamp.' },
+  { num: '04', tag: 'Open', title: 'Race to open', body: 'First come, first served. Shares land in seconds, with a Hongbao Seal.' },
 ];
 
 const MODES = [
   { theme: 'classic-red' as const, tag: 'Equal', title: 'Fair split', body: 'Everyone who opens it gets the same share.' },
   { theme: 'gold' as const, tag: 'Lucky', title: 'Lucky draw', body: 'Random amounts. Someone walks away the luckiest.' },
   { theme: 'lunar' as const, tag: 'Quiz', title: 'Answer to open', body: 'Ask a question. Only the right answer opens it.' },
+];
+
+const WHY: [string, string][] = [
+  ['One link, the whole group', 'Drop one link in the chat. The first N people to open it each get a share.'],
+  ['Rules on-chain', 'A contract holds the money, so nobody, not even the sender, can take it back before it expires.'],
+  ['Leftovers come home', 'Shares nobody opened return to the sender automatically.'],
+  ['Lucky and quiz modes', 'Random amounts for a lucky draw, or a question people answer to open it.'],
+  ['A Hongbao Seal each', 'Every person who opens a share also gets a Hongbao Seal NFT in their wallet.'],
+  ['Sponsored Drops', 'Brands put their name on envelopes and see their cost per activated new wallet, checkable on-chain.'],
 ];
 
 export function Landing() {
@@ -48,8 +57,8 @@ export function Landing() {
             <span className="flame">into the chat</span>
           </h1>
           <p className="lead hero-lead">
-            Fill a red envelope with BCH and share it as one link. The first friends to open it each get a share and a collectible
-            stamp. They don't need any BCH, and they sign nothing.
+            Fill a red envelope with BCH and share it as one link. The first friends to open it each get a share and a
+            Hongbao Seal. They don't need any BCH, and they sign nothing.
           </p>
           <div className="row hero-ctas">
             {DEMO_URL ? (
@@ -139,6 +148,34 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ safety */}
+      <section id="why" className="section why has-sparks" aria-labelledby="why-title">
+        <Sparks count={10} />
+        <div className="container">
+          <p className="eyebrow reveal">Why Hongbao?</p>
+          <h2 id="why-title" className="disp disp-lg reveal">
+            Made for the <span className="flame">group chat</span>
+          </h2>
+          <div className="why-frame reveal">
+            <p>
+              <span className="why-q">Gifting one friend, maybe on paper?</span>
+              <span className="why-a">CashStamps is perfect.</span>
+            </p>
+            <p className="why-us">
+              <span className="why-q">Dropping into a group of 50?</span>
+              <span className="why-a">That's a Hongbao.</span>
+            </p>
+          </div>
+          <ul className="why-grid">
+            {WHY.map(([t, b], i) => (
+              <li key={t} className="card why-card reveal" style={{ transitionDelay: `${(i % 3) * 80}ms` }}>
+                <h3>{t}</h3>
+                <p className="muted">{b}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       <section id="safety" className="section safety has-sparks" aria-labelledby="safety-title">
         <Sparks count={9} />
         <div className="container safety-grid">
@@ -159,7 +196,7 @@ export function Landing() {
               ['Leftovers return automatically', "Shares nobody opened go back to the sender about an hour after the envelope expires. Nobody has to press a button."],
               ['Openers sign nothing', 'No fees, no approvals, no BCH needed. Paste an address or connect a wallet and the share arrives.'],
               ['One share each', 'Whoever has the link can open it, but each person gets one share.'],
-              ['A stamp to keep', 'Every share comes with a collectible stamp that shows up in your wallet.'],
+              ['A Hongbao Seal to keep', 'Every share comes with a Hongbao Seal that shows up in your wallet.'],
             ].map(([t, b], i) => (
               <li key={t} className="reveal" style={{ transitionDelay: `${i * 70}ms` }}>
                 <span className="safety-ico" aria-hidden="true">
@@ -212,13 +249,13 @@ export function Landing() {
               </p>
             </article>
             <article className="card reveal" style={{ transitionDelay: '90ms' }}>
-              <span className="tag">Collectible stamps</span>
+              <span className="tag">Hongbao Seals</span>
               <h3 className="disp disp-sm" style={{ marginTop: 10 }}>
                 Proof you were there
               </h3>
-              <div className="stamp-row">
+              <div className="seal-row">
                 {(['lunar', 'classic-red', 'gold', 'christmas'] as const).map((t) => (
-                  <img key={t} src={`/themes/${t}.png`} alt={`${t} stamp`} loading="lazy" />
+                  <img key={t} src={`/themes/${t}.png`} alt={`${t} Hongbao Seal`} loading="lazy" />
                 ))}
               </div>
             </article>

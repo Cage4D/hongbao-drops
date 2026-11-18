@@ -18,12 +18,12 @@ pnpm --filter @hongbao/scripts probe:fulcrum  # live Fulcrum probe
 | CashScript version | **0.14.0** (cashc + SDK) |
 | Deploy as P2S? | **No.** Spec draft compiles to 222 bytes; P2S limit is 201. Deploy as **P2SH32** |
 | Loops / `refundBatch()`? | **Yes.** `do…while` compiles to `OP_BEGIN … OP_UNTIL` and passes VM validation for 1, 5, 10 and 20 shares. This is the "built on Layla" feature |
-| `minShareSats` | **2,000** with stamps, **1,500** without (≈ $0.004 / $0.003) |
+| `minShareSats` | **2,000** with seals, **1,500** without (≈ $0.004 / $0.003) |
 | `maxFee` (per input) | **1,000 sats** (claim tx ≈ 483 B, refund ≈ 341 B per share, so about 2 sat/B of headroom) |
-| Stamp go/no-go | **GO** (Phase 2): Paytaca signed the genesis funding tx over WizardConnect on Chipnet, see docs/phase2-chipnet.md |
+| Seal go/no-go | **GO** (Phase 2): Paytaca signed the genesis funding tx over WizardConnect on Chipnet, see docs/phase2-chipnet.md |
 | Fulcrum | Chipnet: `chipnet.imaginary.cash`, `chipnet.bch.ninja`. Mainnet: `bch.imaginary.cash`, `fulcrum.greyh.at`. All on WSS port 50004 with `get_history` working |
 | Hosting | **Decided: Vercel for frontend, API and DB** (Neon Postgres via the Vercel Marketplace). Keeper runs from an external per-minute cron (approved 2026-11-15), see §7 |
-| `stampCategory` on `POST /envelopes` | **Approved** (builder, 2026-11-15) |
+| `sealCategory` on `POST /envelopes` | **Approved** (builder, 2026-11-15) |
 | Funding output 0 = identity output to treasury | **Approved** (builder, 2026-11-15) |
 | Mainnet totals caps scope (§10.1) | **Demo wallet only** (`BUDGET_WALLET_ADDRESS`); per-envelope caps for everyone. Builder, 2026-11-17, review 2 Q1 |
 | Cap re-check at `/funded` | Only when funded > 1 h after creation. Builder, 2026-11-17, review 2 Q2 |
@@ -42,7 +42,7 @@ Source: [release notes](https://cashscript.org/docs/releases/release-notes), [in
 | Outpoint encoding **[tested]** | `tx.inputs[i].outpointTransactionHash` is the txid in **internal byte order (reversed from the displayed txid)**. `toPaddedBytes(outpointIndex, 4)` is **4-byte little-endian** (`vout=1` → `01000000`). The gate must therefore sign `recipientLockingBytecode ‖ reverse(txidHex) ‖ u32le(vout)`. A test proves that the display-order txid fails |
 | `checkDataSig` **[tested]** | Verifies a 64-byte **Schnorr** (or DER ECDSA) signature over **`sha256(message)`**, with no sighash byte. Gate code: `secp256k1.signMessageHashSchnorr(gatePriv, sha256(msg))`. Signing the raw message fails |
 | Token fields on token-less UTXOs **[tested]** | Category and commitment read as empty and amount as 0, so `==` between a token-less input and output passes. Dropping an NFT fails on the `tokenCategory` check |
-| Capability byte **[tested]** | `tokenCategory` includes the capability byte for mutable/minting NFTs. A consensus-legal `mutable → none` downgrade fails on the `tokenCategory` check, and a changed commitment fails on `nftCommitment`. Stamps are minted with capability `none` (32-byte category), so any upgrade would change the length and fail |
+| Capability byte **[tested]** | `tokenCategory` includes the capability byte for mutable/minting NFTs. A consensus-legal `mutable → none` downgrade fails on the `tokenCategory` check, and a changed commitment fails on `nftCommitment`. Seals are minted with capability `none` (32-byte category), so any upgrade would change the length and fail |
 | `tx.time` **[tested]** | Compiles to `OP_CHECKLOCKTIMEVERIFY`, so the refund tx needs `locktime >= expiry`, a non-final input sequence, and on a real network `locktime <= median-time-past`. Note: `MockNetworkProvider` does **not** check time-based finality, so that last part gets tested on Chipnet in Phase 2 |
 | Loops **[tested]** | `for`, `while` and `do…while` all exist. **Gotcha:** a function's final statement must be a `require()`, so `refundBatch` needs a trailing `require(i == tx.inputs.length);` after the loop |
 | Loop cost | `refundBatch` re-checks all pairs from every input (O(n²)). A 20-share batch still passes VM validation. Keeper cap stays at 20 (spec §6.4); `MAX_SHARES` is 10 anyway |
@@ -75,14 +75,14 @@ From CashScript's `calculateDust` (the SDK's implementation of the node dust rul
 | P2SH32 (contract share), plain | 576 |
 | P2SH32 + NFT | 696 |
 
-A claim output = share − fee (≈ 500 sats), and must stay ≥ 666 when it carries a stamp. A refund output has the same constraint. Hence **`minShareSats = 2,000` with stamps, `1,500` without**: tiny in USD and comfortably above every floor. The API enforces it in Phase 3.
+A claim output = share − fee (≈ 500 sats), and must stay ≥ 666 when it carries a seal. A refund output has the same constraint. Hence **`minShareSats = 2,000` with seals, `1,500` without**: tiny in USD and comfortably above every floor. The API enforces it in Phase 3.
 
 ## 4. Transaction sizes → `maxFee` [tested]
 
 | Tx | Size |
 |---|---|
 | Claim, BCH-only share | 443 B |
-| Claim, share with stamp | 483 B |
+| Claim, share with seal | 483 B |
 | `refundBatch`, 1 share | 350 B |
 | `refundBatch`, 5 / 10 / 20 shares | 1,710 / 3,410 / 6,810 B (≈ 341 B per share) |
 
@@ -97,8 +97,8 @@ Source: [CHIP-BCMR](https://github.com/bitjson/chip-bcmr).
 - **Authchain gotcha:** the authchain follows **output 0** of each tx. The funding tx spends the authbase's output 0, so the funding tx becomes the authhead and carries the publication. If funding **output 0 were a share**, the first claim would move the authhead to a claim tx with no publication, and wallets might lose the metadata. **Approved:** funding output 0 is a small (546-sat) **identity output to the treasury address** that is never spent, followed by the shares, the BCMR OP_RETURN and change. Cost ≈ $0.001 per envelope, recoverable later.
 - **Commitment encoding gotcha:** BCMR sequential NFTs read the commitment as a **VM number**. With `commitment = envelopeIndex(4 bytes) ‖ shareIndex(1 byte)`, the share byte is the most significant byte. `shareIndex = 0` would be a non-minimal number, and anything ≥ `0x80` flips the sign. **Use 1-based share indexes (1…10).** Then `nfts.parse.types` is keyed by the commitment hex.
 - **Registry must be byte-stable:** the API must store the exact registry JSON it hashed and serve those bytes from `/bcmr/:category.json`, never re-serialize them.
-- **API flow impact (deviation, approved):** the API can't compute the BCMR hash until it knows the category. So `POST /envelopes` needs an extra optional field, **`stampCategory`** (the txid of the vout-0 UTXO the browser will spend as input 0), whenever `withStamps` is on.
-- **Wallet pickup:** most CashTokens wallets resolve metadata through Paytaca's indexer (`bcmr.paytaca.com`), which watches chain for BCMR publications. Cashonize's resolver isn't documented. Verified for real in Phase 6 with a Chipnet stamp.
+- **API flow impact (deviation, approved):** the API can't compute the BCMR hash until it knows the category. So `POST /envelopes` needs an extra optional field, **`sealCategory`** (the txid of the vout-0 UTXO the browser will spend as input 0), whenever `withSeals` is on.
+- **Wallet pickup:** most CashTokens wallets resolve metadata through Paytaca's indexer (`bcmr.paytaca.com`), which watches chain for BCMR publications. Cashonize's resolver isn't documented. Verified for real in Phase 6 with a Chipnet seal.
 
 ## 6. Fulcrum servers [tested 2026-11-15]
 

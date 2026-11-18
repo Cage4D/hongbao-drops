@@ -11,7 +11,7 @@ import { InsufficientFunds, estimateFee } from './txplan';
 
 export type FundStep = 'scan' | 'prep' | 'create' | 'sign' | 'confirm';
 
-export type EnvelopeDraft = Omit<CreateEnvelopeRequest, 'senderAddress' | 'linkPk' | 'stampCategory'>;
+export type EnvelopeDraft = Omit<CreateEnvelopeRequest, 'senderAddress' | 'linkPk' | 'sealCategory'>;
 
 export interface FundResult {
   created: CreateEnvelopeResponse;
@@ -74,7 +74,7 @@ export async function createAndFund(opts: {
   signal?: AbortSignal;
 }): Promise<FundResult> {
   const { wallet, cfg, draft, mustSpend, onStep, onBroadcast, signal } = opts;
-  const withStamps = draft.withStamps !== false;
+  const withSeals = draft.withSeals !== false;
   const receive0 = wallet.receive0;
   if (!receive0) throw new Error('Connect your wallet first.');
 
@@ -90,25 +90,25 @@ export async function createAndFund(opts: {
         "Those claimed coins aren't in this wallet any more: they've already been passed on or spent, or you claimed into a different wallet. A share can only be passed on once. (If you claimed seconds ago, wait a moment and try again.)",
       );
   }
-  const stampReturn = forced?.token ? dustLimit(25, forced.token) + 100n : 0n;
+  const sealReturn = forced?.token ? dustLimit(25, forced.token) + 100n : 0n;
   const outCount = draft.shareCount + 4;
   const need =
     BigInt(draft.totalSats) +
-    (withStamps ? IDENTITY : 0n) +
+    (withSeals ? IDENTITY : 0n) +
     (draft.sponsorToken ? sponsorFeeEstimate(draft.totalSats) : 0n) +
-    stampReturn +
-    BigInt(40 * draft.shareCount); // stamp outputs are bigger than plain ones
+    sealReturn +
+    BigInt(40 * draft.shareCount); // seal outputs are bigger than plain ones
   const available = bch.reduce((s, u) => s + u.satoshis, 0n) + (forced ? forced.satoshis : 0n);
   if (available < need + estimateFee(bch.length + 1, outCount)) {
     // Fail early (before any signature) with a useful number.
     throw new InsufficientFunds(need + estimateFee(Math.max(1, bch.length), outCount), available);
   }
 
-  // 2 — input 0. With stamps it must be a coin at output index 0 (CashTokens genesis rule).
+  // 2 — input 0. With seals it must be a coin at output index 0 (CashTokens genesis rule).
   let first: WalletUtxo | undefined = forced;
   let pool = bch;
   if (!first) {
-    if (withStamps) {
+    if (withSeals) {
       first = bch.filter((u) => u.vout === 0).sort((a, b) => (b.satoshis > a.satoshis ? 1 : -1))[0];
       if (!first) {
         onStep('prep', 'Your wallet needs one quick self-send first (signature 1 of 2).');
@@ -131,10 +131,10 @@ export async function createAndFund(opts: {
     ...draft,
     senderAddress: receive0.address,
     linkPk: link.pk,
-    ...(withStamps && { stampCategory: first.txid }),
+    ...(withSeals && { sealCategory: first.txid }),
   });
 
-  // 4 — build exactly the template, then (pass it on) the old stamp back to its owner, then change
+  // 4 — build exactly the template, then (pass it on) the old seal back to its owner, then change
   const outputs: Output[] = created.fundingTemplate.map((o) => ({
     to: hexToBin(o.lockingBytecode),
     amount: BigInt(o.sats),

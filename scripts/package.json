@@ -16,7 +16,7 @@
     "api-e2e": "tsx src/api-e2e.ts",
     "claims-e2e": "tsx src/claims-e2e.ts",
     "lifecycle-e2e": "tsx src/lifecycle-e2e.ts",
-    "stamp-to-wallet": "tsx src/stamp-to-wallet.ts",
+    "seal-to-wallet": "tsx src/seal-to-wallet.ts",
     "campaign-e2e": "tsx src/campaign-e2e.ts"
   },
   "dependencies": {

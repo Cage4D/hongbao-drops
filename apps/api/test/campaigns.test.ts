@@ -177,7 +177,7 @@ describe('campaign stats', () => {
       mode: 'EQUAL',
       totalSats: 10_000,
       expiry: Math.floor(Date.now() / 1000) + 1800,
-      withStamps: false,
+      withSeals: false,
       sponsorToken: s.sponsorToken,
       campaignId: cid,
     });

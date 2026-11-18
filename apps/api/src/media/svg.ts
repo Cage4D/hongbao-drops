@@ -80,7 +80,7 @@ export function decor(p: Palette, width: number, height: number, seed: number): 
     if (p.decor === 'snow') out.push(`<circle cx="${x}" cy="${y}" r="${3.5 * k}" fill="#FFFFFF" opacity="0.55"/>`);
     if (p.decor === 'lanterns' && i < 5) {
       if (width < 600) {
-        // Small canvases (stamps): keep lanterns faint so they don't fight the title.
+        // Small canvases (seals): keep lanterns faint so they don't fight the title.
         out.push(`<g opacity="0.35">`);
       }
       const lx = 60 + i * (width / 5);

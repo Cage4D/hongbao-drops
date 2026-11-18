@@ -117,8 +117,8 @@ describe('keeper endpoint', () => {
 });
 
 describe('batch refunds', () => {
-  it('waits for median-time-past, then refunds all unclaimed stamped shares to the sender in one tx', async () => {
-    const env = await fundedEnvelope(t, { withStamps: true, expiry: now() + 2 });
+  it('waits for median-time-past, then refunds all unclaimed seal-bearing shares to the sender in one tx', async () => {
+    const env = await fundedEnvelope(t, { withSeals: true, expiry: now() + 2 });
     await claimAndBroadcast(env.id, 'alice');
     await sleep(2_200);
 
@@ -308,7 +308,7 @@ describe('SSE /envelopes/:id/events', () => {
       });
 
   it('streams live claims and resumes from Last-Event-ID', async () => {
-    const env = await fundedEnvelope(t, { withStamps: true });
+    const env = await fundedEnvelope(t, { withSeals: true });
     const first = await claimAndBroadcast(env.id, 'early');
 
     const streaming = sse(`/envelopes/${env.id}/events?maxSeconds=3`);
@@ -503,7 +503,7 @@ describe('review 2: refunds and envelope status', () => {
       t.provider,
     );
 
-  it('P1-1: refunds no-stamp shares at the 1,500-sat minimum, and the envelope ends REFUNDED', async () => {
+  it('P1-1: refunds no-seal shares at the 1,500-sat minimum, and the envelope ends REFUNDED', async () => {
     const env = await fundedEnvelope(t, { shareCount: 3, totalSats: 4_500, expiry: now() + 2 });
     await sleep(2_200);
     const s = await tick();

@@ -45,7 +45,7 @@ const sent = await build(utxo.satoshis - fee).send();
 share.status = 'CLAIMED';
 share.spendTxid = sent.txid;
 saveEnvelope(env);
-console.log(`Claimed share #${share.index} (${utxo.satoshis - fee} sats${utxo.token ? ' + stamp NFT' : ''}) → ${toAddress}`);
+console.log(`Claimed share #${share.index} (${utxo.satoshis - fee} sats${utxo.token ? ' + seal NFT' : ''}) → ${toAddress}`);
 console.log(`  ${EXPLORER_TX}${sent.txid}   (fee ${fee} sats, paid by the share)`);
 if (fresh) console.log(`  claimer WIF (test only): ${fresh.wif}`);
 process.exit(0);

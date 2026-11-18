@@ -28,9 +28,9 @@ export const CreateEnvelopeRequestSchema = z
     expiry: z.number().int(),
     message: z.string().trim().max(280).optional(),
     theme: ThemeSchema.default('classic-red'),
-    withStamps: z.boolean().default(true),
-    /** Required when stamps are on: txid of the vout-0 outpoint the funding tx spends as input 0. */
-    stampCategory: TxidSchema.optional(),
+    withSeals: z.boolean().default(true),
+    /** Required when seals are on: txid of the vout-0 outpoint the funding tx spends as input 0. */
+    sealCategory: TxidSchema.optional(),
     quiz: z
       .object({
         question: z.string().trim().min(1).max(200),
@@ -67,7 +67,7 @@ export interface CreateEnvelopeResponse {
   /** Hongbao.cash constructor args in declaration order (hex / decimal strings). */
   constructorArgs: { linkPk: string; gatePk: string; refundLockingBytecode: string; expiry: number; maxFee: number };
   requiredOutputs: RequiredOutput[];
-  /** Funding outputs in order, excluding change: build exactly this (stamps carry their NFT). */
+  /** Funding outputs in order, excluding change: build exactly this (seals carry their NFT). */
   fundingTemplate: { outputIndex: number; purpose: RequiredOutput['purpose'] | 'SHARE'; lockingBytecode: string; sats: number; token?: { category: string; nftCommitment: string } }[];
   minShareSats: number;
   /** Suggested split (equal, or a server-side random split for LUCKY; the browser may use its own). */
@@ -109,8 +109,8 @@ export interface PublicEnvelopeView {
   shares: { total: number; claimed: number; left: number };
   expiry: number;
   secondsLeft: number;
-  withStamps: boolean;
-  stamp: { category: string; imageUrl: string; alt: string } | null;
+  withSeals: boolean;
+  seal: { category: string; imageUrl: string; alt: string } | null;
   /** Link-preview card (set as og:image / twitter:image) with alt text. */
   og: { imageUrl: string; alt: string; width: 1200; height: 630 };
   recentClaims: { address: string; sats: number; usd: number | null; luckiest: boolean; isNewWallet: boolean | null; at: string }[];
@@ -181,7 +181,7 @@ export interface BroadcastResponse {
   txid: string;
   amountSats: number;
   amountUsd: number | null;
-  stamp: { category: string; commitment: string; imageUrl: string; alt: string } | null;
+  seal: { category: string; commitment: string; imageUrl: string; alt: string } | null;
 }
 
 // ------------------------------------------------------------------ pass-it-on tree (Phase 5)
@@ -366,7 +366,7 @@ export interface WalletClaim {
   claimTxid: string | null;
   recipientAddress: string;
   isNewWallet: boolean | null;
-  stamp: { imageUrl: string } | null;
+  seal: { imageUrl: string } | null;
   at: string;
   /** The envelope this wallet made from it with Pass it on, if any. */
   passedOn: { id: string; slug: string } | null;

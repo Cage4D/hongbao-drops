@@ -7,7 +7,7 @@ import { useNetwork } from '../lib/network';
 import { useWallet } from '../lib/wallet';
 import { readLinkKey } from '../lib/link';
 import { checkAddress, claimCoinState, claimShare, type ClaimResult } from '../lib/claim';
-import { claimKey, envelopeHref, holdKey, type StoredClaim } from '../lib/local';
+import { claimKey, envelopeHref, holdKey, readClaim, type StoredClaim } from '../lib/local';
 import { useEnvelopeEvents, type ClaimedEvent } from '../lib/events';
 import { fmtBch, fmtSats, fmtUsd, shortAddr, timeAgo, usdFor } from '../lib/format';
 import { store } from '../lib/storage';
@@ -110,7 +110,7 @@ function EnvelopeView({
   priceUsd: number | null;
 }) {
   const { cfg } = useNetwork();
-  const [claimed, setClaimed] = useState<StoredClaim | null>(() => store.get<StoredClaim>(claimKey(view.id)));
+  const [claimed, setClaimed] = useState<StoredClaim | null>(() => readClaim(view.id));
   const [phase, setPhase] = useState<Phase>(claimed ? 'done' : 'sealed');
   const [fire, setFire] = useState(0);
   const [expiredNow, setExpiredNow] = useState(false);
@@ -231,7 +231,7 @@ function EnvelopeView({
           </section>
         </div>
 
-        {/* ---------------------------------------------------------- feed + stamp */}
+        {/* ---------------------------------------------------------- feed + seal */}
         <div className="env-lower">
           <section className="card feed" aria-labelledby="feed-title">
             <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -266,12 +266,12 @@ function EnvelopeView({
               </ul>
             )}
           </section>
-          {view.stamp && (
-            <section className="card stamp-card" aria-labelledby="stamp-title">
-              <h2 id="stamp-title" className="disp disp-sm">
-                The stamp
+          {view.seal && (
+            <section className="card seal-card" aria-labelledby="seal-title">
+              <h2 id="seal-title" className="disp disp-sm">
+                The Hongbao Seal
               </h2>
-              <img src={view.stamp.imageUrl} alt={view.stamp.alt} className="stamp-img" loading="lazy" />
+              <img src={view.seal.imageUrl} alt={view.seal.alt} className="seal-img" loading="lazy" />
               <p className="small muted">Everyone who opens a share gets one of these in their wallet, numbered.</p>
             </section>
           )}
@@ -708,10 +708,10 @@ function Success({ r, view, priceUsd }: { r: StoredClaim; view: PublicEnvelopeVi
           <strong>Welcome to Bitcoin Cash!</strong> This was your wallet's first coin.
         </div>
       )}
-      {r.stamp && (
-        <figure className="success-stamp">
-          <img src={r.stamp.imageUrl} alt={r.stamp.alt} />
-          <figcaption className="small muted">Your collectible stamp. It's in your wallet too.</figcaption>
+      {r.seal && (
+        <figure className="success-seal">
+          <img src={r.seal.imageUrl} alt={r.seal.alt} />
+          <figcaption className="small muted">Your Hongbao Seal. It's in your wallet too.</figcaption>
         </figure>
       )}
       {r.passedOn ? (

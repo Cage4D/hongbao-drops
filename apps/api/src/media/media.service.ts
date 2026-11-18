@@ -1,11 +1,11 @@
-// Link-preview cards, stamp artwork and BCMR registries (spec §8.5 "Media, stamps").
+// Link-preview cards, seal artwork and BCMR registries (spec §8.5 "Media, seals").
 import { Inject, Injectable } from '@nestjs/common';
 import { hexToBin } from '@bitauth/libauth';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnvelopesService } from '../envelopes/envelopes.service.js';
 import { AppError } from '../common/app-error.js';
 import { ogSvg, OG_WIDTH, type OgInput } from './og.js';
-import { stampSvg, type StampInput } from './stamp.js';
+import { sealSvg, type SealInput } from './seal.js';
 import { renderPng } from './render.js';
 
 export interface MediaFile {
@@ -14,7 +14,7 @@ export interface MediaFile {
   cacheControl: string;
 }
 
-/** Stamps never change once minted; cards change as shares are claimed. */
+/** Seals never change once minted; cards change as shares are claimed. */
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 const SHORT = 'public, max-age=60, s-maxage=60';
 
@@ -46,11 +46,11 @@ export class MediaService {
     return { body: await renderPng(svg, OG_WIDTH, cjk), contentType: 'image/png', cacheControl: SHORT };
   }
 
-  /** The envelope that minted a stamp category (funded one first: only that one's metadata is real). */
+  /** The envelope that minted a seal category (funded one first: only that one's metadata is real). */
   private async envelopeForCategory(category: string) {
     if (!/^[0-9a-f]{64}$/.test(category)) throw new AppError('NOT_FOUND');
     const env = await this.db.envelope.findFirst({
-      where: { stampCategory: category },
+      where: { sealCategory: category },
       orderBy: [{ fundedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
       include: { campaign: { include: { sponsor: true } } },
     });
@@ -58,26 +58,26 @@ export class MediaService {
     return env;
   }
 
-  /** GET /stamps/:category/:file — "<commitment>.svg|png" or "collection.svg|png". */
-  async stamp(category: string, file: string): Promise<MediaFile> {
+  /** GET /seals/:category/:file — "<commitment>.svg|png" or "collection.svg|png". */
+  async seal(category: string, file: string): Promise<MediaFile> {
     const m = /^(collection|[0-9a-f]{10})\.(svg|png)$/.exec(file);
     if (!m) throw new AppError('NOT_FOUND');
     const env = await this.envelopeForCategory(category);
     let index: number | null = null;
     if (m[1] !== 'collection') {
       const c = hexToBin(m[1]!);
-      const seq = c[0]! | (c[1]! << 8) | (c[2]! << 16) | (c[3]! * 2 ** 24); // u32le, see stampCommitment()
+      const seq = c[0]! | (c[1]! << 8) | (c[2]! << 16) | (c[3]! * 2 ** 24); // u32le, see sealCommitment()
       index = c[4]!;
       if (seq !== env.seq || index < 1 || index > env.shareCount) throw new AppError('NOT_FOUND');
     }
-    const input: StampInput = {
+    const input: SealInput = {
       theme: env.theme,
       seq: env.seq,
       index,
       shareCount: env.shareCount,
       sponsorName: env.campaign?.sponsor.name ?? null,
     };
-    const svg = stampSvg(input);
+    const svg = sealSvg(input);
     return m[2] === 'svg'
       ? { body: svg, contentType: 'image/svg+xml; charset=utf-8', cacheControl: IMMUTABLE }
       : { body: await renderPng(svg, 512), contentType: 'image/png', cacheControl: IMMUTABLE };

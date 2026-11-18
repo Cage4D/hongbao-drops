@@ -1,9 +1,9 @@
-// Stamp NFT artwork (one per share) and the collection icon. Square, perforated like a postage
-// stamp, readable at wallet icon sizes. Deterministic: same envelope + share → same bytes.
+// Hongbao Seal NFT artwork (one per share) and the collection icon. Square with a perforated
+// edge, readable at wallet icon sizes. Deterministic: same envelope + share → same bytes.
 import { paletteOf } from './theme.js';
 import { decor, envelope, esc } from './svg.js';
 
-export interface StampInput {
+export interface SealInput {
   theme: string;
   seq: number;
   /** 1-based share index; null for the collection icon. */
@@ -14,7 +14,7 @@ export interface StampInput {
 
 const SIZE = 512;
 
-export function stampSvg(i: StampInput): string {
+export function sealSvg(i: SealInput): string {
   const p = paletteOf(i.theme);
   const pad = 26;
   const holes: string[] = [];
@@ -23,11 +23,11 @@ export function stampSvg(i: StampInput): string {
     holes.push(`<circle cx="${x}" cy="0" r="9"/><circle cx="${x}" cy="${SIZE}" r="9"/>`);
     holes.push(`<circle cx="0" cy="${x}" r="9"/><circle cx="${SIZE}" cy="${x}" r="9"/>`);
   }
-  const number = i.index === null ? `${i.shareCount} STAMPS` : `#${i.seq}-${i.index}`;
+  const number = i.index === null ? `${i.shareCount} SEALS` : `#${i.seq}-${i.index}`;
   const sub = i.index === null ? `ENVELOPE #${i.seq}` : `${i.index} OF ${i.shareCount}`;
   const brand = (i.sponsorName ?? 'HONGBAO').toUpperCase().slice(0, 18);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-  <title>${esc(`Hongbao stamp ${number}`)}</title>
+  <title>${esc(`Hongbao Seal ${number}`)}</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.bgFrom}"/><stop offset="1" stop-color="${p.bgTo}"/></linearGradient>
     <clipPath id="inner"><rect x="${pad}" y="${pad}" width="${SIZE - 2 * pad}" height="${SIZE - 2 * pad}" rx="10"/></clipPath>
@@ -46,10 +46,10 @@ export function stampSvg(i: StampInput): string {
 </svg>`;
 }
 
-export function stampAlt(i: StampInput): string {
+export function sealAlt(i: SealInput): string {
   const p = paletteOf(i.theme);
   const who = i.sponsorName ? ` from ${i.sponsorName}` : '';
   return i.index === null
-    ? `Hongbao stamp collection for envelope #${i.seq}${who}: a ${p.label} red envelope stamp`
-    : `Hongbao stamp #${i.seq}-${i.index}${who}: a ${p.label} red envelope stamp, share ${i.index} of ${i.shareCount}`;
+    ? `Hongbao Seal collection for envelope #${i.seq}${who}: a ${p.label} red envelope seal`
+    : `Hongbao Seal #${i.seq}-${i.index}${who}: a ${p.label} red envelope seal, share ${i.index} of ${i.shareCount}`;
 }

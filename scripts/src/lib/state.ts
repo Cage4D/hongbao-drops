@@ -23,8 +23,8 @@ export interface EnvelopeState {
   refundLockingBytecodeHex: string;
   expiry: number;
   maxFee: string;
-  withStamps: boolean;
-  stampCategory?: string;
+  withSeals: boolean;
+  sealCategory?: string;
   prepTxid?: string;
   fundingTxid: string;
   contractAddress: string;
@@ -48,7 +48,7 @@ export function loadEnvelope(name: string): EnvelopeState {
   return JSON.parse(readFileSync(f, 'utf8'));
 }
 
-/** Monotonic local sequence number (gate key index / stamp commitment prefix). */
+/** Monotonic local sequence number (gate key index / seal commitment prefix). */
 export function nextSeq(): number {
   const f = join(STATE_DIR, 'seq.json');
   const seq = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')).seq + 1 : 1;

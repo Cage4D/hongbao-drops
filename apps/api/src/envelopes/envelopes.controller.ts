@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { clientIp } from '../claims/claims.controller.js';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { EnvelopesService } from './envelopes.service.js';
+import { upgradeLegacyEnvelopeBody, withLegacySealAlias } from '../common/legacy.js';
 
 @Controller()
 export class EnvelopesController {
@@ -14,7 +15,7 @@ export class EnvelopesController {
   @Post('envelopes')
   @HttpCode(201)
   create(@Body() body: unknown, @Req() req: Request) {
-    return this.envelopes.create(body, clientIp(req, this.config.CLIENT_IP_HEADER));
+    return this.envelopes.create(upgradeLegacyEnvelopeBody(body), clientIp(req, this.config.CLIENT_IP_HEADER));
   }
 
   @Post('envelopes/:id/funded')
@@ -24,8 +25,8 @@ export class EnvelopesController {
   }
 
   @Get('envelopes/:id')
-  byId(@Param('id') id: string) {
-    return this.envelopes.publicView({ id });
+  async byId(@Param('id') id: string) {
+    return withLegacySealAlias(await this.envelopes.publicView({ id }));
   }
 
   @Get('envelopes/:id/tree')
@@ -34,7 +35,7 @@ export class EnvelopesController {
   }
 
   @Get('s/:slug')
-  bySlug(@Param('slug') slug: string) {
-    return this.envelopes.publicView({ slug });
+  async bySlug(@Param('slug') slug: string) {
+    return withLegacySealAlias(await this.envelopes.publicView({ slug }));
   }
 }

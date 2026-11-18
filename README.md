@@ -6,13 +6,13 @@
 
 # Hongbao Drops 🧧
 
-**Drop a red envelope of Bitcoin Cash into any group chat as one link. The first people to open it each get a share of real BCH and a collectible stamp, in seconds, with no fees and nothing to sign.**
+**Drop a red envelope of Bitcoin Cash into any group chat as one link. The first people to open it each get a share of real BCH and a Hongbao Seal, in seconds, with no fees and nothing to sign.**
 
 ### 👉 [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
 
 <p>
   <img src="docs/media/og-lunar.png" alt="A Lunar New Year red envelope link preview: Happy New Year!, 3 of 3 shares left" width="420">
-  <img src="docs/media/stamp-gold.png" alt="A gold collectible Hongbao stamp" width="160">
+  <img src="docs/media/seal-gold.png" alt="A gold Hongbao Seal" width="160">
 </p>
 
 ---
@@ -21,7 +21,7 @@
 
 1. **Open the [demo envelope](⟨TODO: demo envelope link⟩)** on your phone.
 2. **Tap to open it.** Connect your Bitcoin Cash wallet, or paste your BCH address. No wallet yet? Try [Paytaca](https://www.paytaca.com) and tap **"Hold my share"**: we keep a share for you for 15 minutes while you install it.
-3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a **collectible stamp** showing you caught it.
+3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a **Hongbao Seal** showing you caught it.
 4. **Pass it on** (optional). Re-gift part of what you got as a new envelope, and see how far your drop travels.
 
 You need no BCH to start and pay no fees. You don't sign anything to receive.
@@ -31,8 +31,12 @@ You need no BCH to start and pay no fees. You don't sign anything to receive.
 - The sender put BCH into a **lockbox** on the Bitcoin Cash blockchain, split into shares, one per person.
 - The link you opened carries the key to that lockbox. We approve each claim so that everyone gets one share each.
 - Your share went **straight from the lockbox to your wallet**. Hongbao never held your money.
-- Every share comes with its own **collectible stamp**, made at the moment the envelope was created.
+- Every share comes with its own **Hongbao Seal**, made at the moment the envelope was created.
 - When the envelope expires, **leftovers return automatically** to the sender. Nobody, not even the sender, can take the money back before then.
+
+## How Hongbao differs
+
+Gifting one friend, maybe on paper? [CashStamps](https://github.com/harvmaster/CashStamps) is perfect. Dropping into a group of 50? That's a Hongbao. One link serves a whole group, and the first N people to open it each get a share. The rules are enforced by an on-chain contract, so nobody, not even the sender, can take the money back before expiry, and unclaimed shares return to the sender automatically. On top of that come lucky and quiz modes, a Hongbao Seal NFT for every claimer, and Sponsored Drops whose cost per activated new wallet anyone can check on-chain.
 
 ## Why sponsors pay
 
@@ -73,8 +77,8 @@ What it can't do: someone with many wallets can claim more than once. That's why
 
 | What | Transaction |
 |---|---|
-| An envelope being sent: shares in the lockbox, each with a collectible stamp | ⟨TODO: Nov 19 funding txid⟩ |
-| Someone claiming a share: BCH + stamp to their wallet | ⟨TODO: Nov 19 claim txid⟩ |
+| An envelope being sent: shares in the lockbox, each with a Hongbao Seal | ⟨TODO: Nov 19 funding txid⟩ |
+| Someone claiming a share: BCH + Hongbao Seal to their wallet | ⟨TODO: Nov 19 claim txid⟩ |
 | Leftovers returning automatically, many shares in one go | ⟨TODO: Nov 19 refund txid⟩ |
 
 Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.imaginary.cash/tx/e29f87de8794f42e97453477d637dd1afae2b75e6eacac496c08b95b194adc53) · [share claimed](https://chipnet.imaginary.cash/tx/41641d911704c5557e53b763b5b13f9115e02272db94a621cef2966975ded4f9) · [leftovers returned](https://chipnet.imaginary.cash/tx/744ff9d40cf9d0e4dd257f6c9852f3f6ee7da5e0a48b7b0d5c0c5bb308fc74f8).
@@ -84,16 +88,16 @@ Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.im
 ## Technical detail
 
 **Contract.** One CashScript 0.14 contract per envelope, deployed as P2SH32 ([walkthrough](packages/contract/contracts/README.md)). Each share is its own UTXO, so claims never race each other.
-- **`claim`** requires the link key's signature *and* a gate datasig over `recipient ‖ outpoint`. One input, one output, a fee bounded by `maxFee`, and the stamp NFT must pass through unchanged.
+- **`claim`** requires the link key's signature *and* a gate datasig over `recipient ‖ outpoint`. One input, one output, a fee bounded by `maxFee`, and the seal NFT must pass through unchanged.
 - **`refundBatch`** is keyless and only valid after expiry (CLTV; nodes also wait for median-time-past). It pays only to the sender's script, and uses the 2026 **Layla loop opcodes** to refund many shares in one transaction.
 
-**Stamps.** The funding transaction is a CashTokens genesis: every share carries an immutable NFT (commitment = envelope ‖ share). A BCMR OP_RETURN points wallets to the metadata (`/bcmr/:category.json`), served byte-for-byte as hashed on-chain. Output 0 is an identity output to the treasury, so the BCMR authchain never moves.
+**Hongbao Seals.** The funding transaction is a CashTokens genesis: every share carries an immutable NFT (commitment = envelope ‖ share). A BCMR OP_RETURN points wallets to the metadata (`/bcmr/:category.json`), served byte-for-byte as hashed on-chain. Output 0 is an identity output to the treasury, so the BCMR authchain never moves.
 
 **Gate and API.** NestJS + Prisma + Postgres on Vercel, Neon database.
 - **Gate:** the per-envelope gate key is derived from a master seed. The gate checks eligibility (one share per address, wallet fingerprint and hold token; rate limits; quiz answers hashed) and signs only after the funding was verified on-chain, sponsor fee included.
 - **Claims:** "fresh wallet" comes from Fulcrum address history; claims are accepted at 0-conf.
 - **Keeper** (keyless, every minute via an external cron): batch refunds once median-time-past passes expiry, reconciliation of spends made outside the API, confirmations, 7-day activation and farm flags (`SAME_FINGERPRINT`, `SAME_IP`, `IP_BURST`, `COMMON_SWEEP`, `NEVER_USED`).
-- **Also:** live updates over SSE, OG link-preview cards and stamp art rendered server-side, and mainnet budget caps enforced server-side.
+- **Also:** live updates over SSE, OG link-preview cards and seal art rendered server-side, and mainnet budget caps enforced server-side.
 
 **Trust model.** The server can't move funds without the link key. A link holder can't drain an envelope without per-claim gate signatures. Refunds go only to the refund script fixed in the contract. If the gate is down, liveness suffers, never custody.
 

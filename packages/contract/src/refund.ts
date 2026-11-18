@@ -32,7 +32,7 @@ export interface RefundPlan<U> {
  * Choose what to refund from an expired contract's coins and build the tx (review #1, review-2 P1-1).
  *
  * Uses the fee buildRefundTx actually measures (~340 sat per input at 1 sat/B), not the worst-case
- * maxFee — judging by maxFee stranded every no-stamp share under 1,546 sats, although the API
+ * maxFee — judging by maxFee stranded every no-seal share under 1,546 sats, although the API
  * accepts shares from 1,500. Largest coins first; if the smallest coin in the batch can't cover its
  * share of the fee, it's dropped as dust and the batch is rebuilt. (A smaller batch only raises the
  * per-input fee, so a dropped coin could never be refunded on its own either.) Anyone can send dust

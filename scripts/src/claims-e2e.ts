@@ -34,8 +34,8 @@ async function claimAndBroadcast(envelopeId: string, linkPriv: Uint8Array, body:
   return { approval, broadcast };
 }
 
-// ------------------------------------------------------------ envelope A: 3 stamped shares
-console.log('\nEnvelope A — 3 equal shares with stamps');
+// ------------------------------------------------------------ envelope A: 3 seal-bearing shares
+console.log('\nEnvelope A — 3 equal shares with seals');
 const A = await createAndFund(call, provider, { shareCount: 3, mode: 'EQUAL', totalSats: 9_000, theme: 'classic-red', message: 'Phase 4 e2e' });
 console.log(`   funded: ${EXPLORER_TX}${A.fundingTxid}  (slug ${A.env.slug})`);
 
@@ -46,7 +46,7 @@ const results = await Promise.all(
 const shareIdx = new Set(results.map((r) => r.approval.body.share?.index));
 check(results.every((r) => r.approval.status === 201) && shareIdx.size === 3, '3 parallel claims approved, 3 different shares');
 for (const [i, r] of results.entries()) {
-  check(r.broadcast?.status === 200, `claim ${i + 1} broadcast: ${r.broadcast?.body.amountSats} sats + stamp ${r.broadcast?.body.stamp?.commitment} → fresh wallet (isNewWallet=${r.approval.body.isNewWallet})`);
+  check(r.broadcast?.status === 200, `claim ${i + 1} broadcast: ${r.broadcast?.body.amountSats} sats + seal ${r.broadcast?.body.seal?.commitment} → fresh wallet (isNewWallet=${r.approval.body.isNewWallet})`);
   console.log(`   ${EXPLORER_TX}${r.broadcast?.body.txid}`);
 }
 
@@ -63,12 +63,12 @@ const viewA = await call('GET', `/s/${A.env.slug}`);
 check(viewA.body.status === 'EXHAUSTED' && viewA.body.shares.claimed === 3, `envelope A EXHAUSTED, ${viewA.body.recentClaims.length} recent claims listed`);
 
 // ------------------------------------------------------------ envelope B: quiz + hold, double claim
-console.log('\nEnvelope B — 2 quiz shares, no stamps');
+console.log('\nEnvelope B — 2 quiz shares, no seals');
 const B = await createAndFund(call, provider, {
   shareCount: 2,
   mode: 'QUIZ',
   totalSats: 6_000,
-  withStamps: false,
+  withSeals: false,
   quiz: { question: 'What does BCH stand for?', answers: ['Bitcoin Cash'] },
 });
 console.log(`   funded: ${EXPLORER_TX}${B.fundingTxid}  (slug ${B.env.slug})`);

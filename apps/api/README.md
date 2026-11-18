@@ -19,9 +19,9 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 
 | Method & path | What it does |
 |---|---|
-| `POST /envelopes` | Validates the body, applies mainnet budget caps, derives the gate key, computes the P2SH32 contract, builds the BCMR registry (stamps). Returns `fundingTemplate`, the exact outputs the funding tx must contain, in order, excluding change |
+| `POST /envelopes` | Validates the body, applies mainnet budget caps, derives the gate key, computes the P2SH32 contract, builds the BCMR registry (seals). Returns `fundingTemplate`, the exact outputs the funding tx must contain, in order, excluding change |
 | `POST /envelopes/:id/funded` | Fetches the tx from Fulcrum and checks every output (see below). Only then sets the envelope to `ACTIVE` and creates its shares. Idempotent for the same txid |
-| `GET /envelopes/:id`, `GET /s/:slug` | Public view: sats + USD, shares left, expiry countdown, sponsor branding, stamp image and alt text. Never returns keys, quiz answers or the sender address |
+| `GET /envelopes/:id`, `GET /s/:slug` | Public view: sats + USD, shares left, expiry countdown, sponsor branding, seal image and alt text. Never returns keys, quiz answers or the sender address |
 | `GET /health` | DB, Fulcrum (height + server), network, price, keeper heartbeat |
 | `POST /envelopes/:id/holds` | "Hold my share": reserves a share for 15 min and returns a single-use `holdToken` |
 | `POST /envelopes/:id/claims` | The gate. Checks eligibility, reserves a share for 120 s, signs the approval, and records `isNewWallet` (Fulcrum history) |
@@ -29,12 +29,12 @@ pnpm --filter @hongbao/scripts api-e2e        # Phase 3 exit check against Chipn
 | `GET /envelopes/:id/tree` | Pass-it-on lineage of the whole tree: nodes, generations, total reach, viral coefficient |
 | `POST /internal/keeper/tick` | Keeper (Bearer `KEEPER_TOKEN`). Steps: cleanup → reconcile from chain → batch refunds → confirmations → 7-day activation → farm flags → heartbeat. Called every minute by an external cron |
 | `GET /og/:idOrSlug.png` | 1200×630 link-preview card (theme, sponsor colour, message incl. CJK, shares left, USD) |
-| `GET /stamps/:category/:file` | Stamp art: `<commitment>.svg|png` per share, `collection.svg|png` |
+| `GET /seals/:category/:file` | Seal art: `<commitment>.svg|png` per share, `collection.svg|png` |
 | `GET /bcmr/:category.json` | The BCMR registry, byte-for-byte as committed on-chain |
 | `POST /sponsors`, `POST /campaigns` | Sponsors (token shown once, stored hashed) and campaigns (Bearer sponsor token) |
 | `GET /campaigns/:id/stats` · `/export.csv` · `/public` | Funnel → cost per activated new wallet, CSV with txids (sponsor only), public proof of reach. See docs/phase7-analytics.md |
 | `GET /stats/global`, `POST /envelopes/:id/cta-click` | Landing totals; deduped CTA clicks |
-| `POST /claims/:id/broadcast` | Checks the claim tx spends exactly the approved share to exactly the approved address (stamp intact, fee ≤ maxFee), relays it, and treats 0-conf acceptance as success |
+| `POST /claims/:id/broadcast` | Checks the claim tx spends exactly the approved share to exactly the approved address (seal intact, fee ≤ maxFee), relays it, and treats 0-conf acceptance as success |
 
 ## The gate (`src/claims/claims.service.ts`)
 
@@ -63,12 +63,12 @@ Errors always look like `{ "error": { "code", "message", ... } }`, using the cat
 
 [`funding-verifier.ts`](src/envelopes/funding-verifier.ts) is a pure function. An envelope becomes `ACTIVE` only if **all** of these hold:
 
-1. **Stamps:** input 0 spends `<stampCategory>:0` (the genesis rule).
-2. **Stamps:** output 0 is the ≥ 546-sat identity output to the treasury, with no token.
-3. Share *i* sits at its exact output index, pays the envelope's contract, and is ≥ `minShareSats`. With stamps it also carries one immutable NFT of `stampCategory` with commitment `u32le(seq) ‖ i` and no fungible amount. Without stamps it carries no token.
+1. **Seals:** input 0 spends `<sealCategory>:0` (the genesis rule).
+2. **Seals:** output 0 is the ≥ 546-sat identity output to the treasury, with no token.
+3. Share *i* sits at its exact output index, pays the envelope's contract, and is ≥ `minShareSats`. With seals it also carries one immutable NFT of `sealCategory` with commitment `u32le(seq) ‖ i` and no fungible amount. Without seals it carries no token.
 4. The shares sum to exactly `totalSats`.
 5. **Sponsored:** the next output pays ≥ `ceil(total × feeBps / 10000)` to the treasury.
-6. **Stamps:** the next output is the byte-exact BCMR OP_RETURN (`sha256` of the stored registry plus the stored URI).
+6. **Seals:** the next output is the byte-exact BCMR OP_RETURN (`sha256` of the stored registry plus the stored URI).
 7. No other output pays the contract, so every share is known to the gate and the keeper.
 
 Because the gate (Phase 4) only approves claims on `ACTIVE` envelopes, a sponsor who skips the fee output gets an envelope nobody can claim from. Their funds simply return after expiry.

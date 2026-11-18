@@ -12,7 +12,7 @@ The review found no way to take funds or refund early. All 15 findings and the l
 | 6 | One address could collect two shares with two approvals | Every share ever approved for a recipient is kept (`approvedShareIds`). While one is unspent, the gate only re-reserves **that** share, never signs a second outpoint, and otherwise refuses | `claims › #6` |
 | 7 | Rate limits and quiz guesses raceable in parallel | Count + record in one transaction under `pg_advisory_xact_lock(key)`. The quiz check runs inside that lock | `claims › #7` (12 parallel guesses → exactly 5 judged; parallel holds) |
 | 8 | Duplicate broadcasts and overlapping ticks double-recorded | Broadcast: the envelope row is locked, and side effects run only if the `APPROVED → BROADCAST` conditional update wins. Keeper: lease value `expires#owner`, renewed before every step, released only by its owner. A refund txid is recorded once (checked against `refunded` events) | `claims › #8`, `lifecycle › #8` ×2 |
-| 9 | Funding could also mint a minting NFT of the stamp category | Verifier rejects any non-share output carrying `stampCategory` | `envelopes › minting NFT` |
+| 9 | Funding could also mint a minting NFT of the seal category | Verifier rejects any non-share output carrying `sealCategory` | `envelopes › minting NFT` |
 | 10 | Reconcile hit `Claim.shareId` unique; the retry shortcut handed out spent shares | Reconcile detaches other claims from the share first. The retry shortcut needs a live, unspent reservation; otherwise the normal (pinned) path runs | `lifecycle › #10`, `claims › #10` |
 | 11 | Coins at a fully claimed contract never refunded | Refund candidates are chosen by expiry, regardless of DB share state | `lifecycle › #11` |
 | 12 | EQUAL not enforced | Verifier requires exactly `equalSplit(total, n)` for EQUAL | `envelopes › unequal split` |
@@ -28,7 +28,7 @@ The review found no way to take funds or refund early. All 15 findings and the l
 - "the old approval can no longer broadcast" renamed to "the API refuses to relay the old approval". It notes that the approval stays valid on-chain and is reconciled by the keeper.
 - "refuses to relay a tx paying someone other": now spies on the provider and asserts the API **never relayed** it, instead of relying on the mock VM to reject it.
 - Budget: funding an old pending envelope (#5) and `EXPIRED` unfunded envelopes (#3).
-- Claim builder at exactly `minShareSats` (#4). Verifier with extra stamp-category outputs (#9).
+- Claim builder at exactly `minShareSats` (#4). Verifier with extra seal-category outputs (#9).
 
 ## Also found while fixing
 

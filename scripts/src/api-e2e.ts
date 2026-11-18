@@ -1,6 +1,6 @@
 // Phase 3 exit check on Chipnet: an envelope created through the API becomes ACTIVE only after the
 // API verifies its funding tx on-chain. Needs the API running (pnpm --filter @hongbao/api dev).
-// Usage: pnpm --filter @hongbao/scripts api-e2e [-- --api http://localhost:3000] [--no-stamps]
+// Usage: pnpm --filter @hongbao/scripts api-e2e [-- --api http://localhost:3000] [--no-seals]
 import { parseArgs } from 'node:util';
 import { binToHex, generatePrivateKey, hexToBin, secp256k1 } from '@bitauth/libauth';
 import { SignatureTemplate, TransactionBuilder, type Output, type SpendableUtxo } from 'cashscript';
@@ -11,10 +11,10 @@ import { walletKey } from './lib/keys.js';
 import { FEE_RATE, draftFee, txSize } from './lib/envelope.js';
 
 const { values: a } = parseArgs({
-  options: { api: { type: 'string', default: 'http://localhost:3000' }, 'no-stamps': { type: 'boolean', default: false } },
+  options: { api: { type: 'string', default: 'http://localhost:3000' }, 'no-seals': { type: 'boolean', default: false } },
 });
 const API = a.api!;
-const withStamps = !a['no-stamps'];
+const withSeals = !a['no-seals'];
 
 async function call(method: string, path: string, body?: unknown) {
   const res = await fetch(`${API}${path}`, {
@@ -37,9 +37,9 @@ const wallet = walletKey();
 const signer = new SignatureTemplate(wallet.priv);
 let utxos: SpendableUtxo[] = (await provider.getUtxos(wallet.address)).filter((u) => !u.token);
 
-// Stamp genesis needs input 0 at vout 0: consolidate into one self-send if necessary.
+// Seal genesis needs input 0 at vout 0: consolidate into one self-send if necessary.
 let input0 = utxos.find((u) => u.vout === 0 && u.satoshis > 20_000n);
-if (withStamps && !input0) {
+if (withSeals && !input0) {
   const total = utxos.reduce((s, u) => s + u.satoshis, 0n);
   const mkPrep = (amt: bigint) => {
     const tb = new TransactionBuilder({ provider });
@@ -65,13 +65,13 @@ const body = {
   expiry: Math.floor(Date.now() / 1000) + 15 * 60,
   message: 'Phase 3 API e2e',
   theme: 'gold',
-  withStamps,
-  ...(withStamps && { stampCategory: input0.txid }),
+  withSeals,
+  ...(withSeals && { sealCategory: input0.txid }),
 };
 const created = await call('POST', '/envelopes', body);
 check(created.status === 201, `POST /envelopes → 201 (slug ${created.body.slug}, seq ${created.body.envelopeSeq})`);
 const env = created.body as CreateEnvelopeResponse;
-const decoy = (await call('POST', '/envelopes', { ...body, withStamps: false, stampCategory: undefined }))
+const decoy = (await call('POST', '/envelopes', { ...body, withSeals: false, sealCategory: undefined }))
   .body as CreateEnvelopeResponse;
 
 // --- 2. Not funded yet.
@@ -110,7 +110,7 @@ check(
 const funded = await call('POST', `/envelopes/${env.id}/funded`, { txid: sent.txid });
 check(funded.status === 200 && funded.body.status === 'ACTIVE', `POST /funded → ACTIVE with ${funded.body.shares?.length} shares`);
 for (const s of funded.body.shares) {
-  console.log(`   share ${s.index}: ${s.outpoint} ${s.sats} sats ($${s.usd})${s.nftCommitment ? ` stamp ${s.nftCommitment}` : ''}`);
+  console.log(`   share ${s.index}: ${s.outpoint} ${s.sats} sats ($${s.usd})${s.nftCommitment ? ` seal ${s.nftCommitment}` : ''}`);
 }
 
 const view = await call('GET', `/s/${env.slug}`);

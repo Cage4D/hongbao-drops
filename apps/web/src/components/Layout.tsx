@@ -4,6 +4,7 @@ import { useNetwork } from '../lib/network';
 import { useWallet } from '../lib/wallet';
 import { PAYTACA_URL } from '../lib/config';
 import { ConnectModal, WalletButton } from './ConnectModal';
+import { BlazeBanner } from './BlazeBanner';
 
 export function Layout() {
   const { pathname, hash, key } = useLocation();
@@ -46,6 +47,7 @@ function Nav() {
   const { connected } = useWallet();
   return (
     <header className="nav">
+      {pathname === '/' && <BlazeBanner />}
       <nav aria-label="Main" className="nav-inner">
         <Link to="/" className="disp nav-brand">
           Hongbao Drops

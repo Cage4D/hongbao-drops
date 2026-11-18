@@ -1,6 +1,6 @@
 # Hongbao.cash — line-by-line
 
-One contract instance per envelope. The funding tx locks **N share UTXOs** to it (each optionally holding one immutable stamp NFT). A share leaves the contract in one of two ways:
+One contract instance per envelope. The funding tx locks **N share UTXOs** to it (each optionally holding one immutable seal NFT). A share leaves the contract in one of two ways:
 
 | Path | Who | When | Needs |
 |---|---|---|---|
@@ -56,7 +56,7 @@ require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
 require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
 require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
 ```
-The stamp NFT goes to the claimer **unchanged** (test #9). Burning a token, changing a mutable NFT's commitment, or downgrading its capability are all *consensus-legal*, so only these lines prevent them. `tokenCategory` includes the capability byte, so capability changes fail the first line. For a BCH-only share, both sides are empty/0, which also forces the recipient output to be token-less.
+The seal NFT goes to the claimer **unchanged** (test #9). Burning a token, changing a mutable NFT's commitment, or downgrading its capability are all *consensus-legal*, so only these lines prevent them. `tokenCategory` includes the capability byte, so capability changes fail the first line. For a BCH-only share, both sides are empty/0, which also forces the recipient output to be token-less.
 
 ## `refundBatch()`
 
@@ -69,7 +69,7 @@ Compiles to `OP_CHECKLOCKTIMEVERIFY`. The tx must set `nLockTime >= expiry` and 
 int inputCount = tx.inputs.length;
 require(tx.outputs.length == inputCount);
 ```
-One refund output per share. This keeps each stamp on its own output and stops shares from being merged (test #15).
+One refund output per share. This keeps each seal on its own output and stops shares from being merged (test #15).
 
 ```solidity
 bytes self = tx.inputs[this.activeInputIndex].lockingBytecode;
@@ -100,7 +100,7 @@ require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
 require(tx.outputs[i].nftCommitment == tx.inputs[i].nftCommitment);
 require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);
 ```
-Stamp *i* returns unchanged on output *i*. Swapping stamps between outputs fails (test #15).
+Seal *i* returns unchanged on output *i*. Swapping seals between outputs fails (test #15).
 
 ```solidity
 require(i == inputCount);
@@ -121,7 +121,7 @@ cashc requires every function to end with a `require()`. This one also documents
 | # | Case | Result | Fails at |
 |---|---|---|---|
 | 1 | Valid claim, BCH-only | ✅ | |
-| 2 | Valid claim with stamp | ✅ | |
+| 2 | Valid claim with seal | ✅ | |
 | 2b | Fee exactly `maxFee` | ✅ | |
 | 3 | Wrong link key | ❌ | `checkSig(linkSig, linkPk)` |
 | 4 / 4b | Approval for another recipient / not from gate key | ❌ | `checkDataSig` |
@@ -129,13 +129,13 @@ cashc requires every function to end with a `require()`. This one also documents
 | 6 | Fee > `maxFee` | ❌ | value check |
 | 7 | 2 outputs (skim) | ❌ | `tx.outputs.length == 1` |
 | 8 | 2 shares in one claim | ❌ | `tx.inputs.length == 1` |
-| 9 | Drop stamp / add token / change commitment / change capability | ❌ | token checks |
+| 9 | Drop seal / add token / change commitment / change capability | ❌ | token checks |
 | 10 | Refund before expiry | ❌ | `tx.time >= expiry` |
 | 11 | Refund 1 share | ✅ | |
-| 12 / 12b | Refund 5 shares with stamps / 20 shares | ✅ | |
+| 12 / 12b | Refund 5 shares with seals / 20 shares | ✅ | |
 | 13 | Refund to another address | ❌ | `refundLockingBytecode` check |
 | 14 | Mix in another contract's input | ❌ | `lockingBytecode == self` |
-| 15 | Fewer outputs / swapped stamps | ❌ | output count / token checks |
+| 15 | Fewer outputs / swapped seals | ❌ | output count / token checks |
 | 16 | Refund fee > `maxFee` | ❌ | value check |
 
 Recompile after editing: `pnpm --filter @hongbao/contract compile`. A test fails if the committed artifact is stale.

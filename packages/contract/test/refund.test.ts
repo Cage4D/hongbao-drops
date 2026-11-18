@@ -1,16 +1,16 @@
 // planRefund (review-2 P1-1): shares at the API's minimum sizes must be refundable. The old
-// dust + maxFee threshold (546 + 1,000) stranded every no-stamp share under 1,546 sats.
+// dust + maxFee threshold (546 + 1,000) stranded every no-seal share under 1,546 sats.
 import { describe, expect, it } from 'vitest';
 import { MockNetworkProvider, randomNFT, randomUtxo, type Utxo } from 'cashscript';
 import { binToHex, hash160, secp256k1, sha256 } from '@bitauth/libauth';
-import { MAX_REFUND_BATCH, MIN_SHARE_SATS_NO_STAMP, MIN_SHARE_SATS_WITH_STAMP, hongbaoContract, planRefund } from '../src/index.js';
+import { MAX_REFUND_BATCH, MIN_SHARE_SATS_NO_SEAL, MIN_SHARE_SATS_WITH_SEAL, hongbaoContract, planRefund } from '../src/index.js';
 
 const key = (l: string) => sha256.hash(new TextEncoder().encode(`hongbao-refundtx-${l}`));
 const pub = (k: Uint8Array) => secp256k1.derivePublicKeyCompressed(k) as Uint8Array;
 const p2pkh = (pk: Uint8Array) => Uint8Array.from([0x76, 0xa9, 0x14, ...hash160(pk), 0x88, 0xac]);
 const EXPIRY = 1_800_000_000;
 
-function setup(coins: { sats: bigint; stamp?: boolean }[]) {
+function setup(coins: { sats: bigint; seal?: boolean }[]) {
   const provider = new MockNetworkProvider({ vmTarget: 'BCH_2026_05' });
   const refund = p2pkh(pub(key('sender')));
   const contract = hongbaoContract({ linkPk: pub(key('link')), gatePk: pub(key('gate')), refundLockingBytecode: refund, expiry: EXPIRY }, provider);
@@ -19,7 +19,7 @@ function setup(coins: { sats: bigint; stamp?: boolean }[]) {
       contract.tokenAddress,
       randomUtxo({
         satoshis: c.sats,
-        ...(c.stamp && { token: randomNFT({ nft: { capability: 'none', commitment: `01000000${(i + 1).toString(16).padStart(2, '0')}` } }) }),
+        ...(c.seal && { token: randomNFT({ nft: { capability: 'none', commitment: `01000000${(i + 1).toString(16).padStart(2, '0')}` } }) }),
       }),
     ),
   );
@@ -28,8 +28,8 @@ function setup(coins: { sats: bigint; stamp?: boolean }[]) {
 }
 
 describe('planRefund (review-2 P1-1)', () => {
-  it('refunds no-stamp shares of exactly MIN_SHARE_SATS_NO_STAMP (1,500)', async () => {
-    const { provider, plan } = setup([{ sats: MIN_SHARE_SATS_NO_STAMP }, { sats: MIN_SHARE_SATS_NO_STAMP }, { sats: MIN_SHARE_SATS_NO_STAMP }]);
+  it('refunds no-seal shares of exactly MIN_SHARE_SATS_NO_SEAL (1,500)', async () => {
+    const { provider, plan } = setup([{ sats: MIN_SHARE_SATS_NO_SEAL }, { sats: MIN_SHARE_SATS_NO_SEAL }, { sats: MIN_SHARE_SATS_NO_SEAL }]);
     const p = plan()!;
     expect(p.batch).toHaveLength(3);
     expect(p.dust).toHaveLength(0);
@@ -37,8 +37,8 @@ describe('planRefund (review-2 P1-1)', () => {
     await provider.sendRawTransaction(p.hex); // the mock VM runs refundBatch
   });
 
-  it('refunds stamped shares of exactly MIN_SHARE_SATS_WITH_STAMP (2,000)', async () => {
-    const { provider, plan } = setup([{ sats: MIN_SHARE_SATS_WITH_STAMP, stamp: true }, { sats: MIN_SHARE_SATS_WITH_STAMP, stamp: true }]);
+  it('refunds seal-bearing shares of exactly MIN_SHARE_SATS_WITH_SEAL (2,000)', async () => {
+    const { provider, plan } = setup([{ sats: MIN_SHARE_SATS_WITH_SEAL, seal: true }, { sats: MIN_SHARE_SATS_WITH_SEAL, seal: true }]);
     const p = plan()!;
     expect(p.batch).toHaveLength(2);
     await provider.sendRawTransaction(p.hex);
@@ -59,7 +59,7 @@ describe('planRefund (review-2 P1-1)', () => {
   });
 
   it(`batches at most ${MAX_REFUND_BATCH} coins and reports the rest as remaining`, async () => {
-    const { provider, plan } = setup(Array.from({ length: MAX_REFUND_BATCH + 3 }, () => ({ sats: MIN_SHARE_SATS_NO_STAMP })));
+    const { provider, plan } = setup(Array.from({ length: MAX_REFUND_BATCH + 3 }, () => ({ sats: MIN_SHARE_SATS_NO_SEAL })));
     const p = plan()!;
     expect(p.batch).toHaveLength(MAX_REFUND_BATCH);
     expect(p.remaining).toHaveLength(3);

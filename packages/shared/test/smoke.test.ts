@@ -19,7 +19,7 @@ describe('shared', () => {
   it('applies defaults and validates create requests', () => {
     const r = CreateEnvelopeRequestSchema.parse(valid);
     expect(r.theme).toBe('classic-red');
-    expect(r.withStamps).toBe(true);
+    expect(r.withSeals).toBe(true);
     expect(() => CreateEnvelopeRequestSchema.parse({ ...valid, linkPk: '04' + 'ab'.repeat(32) })).toThrow();
     expect(() => CreateEnvelopeRequestSchema.parse({ ...valid, extra: 1 })).toThrow();
   });

@@ -353,7 +353,7 @@ export class KeeperService implements OnApplicationBootstrap, OnModuleDestroy {
                 isNewWallet: claim.isNewWallet,
                 luckiest: env.mode === 'LUCKY' && out.valueSatoshis > (prevMax._max.amountSats ?? 0n),
                 txid: h.tx_hash,
-                stamp: sh.nftCommitment,
+                seal: sh.nftCommitment,
                 sharesLeft,
                 reconciled: true,
               },

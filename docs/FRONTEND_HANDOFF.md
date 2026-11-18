@@ -8,7 +8,7 @@ Written 2026-11-18 by the backend session. If something here disagrees with the 
 
 ## 0. The product in 60 seconds
 
-A sender drops a **red envelope** of BCH into a group chat as one link. The first N people who open it each get a share. Every claimer also gets a **collectible stamp** (an NFT). Claimers need **no BCH and sign nothing**. The money sits in an on-chain **lockbox** (a contract). Nobody can take it back early, not even the sender, and **leftovers return automatically** to the sender after expiry.
+A sender drops a **red envelope** of BCH into a group chat as one link. The first N people who open it each get a share. Every claimer also gets a **Hongbao Seal** (an NFT). Claimers need **no BCH and sign nothing**. The money sits in an on-chain **lockbox** (a contract). Nobody can take it back early, not even the sender, and **leftovers return automatically** to the sender after expiry.
 
 Modes: **EQUAL** (same share each), **LUCKY** (random amounts), **QUIZ** (answer a question to claim).
 
@@ -17,7 +17,7 @@ Extras:
 - **Pass it on:** re-gift part of your claim as a new envelope.
 - **Sponsored Drops:** branded envelopes; 3% fee; a funnel dashboard.
 
-Use the same plain words as the README: **lockbox**, **collectible stamp**, **leftovers return automatically**. Avoid jargon in the UI (no "UTXO", "P2SH", "BCMR", "gate").
+Use the same plain words as the README: **lockbox**, **Hongbao Seal**, **leftovers return automatically**. Avoid jargon in the UI (no "UTXO", "P2SH", "BCMR", "gate").
 
 ### Any BCH wallet; Paytaca suggested and required to work
 
@@ -27,9 +27,9 @@ Paytaca is also a sponsor of BCH BLAZE 2026, so the product **must work end-to-e
 
 | With Paytaca | Status |
 |---|---|
-| Connect over WizardConnect and sign the stamped funding tx | ✅ proven on Chipnet (Phase 2, first try) |
-| Claim to a Paytaca address (no signing needed) | ✅ works on any network: the BCH + stamp land on-chain |
-| Paytaca **showing** the received BCH and the stamp (name + image) | ⏳ **only provable on mainnet**: Paytaca's Chipnet servers are stuck (§11). This is the **first check on Nov 19** |
+| Connect over WizardConnect and sign the seal-bearing funding tx | ✅ proven on Chipnet (Phase 2, first try) |
+| Claim to a Paytaca address (no signing needed) | ✅ works on any network: the BCH + seal land on-chain |
+| Paytaca **showing** the received BCH and the seal (name + image) | ⏳ **only provable on mainnet**: Paytaca's Chipnet servers are stuck (§11). This is the **first check on Nov 19** |
 | The full judge flow on a phone (open link → connect Paytaca → claim → see it in Paytaca) | ⏳ mainnet, Phase 9 |
 
 ## 1. Environment
@@ -41,7 +41,7 @@ Paytaca is also a sponsor of BCH BLAZE 2026, so the product **must work end-to-e
 | Network from Nov 19 | **MAINNET**. The production database is **wiped** at the switch, so Chipnet envelopes disappear |
 | Which network? | Read `GET /health` → `network` (`"CHIPNET"` / `"MAINNET"`). Don't hard-code it |
 | Frontend | `https://hongbao-drops.vercel.app` (Vercel project `hongbao-drops`, root `apps/web`) |
-| CORS | Browsers are answered only from the frontend: `https://hongbao-drops.vercel.app`, its `hongbao-drops-*-cage4ds-projects.vercel.app` aliases and previews, and `localhost`. Add more with `CORS_ORIGINS` (comma-separated). `/bcmr`, `/stamps`, `/og` and `/health` stay open to any site. See `apps/api/src/common/cors.ts` |
+| CORS | Browsers are answered only from the frontend: `https://hongbao-drops.vercel.app`, its `hongbao-drops-*-cage4ds-projects.vercel.app` aliases and previews, and `localhost`. Add more with `CORS_ORIGINS` (comma-separated). `/bcmr`, `/seals`, `/og` and `/health` stay open to any site. See `apps/api/src/common/cors.ts` |
 | Submission deadline | **22 Nov 14:00 UTC.** The top risk is the judge's claim flow on a phone, on mainnet |
 
 Per network:
@@ -60,7 +60,7 @@ Per network:
 Build the frontend **inside this monorepo** as `apps/web` (pnpm workspace). Then you can import the two packages the backend already maintains:
 
 - `@hongbao/shared`: every request/response type, the Zod request schemas (reuse them for form validation), and `ERROR_CATALOG`.
-- `@hongbao/contract`: `buildClaimTx`, `fundingOutputs`, `MIN_SHARE_SATS_WITH_STAMP` (2000) / `MIN_SHARE_SATS_NO_STAMP` (1500), `dustLimit`, `hongbaoContract`. These are the same builders the API's tests use, so the transactions match what the contract and API expect.
+- `@hongbao/contract`: `buildClaimTx`, `fundingOutputs`, `MIN_SHARE_SATS_WITH_SEAL` (2000) / `MIN_SHARE_SATS_NO_SEAL` (1500), `dustLimit`, `hongbaoContract`. These are the same builders the API's tests use, so the transactions match what the contract and API expect.
 
 Pinned versions that are known to work together (from `apps/wc-test`):
 
@@ -70,7 +70,7 @@ cashscript 0.14.0 · @bitauth/libauth ^3.1.0-next.8
 react ^19 · vite ^8
 ```
 
-`apps/wc-test/src/main.tsx` is a **working** (throwaway) WizardConnect page: it connects Paytaca, derives addresses, scans coins, and has a wallet sign a funding tx with stamps. Copy freely from it.
+`apps/wc-test/src/main.tsx` is a **working** (throwaway) WizardConnect page: it connects Paytaca, derives addresses, scans coins, and has a wallet sign a funding tx with seals. Copy freely from it.
 
 If the frontend lives in a separate repo, the packages aren't published to npm: vendor `packages/shared` and `packages/contract`, or ask for a build.
 
@@ -81,9 +81,9 @@ If the frontend lives in a separate repo, the packages aren't published to npm: 
 | Screen | Must do |
 |---|---|
 | **Landing** | What it is in one line; a **Try it** button (demo link, §11); global stats from `GET /stats/global`; "Send your own" |
-| **Create envelope** | Connect wallet (WizardConnect) → amount, number of shares, mode, message, theme, expiry, stamps on/off, quiz (Q + up to 3 answers) → sign in wallet → show the **share link** to copy/share |
-| **Envelope / claim page** (`/e/<id>#k=…` and `/<slug>#k=…`) | Shows message, theme, sponsor branding, amount left, shares left, countdown, recent claims (with "luckiest"), and the stamp. Three ways to claim: **connect wallet**, **paste address**, **Hold my share**. Quiz input in QUIZ mode. Live updates (SSE) |
-| **Success** | "Money arrived" **immediately** after broadcast (unconfirmed is fine). Amount in BCH + USD, the collectible stamp image, explorer link, **Pass it on** and **Send your own** |
+| **Create envelope** | Connect wallet (WizardConnect) → amount, number of shares, mode, message, theme, expiry, seals on/off, quiz (Q + up to 3 answers) → sign in wallet → show the **share link** to copy/share |
+| **Envelope / claim page** (`/e/<id>#k=…` and `/<slug>#k=…`) | Shows message, theme, sponsor branding, amount left, shares left, countdown, recent claims (with "luckiest"), and the seal. Three ways to claim: **connect wallet**, **paste address**, **Hold my share**. Quiz input in QUIZ mode. Live updates (SSE) |
+| **Success** | "Money arrived" **immediately** after broadcast (unconfirmed is fine). Amount in BCH + USD, the Hongbao Seal image, explorer link, **Pass it on** and **Send your own** |
 | **Pass it on** | Create a child envelope from the claimed coins (default suggestion: 50% into 3 shares), with `parentEnvelopeId` |
 | **Tree view** (optional but in the pitch) | "This drop reached X people across Y generations" from `GET /envelopes/:id/tree` |
 | **Sponsor** | Create sponsor → token **shown once** (make them save it) → create campaign → create sponsored envelopes → dashboard (`/campaigns/:id/stats`), CSV download, shareable **public proof page** (`/campaigns/:id/public`) |
@@ -127,10 +127,10 @@ The sender's wallet signs **one** transaction, or **two** if a "prep" transactio
 
 **1. Connect the wallet (WizardConnect)** and derive addresses from the session xpubs (§10). Scan the wallet's coins via Fulcrum. Use **BCH-only** coins (skip ones carrying tokens), unless you deliberately handle tokens (see the pass-it-on note in §6).
 
-**2. Stamps need a coin at output index 0 (CashTokens rule).** The new stamp collection's ID (the "category") is the txid of the coin that input 0 spends, and that coin must be at **vout 0**.
+**2. Seals need a coin at output index 0 (CashTokens rule).** The new seal collection's ID (the "category") is the txid of the coin that input 0 spends, and that coin must be at **vout 0**.
 - If the wallet has a vout-0 coin big enough, use it as input 0.
 - Otherwise build a **prep tx**: a self-send of the wallet's coins to one output (so it lands at vout 0). Have the wallet sign and broadcast it, then use its output 0. Chaining the next tx on this unconfirmed one works.
-- Without stamps (`withStamps: false`) there's no vout-0 rule.
+- Without seals (`withSeals: false`) there's no vout-0 rule.
 
 **3. `POST /envelopes`** (see §7 for every field):
 
@@ -144,18 +144,18 @@ The sender's wallet signs **one** transaction, or **two** if a "prep" transactio
   "expiry": 1795000000,
   "message": "Happy Lunar New Year!",
   "theme": "lunar",
-  "withStamps": true,
-  "stampCategory": "<txid of the vout-0 coin that will be input 0>"
+  "withSeals": true,
+  "sealCategory": "<txid of the vout-0 coin that will be input 0>"
 }
 ```
 
-- `senderAddress` is where leftovers return. Use one of the connected wallet's addresses. The plain `q…` and token-aware `z…` forms encode the **same** locking script, so either works, unclaimed stamps included.
+- `senderAddress` is where leftovers return. Use one of the connected wallet's addresses. The plain `q…` and token-aware `z…` forms encode the **same** locking script, so either works, unclaimed seals included.
 - The response is `CreateEnvelopeResponse`. The key field is **`fundingTemplate`**: the exact outputs the funding tx must have, **in order**.
 
 **4. Build the funding tx:**
-- **Outputs:** `fundingTemplate` exactly as given, then **change** last. Shares that carry a stamp have `token: { category, nftCommitment }`; create it as an immutable NFT, `capability: 'none'`, amount 0.
-- **Input 0:** the `stampCategory:0` coin. Further inputs are any other wallet coins.
-- **Output order (with stamps):** `0` identity (546 sats to the treasury) · `1…N` shares · then the sponsor fee if sponsored · then the BCMR OP_RETURN · then change. Without stamps: `0…N-1` shares · sponsor fee · change. **Never add another output that pays the contract or carries the new stamp category.**
+- **Outputs:** `fundingTemplate` exactly as given, then **change** last. Shares that carry a seal have `token: { category, nftCommitment }`; create it as an immutable NFT, `capability: 'none'`, amount 0.
+- **Input 0:** the `sealCategory:0` coin. Further inputs are any other wallet coins.
+- **Output order (with seals):** `0` identity (546 sats to the treasury) · `1…N` shares · then the sponsor fee if sponsored · then the BCMR OP_RETURN · then change. Without seals: `0…N-1` shares · sponsor fee · change. **Never add another output that pays the contract or carries the new seal category.**
 - **LUCKY** templates already contain a random split. Use it as-is. EQUAL must match exactly.
 - **Fee:** 1 sat/byte. Measure the draft size, and **don't use a flat 1,000-sat placeholder fee** while measuring. With 20+ coins, CashScript rejects a draft paying < 1 sat/B. That bug bit our scripts and is still in `apps/wc-test` (`signAndSend`, `1_000n`). Use something like `200 × inputs + 1000` for the draft, then the real `size × 1`. Placeholder unlockers are empty: add ~107 bytes per P2PKH input for the signature and public key (as `wc-test` does).
 
@@ -179,7 +179,7 @@ const outputs = created.fundingTemplate.map((o) => ({
 
 **7. Show the share link** (§3). The envelope is live.
 
-Amounts the wallet needs: `totalSats` + 546 (identity, with stamps) + sponsor fee (if any) + tx fee (~1 sat/B; a few hundred sats), + the prep tx fee if needed.
+Amounts the wallet needs: `totalSats` + 546 (identity, with seals) + sponsor fee (if any) + tx fee (~1 sat/B; a few hundred sats), + the prep tx fee if needed.
 
 ---
 
@@ -190,8 +190,8 @@ Amounts the wallet needs: `totalSats` + 546 (identity, with stamps) + sponsor fe
 - Check `shares.left` and `secondsLeft`.
 
 **2. Get a recipient address**, one of three ways:
-- **Connect wallet** (WizardConnect): derive the **token-aware** (`z…`) address from the session's `receive` xpub (§10), so the stamp lands somewhere the wallet shows tokens. Also send `walletFingerprint = sha256hex(utf8(receiveXpub))`. Never send the xpub itself.
-- **Paste address:** accept `q…` or `z…` for the current network. Both are the same locking script, so the BCH and stamp arrive either way. The `z…` form only tells sending software "this wallet understands tokens".
+- **Connect wallet** (WizardConnect): derive the **token-aware** (`z…`) address from the session's `receive` xpub (§10), so the seal lands somewhere the wallet shows tokens. Also send `walletFingerprint = sha256hex(utf8(receiveXpub))`. Never send the xpub itself.
+- **Paste address:** accept `q…` or `z…` for the current network. Both are the same locking script, so the BCH and seal arrive either way. The `z…` form only tells sending software "this wallet understands tokens".
 - **Hold my share** (no wallet yet): `POST /envelopes/:id/holds {"fingerprint"?}` → `{ holdToken, heldUntil }`.
   - Store `holdToken` in `localStorage`, keyed by envelope.
   - Show "No wallet yet? Try Paytaca" with the install link (https://www.paytaca.com) and the countdown to `heldUntil` (15 min).
@@ -219,10 +219,10 @@ const { hex } = buildClaimTx({
   gateSig: ap.gateSig,
 });
 const r = await fetch(`${API}/claims/${ap.claimId}/broadcast`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rawTx: hex }) });
-// 200 → BroadcastResponse { txid, amountSats, amountUsd, stamp: { category, commitment, imageUrl, alt } | null }
+// 200 → BroadcastResponse { txid, amountSats, amountUsd, seal: { category, commitment, imageUrl, alt } | null }
 ```
 
-**5. 200 means the money arrived.** Unconfirmed is final enough for the UI ("0-conf"). Show `amountSats` (the share minus its own ~440–490-sat network fee), `amountUsd`, `stamp.imageUrl` with `stamp.alt`, and the explorer link. Broadcasting again is idempotent.
+**5. 200 means the money arrived.** Unconfirmed is final enough for the UI ("0-conf"). Show `amountSats` (the share minus its own ~440–490-sat network fee), `amountUsd`, `seal.imageUrl` with `seal.alt`, and the explorer link. Broadcasting again is idempotent.
 
 Errors to expect while claiming (all have human `message`s):
 
@@ -246,7 +246,7 @@ After a successful claim, offer to re-gift part of it. It's Flow A with the **cl
 
 - **It only counts if the funding spends the claimed coins** (input from the claimer's address). That's what marks the claimer as "activated" and what puts the child envelope on the tree.
 - **The claimed coin is at vout 0** (a claim tx has one output), so it can be input 0 of the genesis directly, with no prep tx.
-- **⚠️ The claimed coin carries the stamp NFT.** If you spend it, add an output that sends **the old stamp back** to the claimer's token address. CashScript refuses to burn tokens by default, which is good. Value: at least the token dust (~700 sats is safe; use `dustLimit(25, token)` from `@hongbao/contract`).
+- **⚠️ The claimed coin carries the seal NFT.** If you spend it, add an output that sends **the old seal back** to the claimer's token address. CashScript refuses to burn tokens by default, which is good. Value: at least the token dust (~700 sats is safe; use `dustLimit(25, token)` from `@hongbao/contract`).
 - Suggested defaults: 50% of what they got, 3 shares. The claimed share is small (a few thousand sats), so check against `minShareSats × shareCount` + fees.
 - The parent page's live stream gets a `passedOn` event.
 
@@ -280,12 +280,12 @@ Base: `https://hongbao-drops-api.vercel.app`. JSON bodies (`content-type: applic
 | `linkPk` | Compressed pubkey hex (`02…`/`03…`) |
 | `shareCount` | 1–10 on mainnet (1–127 on Chipnet) |
 | `mode` | `EQUAL` \| `LUCKY` \| `QUIZ` |
-| `totalSats` | ≥ `minShareSats × shareCount` (2,000/share with stamps, 1,500 without). Mainnet: ≤ $0.50 and ≤ 200,000 sats per envelope |
+| `totalSats` | ≥ `minShareSats × shareCount` (2,000/share with seals, 1,500 without). Mainnet: ≤ $0.50 and ≤ 200,000 sats per envelope |
 | `expiry` | Unix seconds. ≥ now + 600. ≤ now + **24 h on mainnet** (30 days on Chipnet) |
 | `message` | ≤ 280 chars, optional |
 | `theme` | `classic-red` (default) \| `gold` \| `christmas` \| `lunar` |
-| `withStamps` | Default `true` |
-| `stampCategory` | **Required when stamps are on**: the txid of the vout-0 coin that will be input 0 |
+| `withSeals` | Default `true` |
+| `sealCategory` | **Required when seals are on**: the txid of the vout-0 coin that will be input 0 |
 | `quiz` | `{ question ≤200, answers: 1–3 strings ≤100 }`; required for QUIZ, forbidden otherwise |
 | `sponsorToken`, `campaignId` | Sponsored drop: adds the fee output to the template. `campaignId` needs `sponsorToken` |
 | `parentEnvelopeId` | Pass it on |
@@ -308,8 +308,8 @@ Sponsored envelopes cost the sender **3% (minimum 546 sats)** extra, as a fee ou
 | Path | What |
 |---|---|
 | `GET /og/:idOrSlug.png` | 1200×630 link-preview card. Use `view.og.imageUrl` + `view.og.alt` |
-| `GET /stamps/:category/:commitment.png` (`.svg`) | One collectible stamp (512×512). Use `BroadcastResponse.stamp.imageUrl` |
-| `GET /stamps/:category/collection.png` | The envelope's collection image (`view.stamp.imageUrl`) |
+| `GET /seals/:category/:commitment.png` (`.svg`) | One Hongbao Seal (512×512). Use `BroadcastResponse.seal.imageUrl` |
+| `GET /seals/:category/collection.png` | The envelope's collection image (`view.seal.imageUrl`) |
 | `GET /bcmr/:category.json` | Wallet metadata (wallets fetch this; you don't need it) |
 
 ### Ops (not for the UI)
@@ -339,7 +339,7 @@ Sponsored envelopes cost the sender **3% (minimum 546 sats)** extra, as a fee ou
 
 | Event | Payload |
 |---|---|
-| `claimed` | `{ shareIndex, address (truncated), sats, usd, isNewWallet, luckiest, txid, stamp, sharesLeft, reconciled? }` |
+| `claimed` | `{ shareIndex, address (truncated), sats, usd, isNewWallet, luckiest, txid, seal, sharesLeft, reconciled? }` |
 | `held` | `{ shareIndex, heldUntil }` |
 | `exhausted` | `{ claimed }` |
 | `refunded` | `{ txid, shares, sats }` (leftovers returned) |
@@ -377,7 +377,7 @@ The fragment `#k=` never reaches the crawler, so previews can't leak the secret.
   - The wallet signs with `SIGHASH_ALL | FORKID | UTXOS`.
 - **Serialise for the relay:** the transaction as hex, and source outputs with hex bytes and `"<bigint: Xn>"` strings. Passing CashScript's `generateWcTransactionObject()` result directly throws *"Do not know how to serialize a BigInt"*. Copy `toRelayRequest()` from `wc-test`.
 - **Pairing can fail silently** (console: *"Key exchange timed out"*) while a saved session still makes the page look connected. Show the **real** connection state and offer **Reconnect**.
-- Paytaca signed the stamped genesis funding tx (N NFTs to a contract + OP_RETURN) on the first try. Paytaca is the wallet to build and test against (see "Any BCH wallet; Paytaca suggested and required to work").
+- Paytaca signed the seal-bearing genesis funding tx (N NFTs to a contract + OP_RETURN) on the first try. Paytaca is the wallet to build and test against (see "Any BCH wallet; Paytaca suggested and required to work").
 - **The WizardConnect addresses are part of the Paytaca wallet.** The address in Paytaca's app may differ only because Paytaca moves on to a new receive address after one has been used.
 
 ---
@@ -391,7 +391,7 @@ The fragment `#k=` never reaches the crawler, so previews can't leak the secret.
 - **Mainnet caps** apply to everyone per envelope: ≤ 10 shares, ≤ $0.50, ≤ 24 h. Aggregate caps only protect the project's own demo wallet. Show `BUDGET_CAP` messages as-is.
 - **Testing on Chipnet with Paytaca: connecting and signing work, balances don't show.** Paytaca's Chipnet servers have been stuck on an abandoned chain since the Nov 15 network upgrade (they report a balance of 0 for addresses that hold coins). So on Chipnet:
   - WizardConnect connect + signing with Paytaca **work**: your page supplies the coins from Fulcrum, and Paytaca only signs.
-  - Coins and stamps sent to a Paytaca address **arrive** but **don't appear in the app**. Check them on the explorer (`https://chipnet.imaginary.cash/address/<addr>`; it even shows our stamp images) or with `pnpm --filter @hongbao/scripts addr-check -- <addr>`.
+  - Coins and seals sent to a Paytaca address **arrive** but **don't appear in the app**. Check them on the explorer (`https://chipnet.imaginary.cash/address/<addr>`; it even shows our seal images) or with `pnpm --filter @hongbao/scripts addr-check -- <addr>`.
   - Building the "see it in your wallet" screens against Paytaca on Chipnet isn't possible. Verify those on mainnet from Nov 19. Mainnet Paytaca is in sync (checked Nov 17).
 - **Known API copy nit:** the alt text says *"a classic red red envelope"* (the theme name is doubled). The backend will fix it; don't work around it.
 

@@ -3,7 +3,7 @@ pragma cashscript ^0.14.0;
 // Hongbao — one contract instance per red envelope.
 //
 // The funding tx creates N "share" UTXOs locked to this contract (each optionally carrying one
-// immutable stamp NFT). Each share is claimed on its own, so claims never race on one UTXO.
+// immutable seal NFT). Each share is claimed on its own, so claims never race on one UTXO.
 //
 // Security model (see contracts/README.md for a line-by-line walkthrough):
 //  - claim needs BOTH the link secret (lives only in the share URL fragment) AND a per-claim
@@ -40,7 +40,7 @@ contract Hongbao(
         // The share pays its own network fee (claimer needs zero BCH); claimer gets the rest.
         require(tx.outputs[0].value >= tx.inputs[0].value - maxFee);
 
-        // The stamp NFT (if any) must go to the claimer unchanged. tokenCategory includes the
+        // The seal NFT (if any) must go to the claimer unchanged. tokenCategory includes the
         // capability byte, so capability changes are caught too. Token-less shares compare
         // empty == empty and 0 == 0, so the recipient output must be token-less as well.
         require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
@@ -49,7 +49,7 @@ contract Hongbao(
     }
 
     // After expiry, anyone (the keeper) can refund up to ~20 shares in one tx.
-    // Input i is refunded by output i, so every share's stamp stays separate.
+    // Input i is refunded by output i, so every share's seal stays separate.
     function refundBatch() {
         // tx.time compiles to OP_CHECKLOCKTIMEVERIFY: tx locktime must be >= expiry and the
         // input sequence non-final; the network only accepts it once median time passes locktime.
@@ -66,7 +66,7 @@ contract Hongbao(
             // Every output goes to the sender, and loses at most maxFee.
             require(tx.outputs[i].lockingBytecode == refundLockingBytecode);
             require(tx.outputs[i].value >= tx.inputs[i].value - maxFee);
-            // Stamp i goes back unchanged on output i.
+            // Seal i goes back unchanged on output i.
             require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
             require(tx.outputs[i].nftCommitment == tx.inputs[i].nftCommitment);
             require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);

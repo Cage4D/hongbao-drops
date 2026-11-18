@@ -1,8 +1,8 @@
-// Wallet check: create + fund a stamped envelope through the API, then claim one share to a real
-// wallet address so its stamp NFT (and BCMR metadata) can be inspected in Paytaca / Cashonize.
+// Wallet check: create + fund a seal-bearing envelope through the API, then claim one share to a real
+// wallet address so its seal NFT (and BCMR metadata) can be inspected in Paytaca / Cashonize.
 // The API's PUBLIC_API_URL must be reachable over HTTPS by the wallet, or the metadata can't load.
-// Usage: pnpm --filter @hongbao/scripts stamp-to-wallet -- --to bchtest:q… [--api http://localhost:3000] [--theme lunar]
-// Mainnet (Nov 19 Paytaca check): add --mainnet --yes-mainnet. Defaults to the cheapest stamped
+// Usage: pnpm --filter @hongbao/scripts seal-to-wallet -- --to bchtest:q… [--api http://localhost:3000] [--theme lunar]
+// Mainnet (Nov 19 Paytaca check): add --mainnet --yes-mainnet. Defaults to the cheapest seal-bearing
 // envelope (1 share × 2,000 sats ≈ $0.004), funded from the demo wallet; capped at 20,000 sats.
 // --shares 2 --sats 4000 --expiry-minutes 15 also leaves one share for the keeper to batch-refund.
 import { parseArgs } from 'node:util';
@@ -28,8 +28,8 @@ const expiryMinutes = Number(a['expiry-minutes']);
 if (MAINNET && expiryMinutes > 24 * 60) throw new Error('mainnet expiry is at most 24 h');
 if (!isOwnNetworkAddress(a.to)) throw new Error(`--to must be a ${PREFIX}: address`);
 const totalSats = Number(a.sats);
-if (MAINNET && totalSats > 20_000) throw new Error('mainnet stamp checks are capped at 20,000 sats');
-// Send the stamp to the token-aware (z…) form of the same key so wallets show the NFT.
+if (MAINNET && totalSats > 20_000) throw new Error('mainnet seal checks are capped at 20,000 sats');
+// Send the seal to the token-aware (z…) form of the same key so wallets show the NFT.
 const lb = cashAddressToLockingBytecode(a.to);
 if (typeof lb === 'string') throw new Error(lb);
 const tokenAddr = lockingBytecodeToCashAddress({ bytecode: lb.bytecode, prefix: PREFIX, tokenSupport: true });
@@ -39,14 +39,14 @@ const call = apiClient(a.api!);
 const provider = await chipnetProvider();
 const health = await call('GET', '/health');
 check(health.body.network === API_NETWORK, `API on ${API_NETWORK} (${a.api})`);
-requireMainnetConsent(`fund a ${totalSats}-sat stamped envelope and claim it to ${to}`);
+requireMainnetConsent(`fund a ${totalSats}-sat seal-bearing envelope and claim it to ${to}`);
 
 const env = await createAndFund(call, provider, {
   shareCount: Number(a.shares),
   mode: 'EQUAL',
   totalSats,
   theme: a.theme,
-  message: 'Hongbao stamp check 🧧',
+  message: 'Hongbao seal check 🧧',
   expiry: Math.floor(Date.now() / 1000) + expiryMinutes * 60,
 });
 console.log(`   funded: ${EXPLORER_TX}${env.fundingTxid} (slug ${env.env.slug})`);
@@ -62,8 +62,8 @@ const { hex } = buildClaimTx({
   gateSig: ap.gateSig,
 });
 const b = await call('POST', `/claims/${ap.claimId}/broadcast`, { rawTx: hex });
-check(b.status === 200, `stamp ${b.body.stamp?.commitment} + ${b.body.amountSats} sats → ${to}`);
+check(b.status === 200, `seal ${b.body.seal?.commitment} + ${b.body.amountSats} sats → ${to}`);
 console.log(`   claim tx:  ${EXPLORER_TX}${b.body.txid}`);
-console.log(`   stamp PNG: ${b.body.stamp?.imageUrl}`);
-console.log(`   category:  ${b.body.stamp?.category}`);
+console.log(`   seal PNG: ${b.body.seal?.imageUrl}`);
+console.log(`   category:  ${b.body.seal?.category}`);
 process.exit(0);

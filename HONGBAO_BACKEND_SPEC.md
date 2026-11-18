@@ -14,13 +14,13 @@
 
 ## 1. Product in one paragraph
 
-A sender drops a "red envelope" of BCH into any group chat as a link. The first **N** people to open it claim a share — **equal**, **lucky** (random amounts) or **quiz** (answer a question to unlock). Funds sit in an on-chain contract, so **nobody can revoke it before expiry** — not even the sender — and anything unclaimed **automatically returns** after expiry. Claimers need **zero BCH**, sign nothing, and every claimer also receives a **collectible CashToken "stamp" NFT** proving they caught it. **Brands and BCH projects run Sponsored Drops** to put BCH into new hands and get an **on-chain-verifiable report of how many brand-new wallets they onboarded and what each one cost** — the business. Claimers can **"pass it on"** with one tap, so every drop can spawn more drops.
+A sender drops a "red envelope" of BCH into any group chat as a link. The first **N** people to open it claim a share — **equal**, **lucky** (random amounts) or **quiz** (answer a question to unlock). Funds sit in an on-chain contract, so **nobody can revoke it before expiry** — not even the sender — and anything unclaimed **automatically returns** after expiry. Claimers need **zero BCH**, sign nothing, and every claimer also receives a **collectible CashToken "seal" NFT** proving they caught it. **Brands and BCH projects run Sponsored Drops** to put BCH into new hands and get an **on-chain-verifiable report of how many brand-new wallets they onboarded and what each one cost** — the business. Claimers can **"pass it on"** with one tap, so every drop can spawn more drops.
 
 ## 2. Hard requirements from the hackathon (must all be true at submission)
 
 | Requirement | How Hongbao meets it |
 |---|---|
-| A feature where judges can easily make a useful **BCH mainnet transaction** | Claiming an envelope (judge receives BCH + stamp NFT in seconds); creating / passing on an envelope |
+| A feature where judges can easily make a useful **BCH mainnet transaction** | Claiming an envelope (judge receives BCH + seal NFT in seconds); creating / passing on an envelope |
 | **WizardConnect** integration for wallet connection | Sender connects + signs the funding tx via WizardConnect; claimer connects via WizardConnect to supply a token-aware receiving address |
 | **Live, usable demo** judges open with one click | Hosted frontend + API + keeper, all on mainnet |
 | Project built during the hackathon | All code written from 14 Nov |
@@ -32,13 +32,13 @@ A sender drops a "red envelope" of BCH into any group chat as a link. The first 
 |---|---|---|
 | **Business / investment potential** | A paying customer (sponsors), a clear revenue line (drop fee + paid features), a hard metric nobody else in crypto marketing can show: *cost per new BCH wallet, verifiable on-chain*, a viral loop, seasonal go-to-market | §4, §8.5, §9 |
 | **Design & usability** | Claim in < 30 s, zero BCH, no signature, works for people with no wallet yet ("hold my share"), instant 0-conf "money arrived", rich link previews in Telegram/X, human error messages, live feed | §6, §8.6, §9 |
-| **Innovation** | Non-revocable group gift links (a community ask); fan-out shares; collectible stamp NFTs minted in the same tx; quiz-gated drops (learn-to-earn without custody); pass-it-on lineage tree; sponsor analytics anyone can audit on-chain | §5, §6, §7 |
+| **Innovation** | Non-revocable group gift links (a community ask); fan-out shares; Hongbao Seal NFTs minted in the same tx; quiz-gated drops (learn-to-earn without custody); pass-it-on lineage tree; sponsor analytics anyone can audit on-chain | §5, §6, §7 |
 | **Technical strength** | Real contract on mainnet, full test matrix, Layla features actually used (P2S and/or loop-based batch refund), server can never move funds, honest security model | §5, §7 |
 
 **Judge fit (inference from their public work):**
 - **Elliot Price** (BCH Bull, BCH Alliance — business/adoption): Sponsored Drops, cost-per-new-wallet dashboard, revenue model, GTM.
-- **Kallisti** (Selene Wallet — newcomer UX, wrote about BCMR): zero-BCH claim, hold-my-share for wallet-less newcomers, stamps with proper BCMR metadata so they render in wallets.
-- **Sayoshi Nakamario** (FundMe, Badgers, BCH University — CashTokens, playful mechanics): stamp NFTs, lucky/quiz modes, pass-it-on chains, a readable contract.
+- **Kallisti** (Selene Wallet — newcomer UX, wrote about BCMR): zero-BCH claim, hold-my-share for wallet-less newcomers, seals with proper BCMR metadata so they render in wallets.
+- **Sayoshi Nakamario** (FundMe, Badgers, BCH University — CashTokens, playful mechanics): seal NFTs, lucky/quiz modes, pass-it-on chains, a readable contract.
 
 ## 4. Business model (the code must support all of this)
 
@@ -48,8 +48,8 @@ A sender drops a "red envelope" of BCH into any group chat as a link. The first 
 
 | Tier | Who | Price | Features |
 |---|---|---|---|
-| **Personal** | Anyone gifting friends / groups | Free | Equal & lucky envelopes, stamps, pass-it-on |
-| **Sponsored Drops** | BCH projects, merchants, creators, communities, events | **3% drop fee** on funded amount (`SPONSOR_FEE_BPS = 300`), paid on-chain in the funding tx to a treasury address | Brand name, logo, colour and call-to-action link on the claim page and link preview; quiz gating; branded stamp NFT; campaign dashboard (claims, fresh wallets, activated wallets, suspected farms, **cost per activated new wallet**, CTA clicks, pass-it-on reach); CSV export |
+| **Personal** | Anyone gifting friends / groups | Free | Equal & lucky envelopes, seals, pass-it-on |
+| **Sponsored Drops** | BCH projects, merchants, creators, communities, events | **3% drop fee** on funded amount (`SPONSOR_FEE_BPS = 300`), paid on-chain in the funding tx to a treasury address | Brand name, logo, colour and call-to-action link on the claim page and link preview; quiz gating; branded seal NFT; campaign dashboard (claims, fresh wallets, activated wallets, suspected farms, **cost per activated new wallet**, CTA clicks, pass-it-on reach); CSV export |
 
 **Why the fee can't be skipped (pitch this as a design choice):** every claim needs a per-claim approval signature from the gate (§5.3), and the gate only approves claims on envelopes the API has verified as `ACTIVE` — which requires the treasury fee output in the funding tx. A sponsor who funds the contract without the fee simply gets an envelope nobody can claim from; their funds return to them after expiry. Personal envelopes have `feeBps = 0`.
 
@@ -69,17 +69,17 @@ Why not just "new wallets": anyone can generate fresh addresses in seconds, so a
 
 Language: **CashScript** (latest; v0.13/v0.14 added loops, functions, bitwise and P2S support for the 2026 Layla upgrade — verify syntax). **Layla must be genuinely used:** deploy as **P2S** if CashScript can spend it cleanly; **and** implement the loop-based `refundBatch()` (core, not stretch) so the "built on Layla" claim is true either way.
 
-### 5.1 Key design: fan-out shares + stamp NFTs in one funding tx
+### 5.1 Key design: fan-out shares + seal NFTs in one funding tx
 
-The sender's funding tx is also a **CashToken genesis tx**: it creates **N share outputs** locked to the contract, and **each share carries one immutable NFT** of a new category (the envelope's **stamp collection**, commitment = `envelopeIndex(4 bytes) || shareIndex(1 byte)`). Each claim spends exactly one share and delivers its BCH + stamp to the claimer.
+The sender's funding tx is also a **CashToken genesis tx**: it creates **N share outputs** locked to the contract, and **each share carries one immutable NFT** of a new category (the envelope's **seal collection**, commitment = `envelopeIndex(4 bytes) || shareIndex(1 byte)`). Each claim spends exactly one share and delivers its BCH + seal to the claimer.
 
-Why: claims run **in parallel** (no race on one UTXO), the contract stays tiny, **lucky mode is free** (sender's browser picks random share sizes), and stamps cost nothing extra (the token output's dust is part of the share value the claimer receives).
+Why: claims run **in parallel** (no race on one UTXO), the contract stays tiny, **lucky mode is free** (sender's browser picks random share sizes), and seals cost nothing extra (the token output's dust is part of the share value the claimer receives).
 
 Notes:
 - CashTokens genesis rule: the new category id = txid of the outpoint spent by **input 0**, and that outpoint must have **output index 0**. The browser must pick a sender UTXO at vout 0, or first make a one-input/one-output "prep" tx to self (costs ~$0.001).
-- Include a **BCMR OP_RETURN** output in the funding tx pointing at `https://<api>/bcmr/<category>.json` (hash + URI) so wallets show the stamp's name and image.
-- Stamps are optional per envelope (`withStamps`, default true). Without stamps the funding tx is a plain multi-output tx.
-- **Stamp fallback (decision point: end of day 2).** If by the end of day 2 a WizardConnect wallet (Paytaca or Cashonize) cannot sign the genesis funding tx on Chipnet — or the vout-0 rule / token-aware addresses can't be handled cleanly — set `ENABLE_STAMPS=false`, move stamps to §12 Stretch, and ship envelopes without them. Everything else (contract, gate, sponsors, analytics) must work with stamps off, and the test matrix already covers BCH-only shares. Don't let stamps block the core.
+- Include a **BCMR OP_RETURN** output in the funding tx pointing at `https://<api>/bcmr/<category>.json` (hash + URI) so wallets show the seal's name and image.
+- Seals are optional per envelope (`withSeals`, default true). Without seals the funding tx is a plain multi-output tx.
+- **Seal fallback (decision point: end of day 2).** If by the end of day 2 a WizardConnect wallet (Paytaca or Cashonize) cannot sign the genesis funding tx on Chipnet — or the vout-0 rule / token-aware addresses can't be handled cleanly — set `ENABLE_SEALS=false`, move seals to §12 Stretch, and ship envelopes without them. Everything else (contract, gate, sponsors, analytics) must work with seals off, and the test matrix already covers BCH-only shares. Don't let seals block the core.
 
 ### 5.2 Constructor parameters (one contract instance per envelope)
 
@@ -119,7 +119,7 @@ contract Hongbao(
         // Envelope pays its own fee; claimer gets everything else
         require(tx.outputs[0].value >= tx.inputs[this.activeInputIndex].value - maxFee);
 
-        // Stamp NFT (or any token) must go to the claimer unchanged
+        // Seal NFT (or any token) must go to the claimer unchanged
         require(tx.outputs[0].tokenCategory == tx.inputs[this.activeInputIndex].tokenCategory);
         require(tx.outputs[0].nftCommitment == tx.inputs[this.activeInputIndex].nftCommitment);
         require(tx.outputs[0].tokenAmount == tx.inputs[this.activeInputIndex].tokenAmount);
@@ -160,7 +160,7 @@ Notes:
 | # | Case | Expected |
 |---|---|---|
 | 1 | Valid claim, BCH-only share | ✅ |
-| 2 | Valid claim, share with stamp NFT | ✅ |
+| 2 | Valid claim, share with seal NFT | ✅ |
 | 3 | Claim with wrong link key | ❌ |
 | 4 | Gate sig for a different recipient | ❌ |
 | 5 | Gate sig for a different share (replay) | ❌ |
@@ -181,10 +181,10 @@ Notes:
 ### 6.1 Create (funding) — built in the **sender's browser**, signed via WizardConnect
 
 1. Browser generates the **link keypair** locally (libauth); sends only `linkPk`.
-2. `POST /envelopes` → API validates (budget caps §10.1, sponsor/quiz fields), derives `gatePk`, computes the contract address, returns it plus `requiredOutputs` (treasury fee output for sponsored drops, BCMR OP_RETURN when stamps are on).
-3. Browser fetches the sender's UTXOs (WizardConnect session xpub + Fulcrum), ensures input 0 is a vout-0 outpoint (or makes the prep tx), builds the funding tx: N share outputs (each with a stamp NFT if enabled) + required outputs + change. Sends a WizardConnect sign request.
+2. `POST /envelopes` → API validates (budget caps §10.1, sponsor/quiz fields), derives `gatePk`, computes the contract address, returns it plus `requiredOutputs` (treasury fee output for sponsored drops, BCMR OP_RETURN when seals are on).
+3. Browser fetches the sender's UTXOs (WizardConnect session xpub + Fulcrum), ensures input 0 is a vout-0 outpoint (or makes the prep tx), builds the funding tx: N share outputs (each with a seal NFT if enabled) + required outputs + change. Sends a WizardConnect sign request.
 4. Wallet signs → broadcast → browser `POST /envelopes/:id/funded {txid}`.
-5. API **verifies on-chain**: share outputs, amounts, contract script, stamp category/commitments, treasury fee output (sponsored), BCMR output. Only then → `ACTIVE`. The gate never approves claims on an unverified envelope, so the sponsor fee is enforced in practice.
+5. API **verifies on-chain**: share outputs, amounts, contract script, seal category/commitments, treasury fee output (sponsored), BCMR output. Only then → `ACTIVE`. The gate never approves claims on an unverified envelope, so the sponsor fee is enforced in practice.
 
 Share link: `https://<app>/e/<envelopeId>#k=<linkSecretWIF>` — the fragment never reaches the server. Short form for chat: `https://<app>/<slug>#k=…` (`slug` = 6-char code).
 
@@ -212,7 +212,7 @@ Every minute: group expired `AVAILABLE` / expired-`RESERVED` shares per envelope
 | Feature | What's novel | Backend work |
 |---|---|---|
 | Non-revocable group links | Answers the Bitcoin Cash Research ask for censorship-resistant shareable on-chain links; existing gift links (CashStamps) are one-recipient and revocable | Contract + gate |
-| Stamp NFTs minted in the funding tx | Every claim is a collectible "I caught it" proof with zero extra transactions; sponsors get branded collectibles | Genesis rules, BCMR endpoint, verification |
+| Seal NFTs minted in the funding tx | Every claim is a collectible "I caught it" proof with zero extra transactions; sponsors get branded collectibles | Genesis rules, BCMR endpoint, verification |
 | Quiz-gated drops | Learn-to-earn without custody: sponsors teach something about their product, answer unlocks the BCH | Hashed answers in gate |
 | Pass-it-on lineage | Gifts that propagate; measurable viral coefficient on-chain | `parentEnvelopeId`, tree endpoint |
 | On-chain-auditable sponsor analytics | "Cost per new wallet" where every claim links to a txid — verifiable marketing | Stats service, history lookup |
@@ -225,7 +225,7 @@ Every minute: group expired `AVAILABLE` / expired-`RESERVED` shares per envelope
 - `EnvelopesModule` — create, read, funded-verification, slugs, lineage.
 - `ClaimsModule` — gate logic, holds, reservations, approvals, broadcast.
 - `CampaignsModule` — sponsors, campaign grouping, analytics, CSV export.
-- `StampsModule` — stamp metadata, BCMR JSON, stamp images.
+- `SealsModule` — seal metadata, BCMR JSON, seal images.
 - `ChainModule` — Fulcrum/Electrum client (WSS), subscriptions, history lookups, broadcast, tx parsing.
 - `KeeperModule` — batch refunds, reservation/hold cleanup, 7-day activation checks.
 - `MediaModule` — Open Graph link-preview images.
@@ -283,8 +283,8 @@ model Envelope {
   quizQuestion          String?
   quizAnswerHashes      String[]
   quizSalt              String?
-  withStamps            Boolean  @default(true)
-  stampCategory         String?
+  withSeals            Boolean  @default(true)
+  sealCategory         String?
   totalSats             BigInt
   shareCount            Int
   message               String?
@@ -353,12 +353,12 @@ model LedgerEntry {          // §10.1 spend ledger
 
 | Method & path | Body | Returns |
 |---|---|---|
-| `POST /envelopes` | `{senderAddress, linkPk, shareCount, mode, totalSats, expiry, message?, theme?, withStamps?, quiz?: {question, answers[]}, campaignId?, sponsorToken?, parentEnvelopeId?}` | `{id, slug, contractAddress, gatePk, constructorArgs, requiredOutputs[], minShareSats, shareAmounts? (suggested lucky split)}` |
+| `POST /envelopes` | `{senderAddress, linkPk, shareCount, mode, totalSats, expiry, message?, theme?, withSeals?, quiz?: {question, answers[]}, campaignId?, sponsorToken?, parentEnvelopeId?}` | `{id, slug, contractAddress, gatePk, constructorArgs, requiredOutputs[], minShareSats, shareAmounts? (suggested lucky split)}` |
 | `POST /envelopes/:id/funded` | `{txid}` | `{status, shares[]}` after on-chain verification |
-| `GET /envelopes/:id` (or `/s/:slug`) | — | Public view: message, theme, sponsor branding, mode, quiz question, total & remaining (sats + USD), shares claimed/left, expiry countdown, recent claims (truncated address, amount, **luckiest** flag, isNewWallet), stamp image |
+| `GET /envelopes/:id` (or `/s/:slug`) | — | Public view: message, theme, sponsor branding, mode, quiz question, total & remaining (sats + USD), shares claimed/left, expiry countdown, recent claims (truncated address, amount, **luckiest** flag, isNewWallet), seal image |
 | `POST /envelopes/:id/holds` | `{fingerprint?}` | `{holdToken, heldUntil}` |
 | `POST /envelopes/:id/claims` | `{recipientAddress, walletFingerprint?, holdToken?, answer?}` | `{claimId, share, gateSig, constructorArgs}` or error (§8.6) |
-| `POST /claims/:id/broadcast` | `{rawTx}` | `{txid, amountSats, amountUsd, stamp}` |
+| `POST /claims/:id/broadcast` | `{rawTx}` | `{txid, amountSats, amountUsd, seal}` |
 | `GET /envelopes/:id/events` | — | SSE: `claimed`, `held`, `refunded`, `exhausted`, `passedOn` |
 | `GET /envelopes/:id/tree` | — | Pass-it-on lineage: nodes, generations, total reach, viral coefficient |
 | `POST /envelopes/:id/cta-click` | — | 204 (counts sponsor CTA clicks) |
@@ -373,13 +373,13 @@ model LedgerEntry {          // §10.1 spend ledger
 | `GET /campaigns/:id/export.csv` (sponsor token) | — | Claim-level CSV with txids |
 | `GET /campaigns/:id/public` | — | Public, shareable version of the stats (no addresses) — "proof of reach" |
 
-**Media, stamps, ops**
+**Media, seals, ops**
 
 | Method & path | Returns |
 |---|---|
 | `GET /og/:id.png` | 1200×630 link-preview card: theme, sponsor logo, message, "3 of 5 left · $0.30" (satori/@vercel/og or resvg). Set as `og:image` so Telegram/X unfurl beautifully |
-| `GET /bcmr/:category.json` | BCMR metadata for the stamp collection (name, description, icon, per-NFT name "Hongbao Stamp #n") |
-| `GET /stamps/:category/:commitment.svg` | Stamp artwork (generated SVG: theme, envelope name, number) |
+| `GET /bcmr/:category.json` | BCMR metadata for the seal collection (name, description, icon, per-NFT name "Hongbao Seal #n") |
+| `GET /seals/:category/:commitment.svg` | Seal artwork (generated SVG: theme, envelope name, number) |
 | `GET /stats/global` | Public: total envelopes, claims, new wallets onboarded, BCH gifted (for landing page + pitch) |
 | `GET /health` | Chain connection, keeper last run, network |
 | `GET /admin/budget` (admin token) | Spend ledger summary (§10.1) |
@@ -409,8 +409,8 @@ Validate every body with Zod (shared schema package reused by the frontend).
 - **Slugs + OG images** so links look great when pasted in Telegram / X / WhatsApp.
 - **Hold my share** for wallet-less newcomers (15 min).
 - **Graceful chain outages:** reservations survive; claimer can retry without losing their place.
-- **Themes:** `classic-red`, `gold`, `christmas`, `lunar` (used by OG images and stamps; the frontend styles to match).
-- **Accessibility:** OG and stamp images include alt text in the API response.
+- **Themes:** `classic-red`, `gold`, `christmas`, `lunar` (used by OG images and seals; the frontend styles to match).
+- **Accessibility:** OG and seal images include alt text in the API response.
 
 ## 10. Infrastructure
 
@@ -418,7 +418,7 @@ Validate every body with Zod (shared schema package reused by the frontend).
 - **Chain access:** public Fulcrum servers over WSS with a fallback list; `electrum-cash` client or CashScript's `ElectrumNetworkProvider`.
 - **Hosting (free tiers):** API + keeper on a free tier with free Postgres (Neon/Supabase); frontend on Vercel. Keeper in-process. Keep everything on free tiers — no paid services within the $5 budget.
 - **No cold starts during judging (22–28 Nov).** Many free tiers sleep when idle (Render's free web services spin down after ~15 min and take tens of seconds to wake) — a judge's first click would hang and the keeper would stop refunding. Prefer a free host that doesn't sleep; otherwise run a free uptime monitor (e.g. UptimeRobot / cron-job.org) hitting `GET /health` every 5 min from submission until results on 28 Nov. `GET /health` must be cheap and also report keeper last-run time so a stalled keeper is visible.
-- **Config:** `DATABASE_URL`, `GATE_MASTER_SEED`, `NETWORK`, `FULCRUM_URLS`, `ADMIN_TOKEN`, `TREASURY_ADDRESS`, `SPONSOR_FEE_BPS`, `ENABLE_STAMPS`, `PUBLIC_API_URL`, `PRICE_API_URL`, plus budget caps (§10.1). Never commit or log secrets.
+- **Config:** `DATABASE_URL`, `GATE_MASTER_SEED`, `NETWORK`, `FULCRUM_URLS`, `ADMIN_TOKEN`, `TREASURY_ADDRESS`, `SPONSOR_FEE_BPS`, `ENABLE_SEALS`, `PUBLIC_API_URL`, `PRICE_API_URL`, plus budget caps (§10.1). Never commit or log secrets.
 - **Observability:** structured logs for approvals, broadcasts, refunds (with txids).
 
 ### 10.1 Budget constraints ($5 hard cap — non-negotiable)
@@ -498,16 +498,16 @@ Reply "proceed" to continue.
 |---|---|---|---|---|---|
 | **0** | Verify & set up | Answer every §15 open question with evidence (docs links, tiny experiments). Monorepo scaffold: `packages/contract`, `packages/shared` (Zod schemas, types), `apps/api`, `scripts/`; TypeScript, Vitest, lint, `.env.example`. No product logic yet. | §15 answered in a `docs/findings.md`; repo builds and an empty test runs; P2S and loop support decided (yes/no + plan) | `docs/findings.md` — especially P2S, loops, WizardConnect genesis support, dust limits. Agree with the decisions before contract work starts | Day 1 (after kick-off) |
 | **1** | Smart contract | `Hongbao.cash` (`claim`, `refundBatch`), compile, full 16-case test matrix on `MockNetworkProvider`, contract README explaining every require line | All 16 tests pass; compiled artifact committed; README written | Read the contract line by line against §5.3; run `pnpm test` in `packages/contract`; check the negative tests really fail for the right reason | Day 1–2 |
-| **2** | Transactions on Chipnet + stamp go/no-go | Scripts in `scripts/` that build and broadcast on **Chipnet**: funding (with and without stamps, BCMR OP_RETURN, vout-0 prep), claim (link key + gate datasig), batch refund. Test signing the funding tx through a real WizardConnect wallet. **Decide `ENABLE_STAMPS`** (§5.1) | Chipnet txids for: funding, 2 claims, batch refund (explorer links); stamp go/no-go recorded with reason | Open each txid on a Chipnet explorer; confirm amounts, NFT commitments, refund address; agree with the stamp decision | Day 2 |
+| **2** | Transactions on Chipnet + seal go/no-go | Scripts in `scripts/` that build and broadcast on **Chipnet**: funding (with and without seals, BCMR OP_RETURN, vout-0 prep), claim (link key + gate datasig), batch refund. Test signing the funding tx through a real WizardConnect wallet. **Decide `ENABLE_SEALS`** (§5.1) | Chipnet txids for: funding, 2 claims, batch refund (explorer links); seal go/no-go recorded with reason | Open each txid on a Chipnet explorer; confirm amounts, NFT commitments, refund address; agree with the seal decision | Day 2 |
 | **3** | API foundation | NestJS app, Prisma schema (§8.4) + migrations, `ChainModule`, `KeysModule`, `PriceModule`, `BudgetModule` caps, `POST /envelopes`, `POST /envelopes/:id/funded` (on-chain verification incl. sponsor fee output), `GET /envelopes/:id`, slugs, `/health`, Zod validation, error catalog (§8.6) | Script creates an envelope via the API on Chipnet and it becomes `ACTIVE` only after verification; caps reject oversize mainnet requests in tests | Schema, verification logic (does it check every output?), cap tests, error responses | Day 3 |
 | **4** | Claims & gate | Gate rules (equal / lucky / quiz), holds, reservations with TTL, datasig signing, `POST /claims/:id/broadcast`, fresh-wallet detection, rate limits, farm-flag inputs (fingerprint, IP hash) | Chipnet e2e script: 3 parallel claims succeed, 4th on a 3-share envelope gets `ENVELOPE_EMPTY`, hold → claim works, quiz right/wrong, double-claim rejected | Gate code (the security core): what it signs, eligibility checks, race conditions on reservations | Day 4 |
 | **5** | Lifecycle & live data | Keeper: batch refunds, reservation/hold cleanup, 7-day activation watcher, farm-flag heuristics; SSE events; pass-it-on (`parentEnvelopeId`) + `/tree` | Chipnet: expired envelope auto-refunds in one batch tx; SSE stream shows claim events; tree endpoint returns a 2-generation chain | Keeper safety (can it ever refund early or to the wrong place?), event payloads | Day 5 |
-| **6** | Media & stamps metadata | `/og/:id.png` link-preview cards with themes, `/bcmr/:category.json`, `/stamps/...svg`, alt text | OG card renders for each theme (screenshots in report); a Chipnet stamp shows name/image in Paytaca or Cashonize (or noted if stamps are off) | Look at the images; check the BCMR JSON | Day 5 |
+| **6** | Media & seals metadata | `/og/:id.png` link-preview cards with themes, `/bcmr/:category.json`, `/seals/...svg`, alt text | OG card renders for each theme (screenshots in report); a Chipnet seal shows name/image in Paytaca or Cashonize (or noted if seals are off) | Look at the images; check the BCMR JSON | Day 5 |
 | **7** | Sponsors & analytics | `Sponsor`, `Campaign`, sponsor tokens, `/campaigns/:id/stats` (fresh → activated → not-farm funnel, cost per activated new wallet), CSV export, public proof-of-reach, `/stats/global`, CTA clicks | Seeded Chipnet campaign shows correct numbers in stats, CSV and public page; numbers reconcile with txids | Metric definitions match §4; fee enforcement; nothing private leaks on the public page | Day 6 |
 | **8** | Deploy & mainnet | Deploy API + Postgres on free tiers; uptime monitor plan; `NETWORK=MAINNET` with §10.1 caps; spend ledger + `/admin/budget`; tiny real envelopes; judge-demo refill endpoint | Mainnet funding, claim and batch-refund txids recorded; `/admin/budget` shows < $1 spent; `/health` green on the public URL | Ledger numbers vs your wallet; caps actually enforced on the live URL | Day 6–7 |
 | **9** | Integration & submission support | Fixes from the frontend session, CORS, final e2e from a cold phone browser, "BLAZE Drop" demo campaign, export stats for slides, start uptime monitor, README for judges | Judges' path works end-to-end on mainnet from a phone; monitor running; README done | Try the full flow yourself on your phone before submitting | Day 7–8 (submit before 22 Nov 14:00 UTC) |
 
-If a phase overruns its target day, say so in its report and propose what to cut (first candidates: Phase 6 stamp artwork polish, pass-it-on tree UI data, CSV export).
+If a phase overruns its target day, say so in its report and propose what to cut (first candidates: Phase 6 seal artwork polish, pass-it-on tree UI data, CSV export).
 
 ## 12. Stretch (only if everything above is done)
 
@@ -524,7 +524,7 @@ If a phase overruns its target day, say so in its report and propose what to cut
 - Built on the **Layla upgrade** (P2S and/or loop-based batch refunds), live on **mainnet**.
 - **Non-custodial:** server can't move funds without the link secret; link holder can't drain without per-claim approval; sender can't revoke early; refunds can only go to the sender. If the server disappears, the worst case is that claims pause — funds still return.
 - **Zero BCH, zero signatures to claim; money arrives instantly (0-conf).**
-- **Every claim = a collectible stamp NFT**, minted in the same tx, visible in wallets via BCMR.
+- **Every claim = a Hongbao Seal NFT**, minted in the same tx, visible in wallets via BCMR.
 - **Pass it on:** one drop reached X people across Y generations (use real numbers).
 - Revenue: **3% fee on Sponsored Drops**, free for personal use.
 
@@ -554,4 +554,4 @@ If a phase overruns its target day, say so in its report and propose what to cut
 - CashScript WalletConnect/WizardConnect guide: https://cashscript-4x1oat3xw-lahana.vercel.app/docs/guides/walletconnect (also cashscript.org)
 - CashTokens & BCMR specs: https://cashtokens.org · https://github.com/bitjson/chip-bcmr
 - Layla upgrade overview: https://coinmarketcap.com/cmc-ai/bitcoin-cash/latest-updates/
-- Existing similar product to differentiate from: CashStamps https://stamps.cash
+- Existing similar product to differentiate from: CashStamps https://seals.cash

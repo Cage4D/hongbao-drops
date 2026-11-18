@@ -38,7 +38,7 @@ button:disabled { cursor: not-allowed; }
 input:not([type='checkbox']):not([type='color']), textarea { cursor: text; }
 
 /* Jumping to a #section lands below the fixed nav, not under it. */
-[id] { scroll-margin-top: calc(var(--nav-height) + 12px); }
+[id] { scroll-margin-top: calc(var(--nav-height) + var(--blaze-h, 0px) + 12px); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------------------------------------------------------------- type */

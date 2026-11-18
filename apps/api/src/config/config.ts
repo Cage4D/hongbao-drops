@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
 import { NetworkSchema } from '@hongbao/shared';
+import { LEGACY_ENABLE_ENV } from '../common/legacy.js';
 
 const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 const num = z.coerce.number().finite();
@@ -16,7 +17,8 @@ const EnvSchema = z
     KEEPER_TOKEN: z.string().min(24).optional(),
     TREASURY_ADDRESS: z.string().min(10),
     SPONSOR_FEE_BPS: num.int().min(0).max(10_000).default(300),
-    ENABLE_STAMPS: bool.default(true),
+    /** Mint a Hongbao Seal NFT per share. Unset → the legacy name (see common/legacy.ts) → true. */
+    ENABLE_SEALS: bool.optional(),
     PUBLIC_API_URL: z.string().url().default('http://localhost:3000'),
     PRICE_API_URL: z.string().url().default('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin-cash&vs_currencies=usd'),
     MAX_ENVELOPE_USD: num.positive().default(0.5),
@@ -84,8 +86,9 @@ function lockingBytecodeOf(address: string, prefix: string): string | null {
   return typeof r === 'string' ? null : binToHex(r.bytecode);
 }
 
-export type AppConfig = Omit<z.infer<typeof EnvSchema>, 'MAX_EXPIRY_SECONDS'> & {
+export type AppConfig = Omit<z.infer<typeof EnvSchema>, 'MAX_EXPIRY_SECONDS' | 'ENABLE_SEALS'> & {
   MAX_EXPIRY_SECONDS: number;
+  ENABLE_SEALS: boolean;
   fulcrumHosts: string[];
   /** Locking bytecode (hex) of BUDGET_WALLET_ADDRESS, or null when unset (CHIPNET). */
   budgetLockingBytecode: string | null;
@@ -110,10 +113,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const prefix = c.NETWORK === 'MAINNET' ? 'bitcoincash:' : 'bchtest:';
   return {
     ...c,
+    ENABLE_SEALS: enableSeals(c.ENABLE_SEALS, env),
     MAX_EXPIRY_SECONDS: c.MAX_EXPIRY_SECONDS ?? (c.NETWORK === 'MAINNET' ? MAINNET_MAX_EXPIRY : 30 * 24 * 3600),
     fulcrumHosts,
     budgetLockingBytecode: c.BUDGET_WALLET_ADDRESS ? lockingBytecodeOf(c.BUDGET_WALLET_ADDRESS, prefix) : null,
   };
+}
+
+/** ENABLE_SEALS, falling back to the pre-rename variable (with a deprecation warning), then true. */
+function enableSeals(value: boolean | undefined, env: NodeJS.ProcessEnv): boolean {
+  if (value !== undefined) return value;
+  const legacy = env[LEGACY_ENABLE_ENV];
+  if (legacy === undefined || legacy === '') return true;
+  const parsed = bool.safeParse(legacy);
+  if (!parsed.success) throw new Error(`Invalid environment: ${LEGACY_ENABLE_ENV}: expected "true" or "false"`);
+  console.warn(`[Config] ${LEGACY_ENABLE_ENV} is deprecated: rename it to ENABLE_SEALS (same values).`);
+  return parsed.data;
 }
 
 /** DI token for the config object. */

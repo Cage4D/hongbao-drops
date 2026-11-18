@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { binToHex } from '@bitauth/libauth';
-import { gateMessage, hongbaoConstructorArgs, stampCommitment } from '../src/index.js';
+import { gateMessage, hongbaoConstructorArgs, sealCommitment } from '../src/index.js';
 
 const pk = new Uint8Array(33).fill(2);
 
@@ -22,15 +22,15 @@ describe('gateMessage', () => {
   });
 });
 
-describe('stampCommitment', () => {
+describe('sealCommitment', () => {
   it('is u32le(seq) ‖ shareIndex', () => {
-    expect(binToHex(stampCommitment(1, 1))).toBe('0100000001');
-    expect(binToHex(stampCommitment(0x01020304, 10))).toBe('040302010a');
+    expect(binToHex(sealCommitment(1, 1))).toBe('0100000001');
+    expect(binToHex(sealCommitment(0x01020304, 10))).toBe('040302010a');
   });
 
   it('keeps commitments valid positive VM numbers (shareIndex 1..127)', () => {
-    expect(() => stampCommitment(1, 0)).toThrow();
-    expect(() => stampCommitment(1, 128)).toThrow();
+    expect(() => sealCommitment(1, 0)).toThrow();
+    expect(() => sealCommitment(1, 128)).toThrow();
   });
 });
 

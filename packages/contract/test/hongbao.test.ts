@@ -17,7 +17,7 @@ import {
   hongbaoContract,
   type HongbaoContract,
   signGateApproval,
-  stampCommitment,
+  sealCommitment,
 } from '../src/index.js';
 
 // ---------- fixtures ----------
@@ -51,11 +51,11 @@ function setup(overrides: { linkPk?: Uint8Array; refund?: Uint8Array } = {}) {
   return { provider, contract };
 }
 
-let stampSeq = 0;
-/** An immutable stamp NFT like the funding tx mints. */
-const stamp = (shareIndex = 1): TokenDetails =>
+let sealSeq = 0;
+/** An immutable seal NFT like the funding tx mints. */
+const seal = (shareIndex = 1): TokenDetails =>
   randomNFT({
-    nft: { capability: 'none', commitment: Buffer.from(stampCommitment(++stampSeq, shareIndex)).toString('hex') },
+    nft: { capability: 'none', commitment: Buffer.from(sealCommitment(++sealSeq, shareIndex)).toString('hex') },
   });
 
 function addShare(provider: MockNetworkProvider, contract: HongbaoContract, token?: TokenDetails) {
@@ -82,9 +82,9 @@ describe('claim', () => {
     expect(await provider.getUtxosForLockingBytecode(claimer)).toHaveLength(1);
   });
 
-  it('#2 valid claim, share with stamp NFT (claimer receives the stamp)', async () => {
+  it('#2 valid claim, share with seal NFT (claimer receives the seal)', async () => {
     const { provider, contract } = setup();
-    const token = stamp();
+    const token = seal();
     const share = addShare(provider, contract, token);
     await new TransactionBuilder({ provider })
       .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
@@ -192,9 +192,9 @@ describe('claim', () => {
   });
 
   describe('#9 claim that drops / changes the NFT ❌', () => {
-    it('drops the stamp (burn is consensus-legal, so only the contract stops it)', async () => {
+    it('drops the seal (burn is consensus-legal, so only the contract stops it)', async () => {
       const { provider, contract } = setup();
-      const share = addShare(provider, contract, stamp());
+      const share = addShare(provider, contract, seal());
       await expectFail(
         new TransactionBuilder({ provider })
           .addInput(share, contract.unlock.claim(new SignatureTemplate(linkPriv), approve(share, claimer)))
@@ -282,9 +282,9 @@ describe('refundBatch', () => {
     expect(await provider.getUtxosForLockingBytecode(sender)).toHaveLength(1);
   });
 
-  it('#12 batch refund of 5 shares with NFTs after expiry (each stamp back on its own output)', async () => {
+  it('#12 batch refund of 5 shares with NFTs after expiry (each seal back on its own output)', async () => {
     const { provider, contract } = setup();
-    const shares = [1, 2, 3, 4, 5].map((i) => addShare(provider, contract, stamp(i)));
+    const shares = [1, 2, 3, 4, 5].map((i) => addShare(provider, contract, seal(i)));
     await refundTx(provider, contract, shares).send();
     const refunded = await provider.getUtxosForLockingBytecode(sender);
     expect(refunded.map((u) => u.token?.nft?.commitment).sort()).toEqual(
@@ -294,7 +294,7 @@ describe('refundBatch', () => {
 
   it('#12b batch refund of 20 shares (keeper cap) passes VM limits', async () => {
     const { provider, contract } = setup();
-    const shares = Array.from({ length: 20 }, (_, i) => addShare(provider, contract, stamp((i % 10) + 1)));
+    const shares = Array.from({ length: 20 }, (_, i) => addShare(provider, contract, seal((i % 10) + 1)));
     await refundTx(provider, contract, shares).send();
   }, 60_000); // mock VM debugs every input: ~15 s
 
@@ -332,9 +332,9 @@ describe('refundBatch', () => {
       );
     });
 
-    it('stamps swapped between outputs', async () => {
+    it('seals swapped between outputs', async () => {
       const { provider, contract } = setup();
-      const shares = [addShare(provider, contract, stamp(1)), addShare(provider, contract, stamp(2))];
+      const shares = [addShare(provider, contract, seal(1)), addShare(provider, contract, seal(2))];
       await expectFail(
         refundTx(provider, contract, shares, {
           outputs: [

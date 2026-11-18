@@ -11,8 +11,8 @@ afterAll(async () => t.app.close());
 beforeEach(async () => resetDb(t.db));
 
 describe('claim → broadcast (happy path)', () => {
-  it('approves, signs, and the claim tx unlocks the share on-chain (stamped)', async () => {
-    const env = await fundedEnvelope(t, { withStamps: true });
+  it('approves, signs, and the claim tx unlocks the share on-chain (seal-bearing)', async () => {
+    const env = await fundedEnvelope(t, { withSeals: true });
     const r = await claimReq(t, env.id, { recipientAddress: addressOf('alice') });
     expect(r.status).toBe(201);
     const a = r.body as ClaimApproval;
@@ -25,8 +25,8 @@ describe('claim → broadcast (happy path)', () => {
     expect(b.status).toBe(200);
     expect(b.body.amountSats).toBeGreaterThan(9_000);
     expect(b.body.amountUsd).toBe(0.02);
-    expect(b.body.stamp).toMatchObject({ commitment: a.share.nftCommitment });
-    expect(b.body.stamp.alt).toMatch(/Hongbao stamp/);
+    expect(b.body.seal).toMatchObject({ commitment: a.share.nftCommitment });
+    expect(b.body.seal.alt).toMatch(/Hongbao Seal/);
 
     const [got] = await t.provider.getUtxosForLockingBytecode(a.recipientLockingBytecode);
     expect(got?.token?.nft?.commitment).toBe(a.share.nftCommitment);
@@ -184,7 +184,7 @@ describe('refusals', () => {
       mode: 'EQUAL',
       totalSats: 10_000,
       expiry: Math.floor(Date.now() / 1000) + 1800,
-      withStamps: false,
+      withSeals: false,
     });
     const r1 = await claimReq(t, pending.body.id, { recipientAddress: addressOf('x') });
     expect([r1.status, r1.body.error.code]).toEqual([409, 'NOT_FUNDED']);

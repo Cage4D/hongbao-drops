@@ -221,8 +221,8 @@ function OpenedList({ items, unspent }: { items: WalletClaim[]; unspent: Set<str
         const canPass = !c.passedOn && c.claimTxid !== null && unspent.has(`${c.claimTxid}:0`);
         return (
           <li key={`${c.envelopeId}-${c.at}`} className="activity-item" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-            {c.stamp ? (
-              <img className="activity-stamp" src={c.stamp.imageUrl} alt="Your collectible stamp from this envelope" loading="lazy" />
+            {c.seal ? (
+              <img className="activity-seal" src={c.seal.imageUrl} alt="Your Hongbao Seal from this envelope" loading="lazy" />
             ) : (
               <span className="activity-env" aria-hidden="true">
                 <Envelope theme={c.theme} size={46} sealText="" inline />

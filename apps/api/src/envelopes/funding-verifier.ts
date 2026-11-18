@@ -4,12 +4,12 @@
 import { binToHex, type TransactionCommon } from '@bitauth/libauth';
 import {
   IDENTITY_OUTPUT_SATS,
-  MIN_SHARE_SATS_NO_STAMP,
-  MIN_SHARE_SATS_WITH_STAMP,
+  MIN_SHARE_SATS_NO_SEAL,
+  MIN_SHARE_SATS_WITH_SEAL,
   bcmrOpReturn,
   equalSplit,
   shareOutputIndex,
-  stampCommitment,
+  sealCommitment,
 } from '@hongbao/contract';
 import { hexToBin } from '@bitauth/libauth';
 
@@ -18,8 +18,8 @@ export interface ExpectedFunding {
   mode: 'EQUAL' | 'LUCKY' | 'QUIZ';
   shareCount: number;
   totalSats: bigint;
-  withStamps: boolean;
-  stampCategory: string | null;
+  withSeals: boolean;
+  sealCategory: string | null;
   bcmrHash: string | null;
   bcmrUri: string | null;
   sponsorFeeSats: bigint;
@@ -40,15 +40,15 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
   const reasons: string[] = [];
   const out = tx.outputs;
   const lb = (i: number) => (out[i] ? binToHex(out[i].lockingBytecode) : undefined);
-  const minShare = e.withStamps ? MIN_SHARE_SATS_WITH_STAMP : MIN_SHARE_SATS_NO_STAMP;
+  const minShare = e.withSeals ? MIN_SHARE_SATS_WITH_SEAL : MIN_SHARE_SATS_NO_SEAL;
 
-  // 1. Genesis: input 0 must spend <stampCategory>:0 (CashTokens rule; the node enforces it too).
-  if (e.withStamps) {
+  // 1. Genesis: input 0 must spend <sealCategory>:0 (CashTokens rule; the node enforces it too).
+  if (e.withSeals) {
     const in0 = tx.inputs[0];
     // libauth decodes outpointTransactionHash in UI (display) byte order, same as our txid strings.
     const in0Txid = in0 ? binToHex(in0.outpointTransactionHash) : '';
-    if (!in0 || in0Txid !== e.stampCategory || in0.outpointIndex !== 0) {
-      reasons.push(`input 0 must spend ${e.stampCategory}:0 (stamp genesis)`);
+    if (!in0 || in0Txid !== e.sealCategory || in0.outpointIndex !== 0) {
+      reasons.push(`input 0 must spend ${e.sealCategory}:0 (seal genesis)`);
     }
     // 2. Identity output keeps the BCMR authchain alive (findings §5).
     const id = out[0];
@@ -61,7 +61,7 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
   const shares: VerifiedShare[] = [];
   let sum = 0n;
   for (let i = 0; i < e.shareCount; i++) {
-    const vout = shareOutputIndex(i, e.withStamps);
+    const vout = shareOutputIndex(i, e.withSeals);
     const o = out[vout];
     if (!o) {
       reasons.push(`share ${i + 1}: missing output ${vout}`);
@@ -70,19 +70,19 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
     if (lb(vout) !== e.contractLockingBytecode) reasons.push(`share ${i + 1}: output ${vout} doesn't pay the envelope contract`);
     if (o.valueSatoshis < minShare) reasons.push(`share ${i + 1}: ${o.valueSatoshis} sats is below the ${minShare}-sat minimum`);
     let commitment: string | null = null;
-    if (e.withStamps) {
-      const want = binToHex(stampCommitment(e.seq, i + 1));
+    if (e.withSeals) {
+      const want = binToHex(sealCommitment(e.seq, i + 1));
       const t = o.token;
-      if (!t) reasons.push(`share ${i + 1}: missing stamp NFT`);
+      if (!t) reasons.push(`share ${i + 1}: missing seal NFT`);
       else {
-        if (binToHex(t.category) !== e.stampCategory) reasons.push(`share ${i + 1}: stamp has the wrong category`);
-        if (t.amount !== 0n) reasons.push(`share ${i + 1}: stamp must not carry fungible tokens`);
-        if (!t.nft || t.nft.capability !== 'none') reasons.push(`share ${i + 1}: stamp must be an immutable NFT`);
+        if (binToHex(t.category) !== e.sealCategory) reasons.push(`share ${i + 1}: seal has the wrong category`);
+        if (t.amount !== 0n) reasons.push(`share ${i + 1}: seal must not carry fungible tokens`);
+        if (!t.nft || t.nft.capability !== 'none') reasons.push(`share ${i + 1}: seal must be an immutable NFT`);
         commitment = t.nft ? binToHex(t.nft.commitment) : null;
-        if (commitment !== want) reasons.push(`share ${i + 1}: stamp commitment ${commitment} ≠ ${want}`);
+        if (commitment !== want) reasons.push(`share ${i + 1}: seal commitment ${commitment} ≠ ${want}`);
       }
     } else if (o.token) {
-      reasons.push(`share ${i + 1}: unexpected token on a stamp-less envelope`);
+      reasons.push(`share ${i + 1}: unexpected token on a seal-less envelope`);
     }
     sum += o.valueSatoshis;
     shares.push({ index: i + 1, vout, sats: o.valueSatoshis, nftCommitment: commitment });
@@ -95,7 +95,7 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
   }
 
   // 4. Sponsor fee right after the shares.
-  let next = shareOutputIndex(e.shareCount, e.withStamps);
+  let next = shareOutputIndex(e.shareCount, e.withSeals);
   if (e.sponsorFeeSats > 0n) {
     const f = out[next];
     if (!f || lb(next) !== e.treasuryLockingBytecode || f.valueSatoshis < e.sponsorFeeSats || f.token) {
@@ -105,20 +105,20 @@ export function verifyFundingTx(tx: TransactionCommon, e: ExpectedFunding): Veri
   }
 
   // 5. BCMR publication, byte-exact.
-  if (e.withStamps) {
+  if (e.withSeals) {
     const want = binToHex(bcmrOpReturn(hexToBin(e.bcmrHash ?? ''), [e.bcmrUri ?? '']));
     if (lb(next) !== want) reasons.push(`output ${next} must be the BCMR OP_RETURN for this envelope`);
   }
 
   // 6. No stray outputs to the contract (every share must be known to the gate and keeper), and
-  // no other output may carry the stamp category — e.g. a minting NFT kept on the sender's change
-  // would let them forge "I caught it" stamps later (review #9).
+  // no other output may carry the seal category — e.g. a minting NFT kept on the sender's change
+  // would let them forge "I caught it" seals later (review #9).
   const known = new Set(shares.map((s) => s.vout));
   out.forEach((o, i) => {
     if (known.has(i)) return;
     if (binToHex(o.lockingBytecode) === e.contractLockingBytecode) reasons.push(`output ${i} pays the contract but isn't a declared share`);
-    if (e.withStamps && o.token && binToHex(o.token.category) === e.stampCategory) {
-      reasons.push(`output ${i} carries a token of the stamp category; only the shares may`);
+    if (e.withSeals && o.token && binToHex(o.token.category) === e.sealCategory) {
+      reasons.push(`output ${i} carries a token of the seal category; only the shares may`);
     }
   });
 

@@ -15,7 +15,7 @@ import { Burst } from '../components/Burst';
 import { CopyField, StepsLog, useToast } from '../components/ui';
 import { WalletButton } from '../components/ConnectModal';
 
-const MIN_SHARE_STAMP = 2000;
+const MIN_SHARE_SEAL = 2000;
 const MIN_SHARE_PLAIN = 1500;
 
 
@@ -45,7 +45,7 @@ export function Send() {
   const [message, setMessage] = useState(parent ? 'Passing the luck on!' : 'Happy Lunar New Year!');
   const [theme, setTheme] = useState<Theme>('lunar');
   const [expirySec, setExpirySec] = useState(24 * 3600);
-  const [withStamps, setWithStamps] = useState(true);
+  const [withSeals, setWithSeals] = useState(true);
   const [question, setQuestion] = useState('');
   const [answers, setAnswers] = useState<string[]>(['']);
 
@@ -57,7 +57,7 @@ export function Send() {
   const [pending, setPending] = useState<FundResult | null>(null);
   const abort = useRef<AbortController | null>(null);
 
-  const minShare = withStamps ? MIN_SHARE_STAMP : MIN_SHARE_PLAIN;
+  const minShare = withSeals ? MIN_SHARE_SEAL : MIN_SHARE_PLAIN;
   const maxShares = cfg?.maxShares ?? 10;
   const maxSatsByUsd = cfg?.network === 'MAINNET' && priceUsd ? usdToSats(0.5, priceUsd) : Infinity;
   const maxSats = Math.min(cfg?.maxSats ?? 200_000, maxSatsByUsd);
@@ -159,7 +159,7 @@ export function Send() {
           expiry: Math.floor(Date.now() / 1000) + Math.min(expirySec, cfg.maxExpirySec - 300),
           message: message.trim() || undefined,
           theme,
-          withStamps,
+          withSeals,
           ...(mode === 'QUIZ' && { quiz: { question: question.trim(), answers: answers.map((a) => a.trim()).filter(Boolean) } }),
           ...(parent && { parentEnvelopeId: parent }),
           ...(sponsor && campaignId && { sponsorToken: sponsor.token, campaignId }),
@@ -357,11 +357,11 @@ export function Send() {
 
               <div className="field">
                 <label className="switch">
-                  <input type="checkbox" checked={withStamps} onChange={(e) => setWithStamps(e.target.checked)} />
+                  <input type="checkbox" checked={withSeals} onChange={(e) => setWithSeals(e.target.checked)} />
                   <span>
-                    <strong style={{ color: '#fff' }}>Collectible stamps</strong>
+                    <strong style={{ color: '#fff' }}>Hongbao Seals</strong>
                     <span className="help" style={{ display: 'block' }}>
-                      Each opener also gets a stamp in their wallet. Min {fmtSats(MIN_SHARE_STAMP)} sats per share.
+                      Each opener also gets a seal in their wallet. Min {fmtSats(MIN_SHARE_SEAL)} sats per share.
                     </span>
                   </span>
                 </label>

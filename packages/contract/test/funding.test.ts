@@ -77,16 +77,16 @@ describe('fundingOutputs', () => {
   });
 });
 
-describe('lifecycle with stamps (genesis in the funding tx)', () => {
-  it('funds 3 stamped shares, claims one, batch-refunds the other two', async () => {
+describe('lifecycle with seals (genesis in the funding tx)', () => {
+  it('funds 3 seal-bearing shares, claims one, batch-refunds the other two', async () => {
     const { provider, contract } = setup();
-    // Sender UTXO at vout 0 → its txid becomes the stamp category.
+    // Sender UTXO at vout 0 → its txid becomes the seal category.
     const funding = provider.addUtxo(binToHex(sender), randomUtxo({ satoshis: 100_000n, vout: 0 }));
     const category = funding.txid;
     const outputs = fundingOutputs({
       contract,
       shareAmounts: [10_000n, 10_000n, 10_000n],
-      stamps: { category, envelopeSeq: 7, identityLockingBytecode: treasury, bcmr },
+      seals: { category, envelopeSeq: 7, identityLockingBytecode: treasury, bcmr },
     });
     const fundTx = new TransactionBuilder({ provider })
       .addInput(funding, new SignatureTemplate(senderPriv).unlockP2PKH())
@@ -94,7 +94,7 @@ describe('lifecycle with stamps (genesis in the funding tx)', () => {
       .addOutput({ to: sender, amount: 100_000n - 30_000n - IDENTITY_OUTPUT_SATS - 1_000n });
     const sent = await fundTx.send();
 
-    // Layout checks: identity first, then 3 stamped shares, then BCMR OP_RETURN, then change.
+    // Layout checks: identity first, then 3 seal-bearing shares, then BCMR OP_RETURN, then change.
     const shares = await provider.getUtxosForLockingBytecode(contract.lockingBytecode);
     expect(shares).toHaveLength(3);
     expect(shares.map((s) => s.vout).sort()).toEqual([1, 2, 3].map((i) => shareOutputIndex(i - 1, true)));
@@ -132,7 +132,7 @@ describe('lifecycle with stamps (genesis in the funding tx)', () => {
     const outputs = fundingOutputs({
       contract,
       shareAmounts: [10_000n],
-      stamps: { category: funding.txid, envelopeSeq: 1, identityLockingBytecode: treasury, bcmr },
+      seals: { category: funding.txid, envelopeSeq: 1, identityLockingBytecode: treasury, bcmr },
     });
     await expect(
       new TransactionBuilder({ provider })
@@ -157,7 +157,7 @@ describe('lifecycle with stamps (genesis in the funding tx)', () => {
         fundingOutputs({
           contract,
           shareAmounts: [10_000n],
-          stamps: { category: prepped!.txid, envelopeSeq: 1, identityLockingBytecode: treasury, bcmr },
+          seals: { category: prepped!.txid, envelopeSeq: 1, identityLockingBytecode: treasury, bcmr },
         }),
       )
       .send();

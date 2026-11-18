@@ -50,7 +50,7 @@ export class WalletsService {
       this.db.claim.findMany({
         where: { recipientLockingBytecode: { in: mine }, status: { in: ['BROADCAST', 'CONFIRMED'] }, envelope: { network } },
         include: {
-          envelope: { select: { id: true, slug: true, theme: true, mode: true, message: true, stampCategory: true } },
+          envelope: { select: { id: true, slug: true, theme: true, mode: true, message: true, sealCategory: true } },
           share: { select: { nftCommitment: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -105,9 +105,9 @@ export class WalletsService {
       claimTxid: c.claimTxid,
       recipientAddress: c.recipientAddress,
       isNewWallet: c.isNewWallet,
-      stamp:
-        c.envelope.stampCategory && c.share?.nftCommitment
-          ? { imageUrl: `${api}/stamps/${c.envelope.stampCategory}/${c.share.nftCommitment}.png` }
+      seal:
+        c.envelope.sealCategory && c.share?.nftCommitment
+          ? { imageUrl: `${api}/seals/${c.envelope.sealCategory}/${c.share.nftCommitment}.png` }
           : null,
       at: c.createdAt.toISOString(),
       passedOn: childByParent.get(c.envelope.id) ?? null,

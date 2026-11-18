@@ -49,7 +49,7 @@ export async function resetDb(db: PrismaService, priceUsd = 200) {
   await db.setting.create({ data: { key: 'price.bchusd', value: String(priceUsd) } });
 }
 
-/** A sender UTXO at vout 0 (its txid becomes the stamp category). */
+/** A sender UTXO at vout 0 (its txid becomes the seal category). */
 export function addSenderUtxo(provider: MockNetworkProvider, sats = 200_000n, vout = 0, ownerPriv = senderPriv) {
   return provider.addUtxo(binToHex(p2pkh(pub(ownerPriv))), randomUtxo({ satoshis: sats, vout }));
 }
@@ -86,7 +86,7 @@ export function createBody(over: Record<string, unknown> = {}) {
     mode: 'EQUAL',
     totalSats: 30_000,
     expiry: Math.floor(Date.now() / 1000) + 1800,
-    withStamps: false,
+    withSeals: false,
     ...over,
   };
 }
@@ -114,13 +114,13 @@ export async function fundedEnvelope(
   /** Fund from this exact coin (e.g. the owner's claimed share) instead of a fresh test UTXO. */
   fundingUtxo?: ReturnType<typeof addSenderUtxo>,
 ) {
-  const stamps = over.withStamps === true;
+  const seals = over.withSeals === true;
   const ownerPriv = ownerLabel ? key(ownerLabel) : senderPriv;
   const utxo = fundingUtxo ?? addSenderUtxo(t.provider, 200_000n, 0, ownerPriv);
   const body = createBody({
     ...(ownerLabel && { senderAddress: addressOf(ownerLabel, false) }),
     ...over,
-    ...(stamps && { stampCategory: utxo.txid }),
+    ...(seals && { sealCategory: utxo.txid }),
   });
   const res = await t.http().post('/envelopes').send(body);
   if (res.status !== 201) throw new Error(`create failed: ${JSON.stringify(res.body)}`);

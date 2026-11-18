@@ -41,7 +41,7 @@ describe('POST /envelopes', () => {
     ['expiry too soon', { expiry: Math.floor(Date.now() / 1000) + 60 }, 'expiry'],
     ['expiry too far', { expiry: Math.floor(Date.now() / 1000) + 60 * 24 * 3600 }, 'expiry'],
     ['shares below dust floor', { totalSats: 4_000 }, 'totalSats'],
-    ['stamps without stampCategory', { withStamps: true }, 'stampCategory'],
+    ['seals without sealCategory', { withSeals: true }, 'sealCategory'],
     ['quiz mode without quiz', { mode: 'QUIZ' }, 'quiz'],
     ['mainnet sender on chipnet', { senderAddress: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0' }, 'senderAddress'],
     ['unknown field', { foo: 1 }, ''],
@@ -91,9 +91,9 @@ describe('POST /envelopes/:id/funded', () => {
     expect(await t.db.share.count()).toBe(3);
   });
 
-  it('stamps: verifies identity, NFTs, BCMR; stores the exact registry bytes', async () => {
+  it('seals: verifies identity, NFTs, BCMR; stores the exact registry bytes', async () => {
     const utxo = addSenderUtxo(t.provider);
-    const created = (await create({ withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+    const created = (await create({ withSeals: true, sealCategory: utxo.txid })).body as CreateEnvelopeResponse;
     expect(created.fundingTemplate.map((o) => o.purpose)).toEqual(['IDENTITY', 'SHARE', 'SHARE', 'SHARE', 'BCMR']);
     expect(created.fundingTemplate[1]!.token).toEqual({ category: utxo.txid, nftCommitment: binToHex(Uint8Array.of(created.envelopeSeq, 0, 0, 0, 1)) });
 
@@ -144,18 +144,18 @@ describe('POST /envelopes/:id/funded', () => {
 
     it('a missing BCMR output', async () => {
       const utxo = addSenderUtxo(t.provider);
-      const created = (await create({ withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+      const created = (await create({ withSeals: true, sealCategory: utxo.txid })).body as CreateEnvelopeResponse;
       const txid = await fundFromTemplate(t.provider, created, utxo, (o) => o.slice(0, -1));
       await expectMismatch(created.id, txid, /BCMR OP_RETURN/);
     });
 
-    it('a wrong stamp commitment', async () => {
+    it('a wrong seal commitment', async () => {
       const utxo = addSenderUtxo(t.provider);
-      const created = (await create({ withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+      const created = (await create({ withSeals: true, sealCategory: utxo.txid })).body as CreateEnvelopeResponse;
       const txid = await fundFromTemplate(t.provider, created, utxo, (o) =>
         o.map((x, i) => (i === 2 ? { ...x, token: { ...x.token!, nft: { capability: 'none' as const, commitment: 'ffffffff7f' } } } : x)),
       );
-      await expectMismatch(created.id, txid, /share 2: stamp commitment ffffffff7f/);
+      await expectMismatch(created.id, txid, /share 2: seal commitment ffffffff7f/);
     });
 
     it('an EQUAL envelope funded with an unequal split (review #12)', async () => {
@@ -166,14 +166,14 @@ describe('POST /envelopes/:id/funded', () => {
       await expectMismatch(created.id, txid, /EQUAL envelope must split as 10000, 10000, 10000/);
     });
 
-    it('a stamped funding that also mints a minting NFT for the sender (review #9)', async () => {
+    it('a seal-bearing funding that also mints a minting NFT for the sender (review #9)', async () => {
       const utxo = addSenderUtxo(t.provider);
-      const created = (await create({ withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+      const created = (await create({ withSeals: true, sealCategory: utxo.txid })).body as CreateEnvelopeResponse;
       const txid = await fundFromTemplate(t.provider, created, utxo, (o) => [
         ...o,
         { to: sender, amount: 1_000n, token: { category: utxo.txid, amount: 0n, nft: { capability: 'minting' as const, commitment: '' } } },
       ]);
-      await expectMismatch(created.id, txid, /output 5 carries a token of the stamp category/);
+      await expectMismatch(created.id, txid, /output 5 carries a token of the seal category/);
     });
 
     it('small sponsored drops pay at least the 546-sat dust minimum as fee', async () => {
@@ -185,11 +185,11 @@ describe('POST /envelopes/:id/funded', () => {
       expect((await t.http().post(`/envelopes/${created.id}/funded`).send({ txid })).body.status).toBe('ACTIVE');
     });
 
-    it('review-2 test gap: a sponsored drop WITH stamps, fee exactly at the 546-sat dust floor, activates', async () => {
-      const token = 'stamped-sponsor-token';
-      await t.db.sponsor.create({ data: { name: 'Stamped', adminToken: binToHex(sha256.hash(new TextEncoder().encode(token))) } });
+    it('review-2 test gap: a sponsored drop WITH seals, fee exactly at the 546-sat dust floor, activates', async () => {
+      const token = 'seal-bearing-sponsor-token';
+      await t.db.sponsor.create({ data: { name: 'Sealed', adminToken: binToHex(sha256.hash(new TextEncoder().encode(token))) } });
       const utxo = addSenderUtxo(t.provider);
-      const created = (await create({ sponsorToken: token, totalSats: 9_000, withStamps: true, stampCategory: utxo.txid })).body as CreateEnvelopeResponse;
+      const created = (await create({ sponsorToken: token, totalSats: 9_000, withSeals: true, sealCategory: utxo.txid })).body as CreateEnvelopeResponse;
       expect(created.requiredOutputs).toEqual(
         expect.arrayContaining([expect.objectContaining({ purpose: 'SPONSOR_FEE', sats: 546 }), expect.objectContaining({ purpose: 'BCMR' })]),
       );
@@ -231,7 +231,7 @@ describe('POST /envelopes/:id/funded', () => {
 describe('GET /envelopes/:id and /s/:slug', () => {
   it('shows the public view in sats + USD without secrets', async () => {
     const utxo = addSenderUtxo(t.provider);
-    const created = (await create({ withStamps: true, stampCategory: utxo.txid, message: 'Happy New Year!', theme: 'lunar' }))
+    const created = (await create({ withSeals: true, sealCategory: utxo.txid, message: 'Happy New Year!', theme: 'lunar' }))
       .body as CreateEnvelopeResponse;
     const pending = await t.http().get(`/envelopes/${created.id}`);
     expect(pending.body.status).toBe('PENDING_FUNDING');
@@ -250,9 +250,9 @@ describe('GET /envelopes/:id and /s/:slug', () => {
       remaining: { sats: 30_000, usd: 0.06 },
       shares: { total: 3, claimed: 0, left: 3 },
       fundingTxid: txid,
-      stamp: { category: utxo.txid, imageUrl: `https://api.hongbao.test/stamps/${utxo.txid}/collection.png` },
+      seal: { category: utxo.txid, imageUrl: `https://api.hongbao.test/seals/${utxo.txid}/collection.png` },
     });
-    expect(r.body.stamp.alt).toMatch(/Blue Dragon red envelope stamp/);
+    expect(r.body.seal.alt).toMatch(/Blue Dragon red envelope seal/);
     expect(r.body.og).toMatchObject({ imageUrl: `https://api.hongbao.test/og/${created.slug}.png`, width: 1200, height: 630 });
     expect(r.body.og.alt).toMatch(/Blue Dragon red envelope: "Happy New Year!", 3 of 3 shares left/);
     expect(r.body.secondsLeft).toBeGreaterThan(1700);

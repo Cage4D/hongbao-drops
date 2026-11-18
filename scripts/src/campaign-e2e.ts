@@ -30,9 +30,9 @@ const cid = (await call('POST', '/campaigns', { name: 'BLAZE Drop (Chipnet)' }, 
 check(!!cid, `campaign ${cid}`);
 const sponsored = { sponsorToken: sp.body.sponsorToken, campaignId: cid };
 
-const e1 = await createAndFund(call, provider, { ...sponsored, shareCount: 3, mode: 'EQUAL', totalSats: 18_000, withStamps: false, theme: 'gold', message: 'BLAZE Drop: welcome to BCH!' });
+const e1 = await createAndFund(call, provider, { ...sponsored, shareCount: 3, mode: 'EQUAL', totalSats: 18_000, withSeals: false, theme: 'gold', message: 'BLAZE Drop: welcome to BCH!' });
 console.log(`   envelope 1 funded (3% fee to treasury): ${EXPLORER_TX}${e1.fundingTxid}`);
-const e2 = await createAndFund(call, provider, { ...sponsored, shareCount: 2, mode: 'LUCKY', totalSats: 8_000, withStamps: false, theme: 'gold' });
+const e2 = await createAndFund(call, provider, { ...sponsored, shareCount: 2, mode: 'LUCKY', totalSats: 8_000, withSeals: false, theme: 'gold' });
 console.log(`   envelope 2 funded: ${EXPLORER_TX}${e2.fundingTxid}`);
 
 // ------------------------------------------------------------ claims
@@ -64,7 +64,7 @@ async function spend(k: KeyPair, txid: string, amount: bigint, to: Uint8Array) {
 const shopLB = cashAddressToLockingBytecode(newKeyPair().tokenAddress);
 if (typeof shopLB === 'string') throw new Error(shopLB);
 console.log(`   alice spends her BCH: ${EXPLORER_TX}${await spend(alice, cA.txid, cA.amount, shopLB.bytecode)}`);
-const child = await createAndFund(call, provider, { shareCount: 2, mode: 'EQUAL', totalSats: 3_000, withStamps: false, parentEnvelopeId: e1.env.id }, bob);
+const child = await createAndFund(call, provider, { shareCount: 2, mode: 'EQUAL', totalSats: 3_000, withSeals: false, parentEnvelopeId: e1.env.id }, bob);
 console.log(`   bob passes it on: ${EXPLORER_TX}${child.fundingTxid}`);
 
 for (const ip of ['203.0.113.1', '203.0.113.1', '203.0.113.2']) await call('POST', `/envelopes/${e1.env.id}/cta-click`, undefined, { 'x-forwarded-for': ip });

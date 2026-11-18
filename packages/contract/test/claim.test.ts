@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MockNetworkProvider, randomNFT, randomUtxo } from 'cashscript';
 import { binToHex, hash160, secp256k1, sha256 } from '@bitauth/libauth';
-import { MIN_SHARE_SATS_NO_STAMP, MIN_SHARE_SATS_WITH_STAMP, buildClaimTx, dustLimit, gateMessage, hongbaoContract, signGateApproval } from '../src/index.js';
+import { MIN_SHARE_SATS_NO_SEAL, MIN_SHARE_SATS_WITH_SEAL, buildClaimTx, dustLimit, gateMessage, hongbaoContract, signGateApproval } from '../src/index.js';
 
 const key = (l: string) => sha256.hash(new TextEncoder().encode(`hongbao-claimtx-${l}`));
 const pub = (k: Uint8Array) => secp256k1.derivePublicKeyCompressed(k) as Uint8Array;
@@ -67,13 +67,13 @@ describe('minimum share sizes (review #4)', () => {
     };
   };
 
-  it('claims a share of exactly MIN_SHARE_SATS_NO_STAMP (1,500)', async () => {
-    const { provider, run } = await setup(MIN_SHARE_SATS_NO_STAMP, false);
+  it('claims a share of exactly MIN_SHARE_SATS_NO_SEAL (1,500)', async () => {
+    const { provider, run } = await setup(MIN_SHARE_SATS_NO_SEAL, false);
     await provider.sendRawTransaction(run().hex);
   });
 
-  it('claims a stamped share of exactly MIN_SHARE_SATS_WITH_STAMP (2,000)', async () => {
-    const { provider, run } = await setup(MIN_SHARE_SATS_WITH_STAMP, true);
+  it('claims a seal-bearing share of exactly MIN_SHARE_SATS_WITH_SEAL (2,000)', async () => {
+    const { provider, run } = await setup(MIN_SHARE_SATS_WITH_SEAL, true);
     await provider.sendRawTransaction(run().hex);
   });
 
