@@ -467,7 +467,7 @@ function ClaimPanel({
             <>
               <p className="small muted">Connect Paytaca and your share lands in it. You won't be asked to pay or sign anything.</p>
               <button className="btn btn-primary btn-lg btn-block" onClick={wallet.connect}>
-                {wallet.state === 'connecting' ? 'Waiting for Paytaca…' : 'Connect Paytaca'}
+                Connect Paytaca
               </button>
             </>
           )}

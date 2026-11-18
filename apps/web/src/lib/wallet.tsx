@@ -3,7 +3,7 @@
 //  - fingerprint = sha256(utf8(receive xpub)), never the xpub itself
 //  - sign with broadcast:false, relay-safe serialisation, then broadcast ourselves
 //  - pairing can fail silently: show the real state and offer Reconnect
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useWizardConnect, type WizardConnectState } from '@wizardconnect/react';
 import type { DappConnectionManager } from '@wizardconnect/dapp';
 import { TransactionBuilder, placeholderP2PKHUnlocker, type Output, type Utxo } from 'cashscript';
@@ -195,13 +195,35 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [cfg, wc.manager],
   );
 
+  // A fresh pairing after dropping the old session. The hook refuses connect() while it is still
+  // 'connecting' (and its connect callback is bound to that render), so wait for the state to
+  // leave connecting/connected, then start the new pairing from the current render.
+  const [pendingFresh, setPendingFresh] = useState(false);
+  useEffect(() => {
+    if (!pendingFresh || wc.state === 'connecting' || wc.state === 'connected') return;
+    setPendingFresh(false);
+    wc.connect();
+  }, [pendingFresh, wc.state, wc]);
+
   const reconnect = useCallback(async () => {
+    setModalOpen(true);
     await wc.disconnect();
-    setTimeout(() => {
-      wc.connect();
-      setModalOpen(true);
-    }, 150);
+    setPendingFresh(true);
   }, [wc]);
+
+  const connect = useCallback(() => {
+    setModalOpen(true);
+    // Already connected for real, or a new pairing is already showing its QR: just show the modal.
+    if (connected && addresses.length > 0) return;
+    if (wc.state === 'connecting' && wc.uri) return;
+    // Restoring a saved session in the background (no QR, waits on a wallet that may never answer),
+    // or a session that claims to be connected without addresses: replace it with a fresh pairing.
+    if (wc.state === 'connecting' || wc.state === 'reconnecting' || wc.state === 'connected') {
+      void reconnect();
+      return;
+    }
+    wc.connect();
+  }, [wc, reconnect, connected, addresses.length]);
 
   const value: WalletCtx = {
     state: wc.state,
@@ -210,10 +232,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     uri: wc.uri,
     qrUri: wc.qrUri,
     connected: connected && addresses.length > 0,
-    connect: () => {
-      if (wc.state !== 'connecting') wc.connect();
-      setModalOpen(true);
-    },
+    connect,
     disconnect: wc.disconnect,
     reconnect,
     addresses,

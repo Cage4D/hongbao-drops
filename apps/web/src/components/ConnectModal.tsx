@@ -116,15 +116,11 @@ export function WalletButton({ small = true }: { small?: boolean }) {
         <span className="dot" /> {w.receive0 ? shortAddr(w.receive0.address) : 'Connected'}
       </button>
     );
-  if (w.state === 'connected' && !w.connected)
-    return (
-      <button className={cls} onClick={w.reconnect} title="The wallet session looks connected but hasn't shared its addresses">
-        Reconnect
-      </button>
-    );
+  // Anything short of a working connection reads "Connect wallet". A saved session quietly
+  // restoring in the background isn't something the user started, so don't show it as progress.
   return (
     <button className={cls} onClick={w.connect}>
-      {w.state === 'connecting' || w.state === 'reconnecting' ? 'Connecting…' : 'Connect wallet'}
+      Connect wallet
     </button>
   );
 }

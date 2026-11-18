@@ -139,9 +139,25 @@ button { font: inherit; color: inherit; }
 .nav-brand { font-size: 26px; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
 .nav-brand:hover { color: #fff; }
 .nav-links { display: flex; gap: 28px; margin-left: auto; font: 600 14px/20px var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; }
-.nav-links a { color: #fff; text-decoration: none; padding: 4px 0; border-bottom: 2px solid transparent; transition: border-color 0.2s, color 0.2s; }
+.nav-links a { position: relative; color: #fff; text-decoration: none; padding: 4px 0; transition: color 0.2s; }
+/* Gradient underline that grows from the left on hover; the active link keeps it at full width. */
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -2px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--flame-200), var(--flame-500));
+  box-shadow: 0 0 8px rgba(0, 163, 255, 0.6);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 .nav-links a:hover { color: var(--flame-200); }
-.nav-links a.active { color: var(--accent-text); border-bottom-color: var(--flame-200); }
+.nav-links a:hover::after, .nav-links a:focus-visible::after { transform: scaleX(1); }
+.nav-links a.active { color: var(--accent-text); }
+.nav-links a.active::after { transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) { .nav-links a::after { transition: none; } }
 .nav-actions { display: flex; gap: 12px; margin-left: auto; align-items: center; }
 .net-pill { font: 600 10px/12px var(--font-body); letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 8px; border: 1px solid var(--border-strong); color: var(--text-muted); border-radius: 999px; }
 .net-pill.test { border-color: #b8860b; color: #ffcc4d; }
