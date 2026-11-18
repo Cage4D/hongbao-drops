@@ -8,12 +8,14 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@bitauth/libauth": "^3.1.0-next.8",
     "@hongbao/contract": "workspace:*",
     "@hongbao/shared": "workspace:*",
+    "@vercel/functions": "^3.11.3",
     "@wizardconnect/core": "0.2.10",
     "@wizardconnect/dapp": "0.2.7",
     "@wizardconnect/react": "0.2.6",
