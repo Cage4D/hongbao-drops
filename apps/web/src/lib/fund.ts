@@ -46,6 +46,25 @@ export async function confirmFunding(pending: FundResult): Promise<FundResult> {
 type Wallet = ReturnType<typeof useWallet>;
 
 const IDENTITY = 546n;
+/** The old seal returned to its owner in a pass-on: dust for a P2PKH NFT output + 100 (see createAndFund). */
+const SEAL_RETURN = dustLimit(25, { category: '00'.repeat(32), amount: 0n, nft: { capability: 'none', commitment: '00'.repeat(5) } }) + 100n;
+const MIN_SEAL_SHARE = 2000;
+
+/**
+ * Pass it on: an envelope the claimed share can pay for on its own (a new wallet often holds nothing
+ * else). Same costs createAndFund checks: identity output, the old seal back to its owner, the fee
+ * estimate for 2 inputs (seal coin + BCH coin), 40 sats per seal output. Up to 3 shares of at least
+ * 2,000 sats; at least one share even when the claim was too small (then the wallet must top up).
+ */
+export function passOnDefaults(receivedSats: number): { shareCount: number; sats: number } {
+  for (let n = 3; n >= 1; n--) {
+    const overhead = IDENTITY + SEAL_RETURN + estimateFee(2, n + 4) + BigInt(40 * n);
+    const budget = Math.floor((receivedSats - Number(overhead)) / 100) * 100;
+    if (budget >= MIN_SEAL_SHARE * n) return { shareCount: n, sats: budget };
+  }
+  return { shareCount: 1, sats: MIN_SEAL_SHARE };
+}
+
 /** Sponsored drops pay 3% (min 546) on top; the exact fee comes back in the template. */
 const sponsorFeeEstimate = (sats: number) => BigInt(Math.max(546, Math.ceil(sats * 0.03)));
 

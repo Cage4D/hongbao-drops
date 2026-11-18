@@ -26,7 +26,7 @@ describe('buildClaimTx', () => {
     const recipient = p2pkh(pub(key('claimer')));
     const gateSig = binToHex(signGateApproval(key('gate'), gateMessage(recipient, utxo.txid, utxo.vout)));
 
-    const { hex, fee, amount } = buildClaimTx({
+    const { hex, fee, amount, bchSats } = buildClaimTx({
       provider,
       constructorArgs: args,
       share: { outpointTxid: utxo.txid, outpointIndex: utxo.vout, sats: 10_000, tokenCategory: token.category, nftCommitment: '0100000001' },
@@ -36,6 +36,7 @@ describe('buildClaimTx', () => {
     });
     expect(fee).toBe(BigInt(hex.length / 2));
     expect(amount).toBe(10_000n - fee);
+    expect(bchSats).toBe(amount - dustLimit(recipient.length, token));
     await provider.sendRawTransaction(hex);
     // Seal on a dust output, the rest as plain BCH: wallets only count token-free outputs as balance.
     const got = await provider.getUtxosForLockingBytecode(recipient);

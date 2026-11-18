@@ -1,4 +1,4 @@
-// Create an envelope (Flow A), or pass one on (Flow C: ?parent=<envelopeId>&coin=<claim txid>&suggest=<sats>).
+// Create an envelope (Flow A), or pass one on (Flow C: ?parent=<envelopeId>&coin=<claim txid>&got=<sats claimed>).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import QRCode from 'qrcode';
@@ -6,7 +6,7 @@ import type { Mode, Theme } from '@hongbao/shared';
 import { useNetwork } from '../lib/network';
 import { useWallet } from '../lib/wallet';
 import { InsufficientFunds } from '../lib/txplan';
-import { FundingUnconfirmed, confirmFunding, createAndFund, type FundResult, type FundStep } from '../lib/fund';
+import { FundingUnconfirmed, confirmFunding, createAndFund, passOnDefaults, type FundResult, type FundStep } from '../lib/fund';
 import { errorText } from '../lib/api';
 import { fmtBch, fmtDuration, fmtSats, fmtUsd, satsToUsd, usdToSats } from '../lib/format';
 import { store } from '../lib/storage';
@@ -34,14 +34,16 @@ export function Send() {
   const [params] = useSearchParams();
   const parent = params.get('parent');
   const coin = params.get('coin');
-  const suggest = Number(params.get('suggest') || 0);
+  // What the claimer received (older links carried half of it as `suggest`).
+  const got = Number(params.get('got') || 0) || 2 * Number(params.get('suggest') || 0);
+  const passOn = parent ? passOnDefaults(got) : null;
   const campaignId = params.get('campaign');
   const sponsor = campaignId ? store.get<{ token: string; name: string }>('hongbao:sponsor') : null;
 
-  const [mode, setMode] = useState<Mode>('LUCKY');
-  const [shareCount, setShareCount] = useState(parent ? 3 : 5);
+  const [mode, setMode] = useState<Mode>(passOn?.shareCount === 1 ? 'EQUAL' : 'LUCKY');
+  const [shareCount, setShareCount] = useState(passOn?.shareCount ?? 5);
   const [unit, setUnit] = useState<'usd' | 'sats'>('usd');
-  const [sats, setSats] = useState<number>(parent ? Math.max(suggest, 6000) : 20_000);
+  const [sats, setSats] = useState<number>(passOn?.sats ?? 20_000);
   const [amountText, setAmountText] = useState('');
   const [message, setMessage] = useState(parent ? 'Passing the luck on!' : 'Happy Lunar New Year!');
   const [theme, setTheme] = useState<Theme>('lunar');

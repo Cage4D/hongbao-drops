@@ -118,7 +118,8 @@ export const api = {
   },
   envelope: (id: string) => req<PublicEnvelopeView>('GET', `/envelopes/${encodeURIComponent(id)}`),
   bySlug: (slug: string) => req<PublicEnvelopeView>('GET', `/s/${encodeURIComponent(slug)}`),
-  hold: (id: string, fingerprint?: string) => req<HoldResponse>('POST', `/envelopes/${id}/holds`, fingerprint ? { fingerprint } : {}),
+  hold: (id: string, fingerprint?: string, answer?: string) =>
+    req<HoldResponse>('POST', `/envelopes/${id}/holds`, { ...(fingerprint && { fingerprint }), ...(answer && { answer }) }),
   claim: (id: string, b: ClaimRequest) => withChainRetry(() => req<ClaimApproval>('POST', `/envelopes/${id}/claims`, b)),
   broadcast: (claimId: string, rawTx: string) => withChainRetry(() => req<BroadcastResponse>('POST', `/claims/${claimId}/broadcast`, { rawTx })),
   tree: (id: string) => req<TreeResponse>('GET', `/envelopes/${id}/tree`),

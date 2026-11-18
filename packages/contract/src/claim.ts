@@ -17,8 +17,11 @@ export interface ClaimTxInput {
   feeRate?: number;
 }
 
-/** Returns the signed claim tx hex. The share pays its own fee; the claimer gets the rest (`amount`, all outputs). */
-export function buildClaimTx(i: ClaimTxInput): { hex: string; fee: bigint; amount: bigint } {
+/**
+ * Returns the signed claim tx hex. The share pays its own fee; the claimer gets the rest (`amount`,
+ * all outputs). `bchSats` is the part on token-free outputs: what a wallet shows as BCH balance.
+ */
+export function buildClaimTx(i: ClaimTxInput): { hex: string; fee: bigint; amount: bigint; bchSats: bigint } {
   const contract = hongbaoContract(
     {
       linkPk: hexToBin(i.constructorArgs.linkPk),
@@ -71,7 +74,7 @@ export function buildClaimTx(i: ClaimTxInput): { hex: string; fee: bigint; amoun
     const fee = measure(true);
     if (fee !== null && fee <= maxFee && sats - fee - dust >= plainDust) {
       const bch = sats - fee - dust;
-      return { hex: build(dust, bch), fee, amount: dust + bch };
+      return { hex: build(dust, bch), fee, amount: dust + bch, bchSats: bch };
     }
     // Too small to split: everything rides on the seal output (still a valid claim).
   }
@@ -80,5 +83,6 @@ export function buildClaimTx(i: ClaimTxInput): { hex: string; fee: bigint; amoun
   if (fee > maxFee) throw new Error(`fee ${fee} exceeds the envelope's maxFee ${maxFee}`);
   const amount = sats - fee;
   if (amount < dust) throw new Error(`share of ${sats} sats is too small to claim (${amount} after fee < ${dust} dust)`);
-  return { hex: build(amount), fee, amount };
+  // One output: with a seal, all of it rides on the seal (no plain BCH); without, it is all BCH.
+  return { hex: build(amount), fee, amount, bchSats: token ? 0n : amount };
 }

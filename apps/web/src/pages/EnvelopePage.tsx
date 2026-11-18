@@ -111,7 +111,12 @@ function EnvelopeView({
 }) {
   const { cfg } = useNetwork();
   const [claimed, setClaimed] = useState<StoredClaim | null>(() => readClaim(view.id));
-  const [phase, setPhase] = useState<Phase>(claimed ? 'done' : 'sealed');
+  // Back for a share this device is holding: skip "Open it" and show the held share straight away.
+  const [phase, setPhase] = useState<Phase>(() => {
+    if (claimed) return 'done';
+    const h = store.get<StoredHold>(holdKey(view.id));
+    return h && new Date(h.heldUntil).getTime() > Date.now() ? 'choose' : 'sealed';
+  });
   const [fire, setFire] = useState(0);
   const [expiredNow, setExpiredNow] = useState(false);
   const expiresAt = useMemo(() => Date.now() + view.secondsLeft * 1000, [view.secondsLeft]);
@@ -162,7 +167,7 @@ function EnvelopeView({
               slip={
                 phase === 'done' && claimed ? (
                   <>
-                    <span className="slip-amt">{fmtSats(claimed.amountSats)}</span>
+                    <span className="slip-amt">{fmtSats(claimed.seal && claimed.bchSats ? claimed.bchSats : claimed.amountSats)}</span>
                     <span className="slip-unit">sats</span>
                   </>
                 ) : (
@@ -498,9 +503,10 @@ function ClaimPanel({
   };
   const holdShare = async () => {
     setError(null);
+    if (quiz && !answer.trim()) return setError('Answer the question first.');
     setBusy(true);
     try {
-      const h = await api.hold(view.id);
+      const h = await api.hold(view.id, undefined, quiz ? answer.trim() : undefined);
       store.set(holdKey(view.id), h);
       setHold(h);
     } catch (e) {
@@ -673,9 +679,11 @@ function Success({ r, view, priceUsd }: { r: StoredClaim; view: PublicEnvelopeVi
   const { cfg } = useNetwork();
   const navigate = useNavigate();
   const usd = usdFor(r.amountSats, r.amountUsd, priceUsd);
+  // Show what the wallet shows as BCH: with a seal, part of the share rides on the seal's output.
+  const bch = r.seal && r.bchSats != null && r.bchSats > 0 ? r.bchSats : r.amountSats;
+  const bchUsd = bch === r.amountSats ? usd : usdFor(bch, null, priceUsd);
   const passOn = () => {
-    const suggest = Math.floor(r.amountSats / 2);
-    navigate(`/send?parent=${view.id}&coin=${r.txid}&suggest=${suggest}`);
+    navigate(`/send?parent=${view.id}&coin=${r.txid}&got=${r.amountSats}`);
   };
   // A share can be passed on once: the pass-on spends the claimed coin. Check it's still there.
   const [coin, setCoin] = useState<'checking' | 'unspent' | 'spent' | 'unknown'>(r.passedOn ? 'spent' : 'checking');
@@ -690,12 +698,13 @@ function Success({ r, view, priceUsd }: { r: StoredClaim; view: PublicEnvelopeVi
   return (
     <div className="success stack">
       <div className="success-amount">
-        <span className="disp flame success-big">{fmtSats(r.amountSats)}</span>
+        <span className="disp flame success-big">{fmtSats(bch)}</span>
         <span className="success-unit">
           sats
           <span className="muted small">
             {' '}
-            · {fmtBch(r.amountSats)} BCH{usd != null && ` · ${fmtUsd(usd)}`}
+            · {fmtBch(bch)} BCH{bchUsd != null && ` · ${fmtUsd(bchUsd)}`}
+            {r.seal && ' · plus a Hongbao Seal'}
           </span>
         </span>
       </div>

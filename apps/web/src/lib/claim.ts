@@ -12,6 +12,8 @@ export interface ClaimResult extends BroadcastResponse {
   recipientLockingBytecode: string;
   isNewWallet: boolean | null;
   at: string;
+  /** Plain BCH the wallet received (the rest rides on the seal). Missing on claims stored before Nov 19. */
+  bchSats?: number;
 }
 
 export async function claimShare(cfg: NetCfg, envelopeId: string, linkPrivateKey: Uint8Array, body: ClaimRequest): Promise<ClaimResult> {
@@ -21,7 +23,7 @@ export async function claimShare(cfg: NetCfg, envelopeId: string, linkPrivateKey
   if (binToHex(secp256k1.derivePublicKeyCompressed(linkPrivateKey) as Uint8Array) !== ap.constructorArgs.linkPk)
     throw new Error("This link's key belongs to a different envelope. Ask the sender to send the full link again.");
   // The share is reserved for 120 s: build and broadcast straight away.
-  const { hex } = buildClaimTx({
+  const { hex, bchSats } = buildClaimTx({
     provider: chainProvider(cfg),
     constructorArgs: ap.constructorArgs,
     share: ap.share,
@@ -37,6 +39,7 @@ export async function claimShare(cfg: NetCfg, envelopeId: string, linkPrivateKey
     recipientLockingBytecode: ap.recipientLockingBytecode,
     isNewWallet: ap.isNewWallet,
     at: new Date().toISOString(),
+    bchSats: Number(bchSats),
   };
 }
 

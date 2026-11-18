@@ -137,6 +137,10 @@ export default function WalletEngine({
           { signal: ctrl.signal },
         );
       } catch (e) {
+        // A wallet may report a rejection as an error instead of in the response ("User rejected").
+        if (!ctrl.signal.aborted && /reject|denied|declin|cancel/i.test(String((e as Error)?.message ?? e))) {
+          throw new Error('You declined in your wallet.');
+        }
         if (ctrl.signal.aborted) {
           if (signal?.aborted) throw new Error('Cancelled.');
           // The wallet is gone (most often disconnected in its app, whose disconnect message got
