@@ -20,7 +20,7 @@
 ## Try it in 30 seconds
 
 1. **Open the [demo envelope](⟨TODO: demo envelope link⟩)** on your phone.
-2. **Tap to open it.** Connect a BCH wallet such as [Paytaca](https://www.paytaca.com), or paste your BCH address. No wallet yet? Tap **"Hold my share"**: we keep a share for you for 15 minutes while you install one.
+2. **Tap to open it.** Connect your Bitcoin Cash wallet, or paste your BCH address. No wallet yet? Try [Paytaca](https://www.paytaca.com) and tap **"Hold my share"**: we keep a share for you for 15 minutes while you install it.
 3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a **collectible stamp** showing you caught it.
 4. **Pass it on** (optional). Re-gift part of what you got as a new envelope, and see how far your drop travels.
 

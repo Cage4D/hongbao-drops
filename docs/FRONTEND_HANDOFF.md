@@ -19,9 +19,11 @@ Extras:
 
 Use the same plain words as the README: **lockbox**, **collectible stamp**, **leftovers return automatically**. Avoid jargon in the UI (no "UTXO", "P2SH", "BCMR", "gate").
 
-### Paytaca is required
+### Any BCH wallet; Paytaca suggested and required to work
 
-**Paytaca is a sponsor of BCH BLAZE 2026, so the whole product must work with Paytaca, on a phone, on mainnet.** It's the wallet the UI should name and link to everywhere: connect, install links in "Hold my share", the README's "Try it". Other WizardConnect wallets may work, but they aren't a goal.
+**Anyone can use any BCH wallet**: connect over WizardConnect, or paste an address. **Paytaca is the default suggestion** wherever someone needs to *get* a wallet ("No wallet yet? Try Paytaca", the install link in "Hold my share", "Get Paytaca" in the footer). No other wallet is named.
+
+Paytaca is also a sponsor of BCH BLAZE 2026, so the product **must work end-to-end with Paytaca, on a phone, on mainnet**. It's the wallet to build and test against.
 
 | With Paytaca | Status |
 |---|---|
@@ -191,7 +193,7 @@ Amounts the wallet needs: `totalSats` + 546 (identity, with stamps) + sponsor fe
 - **Paste address:** accept `q…` or `z…` for the current network. Both are the same locking script, so the BCH and stamp arrive either way. The `z…` form only tells sending software "this wallet understands tokens".
 - **Hold my share** (no wallet yet): `POST /envelopes/:id/holds {"fingerprint"?}` → `{ holdToken, heldUntil }`.
   - Store `holdToken` in `localStorage`, keyed by envelope.
-  - Show a **Paytaca** install link (https://www.paytaca.com) and the countdown to `heldUntil` (15 min).
+  - Show "No wallet yet? Try Paytaca" with the install link (https://www.paytaca.com) and the countdown to `heldUntil` (15 min).
   - When they come back, claim with `holdToken` plus their new address.
   - Limits: 2 holds per IP per envelope per 15 min, and at most half the shares held at once. Beyond that you get `429 RATE_LIMITED`.
 
@@ -373,7 +375,7 @@ The fragment `#k=` never reaches the crawler, so previews can't leak the secret.
   - The wallet signs with `SIGHASH_ALL | FORKID | UTXOS`.
 - **Serialise for the relay:** the transaction as hex, and source outputs with hex bytes and `"<bigint: Xn>"` strings. Passing CashScript's `generateWcTransactionObject()` result directly throws *"Do not know how to serialize a BigInt"*. Copy `toRelayRequest()` from `wc-test`.
 - **Pairing can fail silently** (console: *"Key exchange timed out"*) while a saved session still makes the page look connected. Show the **real** connection state and offer **Reconnect**.
-- Paytaca signed the stamped genesis funding tx (N NFTs to a contract + OP_RETURN) on the first try. Paytaca is the wallet to build and test against (see "Paytaca is required").
+- Paytaca signed the stamped genesis funding tx (N NFTs to a contract + OP_RETURN) on the first try. Paytaca is the wallet to build and test against (see "Any BCH wallet; Paytaca suggested and required to work").
 - **The WizardConnect addresses are part of the Paytaca wallet.** The address in Paytaca's app may differ only because Paytaca moves on to a new receive address after one has been used.
 
 ---
