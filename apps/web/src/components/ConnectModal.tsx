@@ -1,6 +1,10 @@
 // Connect over WizardConnect (any BCH wallet that supports it; Paytaca suggested). Lazy-loaded by
 // Layout when the modal opens (it carries the QR library).
-// Desktop: scan the QR with the wallet. Phone: open the wallet directly.
+// Desktop: scan the QR with the wallet. Phone (same device): copy the wiz:// link and paste it in the
+// wallet. A wiz:// deep link can't be relied on: Paytaca (the wallet we suggest) doesn't register
+// the scheme, and its deep-link handler has no WizardConnect branch (checked Nov 2026,
+// paytaca-app src/boot/deep-link.js), so tapping one does nothing. Its WizardConnect screen does have
+// Paste URL → Connect, and the pairing finishes when the user comes back to this tab.
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { useWallet } from '../lib/wallet';
@@ -9,11 +13,21 @@ import { shortAddr } from '../lib/format';
 import { Modal } from './ui';
 
 const isPhone = () => /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+const isAndroid = () => /android/i.test(navigator.userAgent);
+/** Android: launch Paytaca (or its Play Store page when it isn't installed) without passing a URL. */
+const PAYTACA_ANDROID_INTENT = 'intent://#Intent;package=com.paytaca.app;end';
 
 export default function ConnectModal() {
   const w = useWallet();
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const copyLink = () => {
+    if (!w.uri) return;
+    const done = () => setLinkCopied(true);
+    if (navigator.clipboard) navigator.clipboard.writeText(w.uri).then(done, done);
+    else done();
+  };
 
   useEffect(() => {
     if (!w.qrUri) return setQr(null);
@@ -48,12 +62,33 @@ export default function ConnectModal() {
           <h2 className="disp disp-md">
             Link your <span className="flame">wallet</span>
           </h2>
-          {isPhone() && w.uri ? (
+          {isPhone() ? (
             <>
-              <p>Open your Bitcoin Cash wallet on this phone and approve the connection.</p>
-              <a className="btn btn-primary btn-lg btn-block" href={w.uri}>
-                Open my wallet
-              </a>
+              <ol className="phone-steps">
+                <li>
+                  <button className={`btn btn-lg btn-block ${linkCopied ? 'btn-ghost' : 'btn-primary'}`} onClick={copyLink} disabled={!w.uri}>
+                    {!w.uri ? 'Preparing your link…' : linkCopied ? 'Link copied ✓' : 'Copy connection link'}
+                  </button>
+                </li>
+                <li>
+                  Open your wallet's <strong>WizardConnect</strong> screen. In Paytaca: <strong>Apps → WizardConnect → Paste URL</strong>.
+                  {isAndroid() && (
+                    <a className="btn btn-ghost btn-block" href={PAYTACA_ANDROID_INTENT} style={{ marginTop: 10 }}>
+                      Open Paytaca
+                    </a>
+                  )}
+                </li>
+                <li>
+                  Paste the link and tap <strong>Connect</strong>.
+                </li>
+                <li>Come back to this page. It connects by itself.</li>
+              </ol>
+              {w.uri && !isPhone() && (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Wallet app opens <span className="mono">wiz://</span> links?{' '}
+                  <a href={w.uri}>Open it directly</a>
+                </p>
+              )}
               <details className="small muted">
                 <summary>On another device? Show the QR code</summary>
                 {qr && (
@@ -79,7 +114,7 @@ export default function ConnectModal() {
                 <>Status: {w.state}</>
               )}
             </span>
-            {w.uri && (
+            {w.uri && !isPhone() && (
               <button
                 className="btn-link small"
                 onClick={() => {
