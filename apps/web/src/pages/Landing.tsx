@@ -34,6 +34,7 @@ export function Landing() {
     <div ref={root}>
       {/* ------------------------------------------------------------ hero */}
       <section className="hero" aria-labelledby="hero-title">
+        <Sparks count={14} />
         <Dragon />
         <div className="hero-copy">
           <span className="tag hero-tag">
@@ -226,8 +227,7 @@ export function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ cta */}
-      <section className="cta-band has-sparks" aria-labelledby="cta-title">
-        <Sparks count={16} tone="light" />
+      <section className="cta-band" aria-labelledby="cta-title">
         <div className="container cta-inner">
           <div>
             <h2 id="cta-title" className="disp disp-lg">
