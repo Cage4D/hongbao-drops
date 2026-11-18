@@ -6,7 +6,8 @@ import { dustLimit } from '@hongbao/contract';
 import { api } from './api';
 import { newLinkKey, shareUrl } from './link';
 import type { NetCfg } from './network';
-import { InsufficientFunds, estimateFee, type WalletAddr, type WalletUtxo, useWallet } from './wallet';
+import type { WalletAddr, WalletUtxo, useWallet } from './wallet';
+import { InsufficientFunds, estimateFee } from './txplan';
 
 export type FundStep = 'scan' | 'prep' | 'create' | 'sign' | 'confirm';
 

@@ -6,9 +6,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useWizardConnect, type WizardConnectState } from '@wizardconnect/react';
 import type { DappConnectionManager } from '@wizardconnect/dapp';
-import { TransactionBuilder, placeholderP2PKHUnlocker, type Output, type Utxo } from 'cashscript';
+import type { Output, TransactionBuilder, Utxo } from 'cashscript';
 import { binToHex, encodeCashAddress, encodeTransaction, hash160, sha256 } from '@bitauth/libauth';
 import { chainProvider, useNetwork, type NetCfg } from './network';
+import { InsufficientFunds, estimateFee, planChange, txBuilder } from './txplan';
+
+export { InsufficientFunds, estimateFee };
 
 const PATHS = [
   { name: 'receive', child: 0, count: 20 },
@@ -26,8 +29,6 @@ export interface WalletAddr {
 }
 export type WalletUtxo = Utxo & { addr: WalletAddr };
 
-/** P2PKH dust: change below this is dropped into the fee. */
-const DUST = 546n;
 const SIGN_TIMEOUT_MS = 3 * 60_000;
 
 export function deriveAddresses(m: DappConnectionManager, prefix: NetCfg['prefix']): WalletAddr[] {
@@ -77,15 +78,6 @@ function toRelayRequest(wc: WcObj) {
     userPrompt: wc.userPrompt,
   };
 }
-
-export class InsufficientFunds extends Error {
-  constructor(public needSats: bigint, public haveSats: bigint) {
-    super(`Your wallet needs about ${needSats - haveSats} more sats for this.`);
-  }
-}
-
-/** A rough fee for planning (1 sat/B): ~148 B per P2PKH input, ~60 B per output, plus overhead. */
-export const estimateFee = (inputs: number, outputs: number, extraBytes = 0) => BigInt(148 * inputs + 60 * outputs + 20 + extraBytes);
 
 export interface SignResult {
   txid: string;
@@ -147,28 +139,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     async (inputs: WalletUtxo[], outputs: Output[], change: WalletAddr, prompt: string, signal?: AbortSignal): Promise<SignResult> => {
       if (!cfg || !wc.manager) throw new Error('Your wallet is not connected.');
       const provider = chainProvider(cfg);
-      const make = (changeSats: bigint | null) => {
-        const tb = new TransactionBuilder({ provider });
-        for (const u of inputs) tb.addInput({ ...u, lockingBytecode: u.lockingBytecode ?? u.addr.lockingHex }, placeholderP2PKHUnlocker(u.addr.address));
-        tb.addOutputs(outputs);
-        if (changeSats !== null) tb.addOutput({ to: change.lockingBytecode, amount: changeSats });
-        return tb.generateWcTransactionObject({ broadcast: false, userPrompt: prompt });
-      };
-      const inSum = inputs.reduce((s, u) => s + u.satoshis, 0n);
-      const outSum = outputs.reduce((s, o) => s + o.amount, 0n);
-      // Draft with a generous fee (not a flat 1,000: CashScript rejects < 1 sat/B with many inputs).
-      const draftFee = BigInt(200 * inputs.length + 1000);
-      const draftChange = inSum - outSum - draftFee;
-      if (inSum - outSum < estimateFee(inputs.length, outputs.length)) throw new InsufficientFunds(outSum + estimateFee(inputs.length, outputs.length + 1), inSum);
-      const withChange = draftChange >= DUST;
-      // Placeholder unlockers are empty: add ~107 B per P2PKH input for signature + public key.
-      const size = BigInt(encodeTransaction(make(withChange ? draftChange : null).transaction).length + 107 * inputs.length);
-      let changeSats: bigint | null = inSum - outSum - size;
-      if (changeSats < DUST) {
-        if (inSum - outSum < size - 34n) throw new InsufficientFunds(outSum + size, inSum);
-        changeSats = null; // dust change goes to the fee
-      }
-      const wcObj = make(changeSats);
+      const changeSats = planChange(provider, inputs, outputs, change);
+      const wcObj = txBuilder(provider, inputs, outputs, change, changeSats).generateWcTransactionObject({ broadcast: false, userPrompt: prompt });
 
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), SIGN_TIMEOUT_MS);
