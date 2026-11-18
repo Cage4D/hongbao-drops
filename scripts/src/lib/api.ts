@@ -4,7 +4,7 @@ import { SignatureTemplate, TransactionBuilder, type ElectrumNetworkProvider, ty
 import type { CreateEnvelopeResponse } from '@hongbao/shared';
 import { EXPLORER_TX } from './env.js';
 import { walletKey, type KeyPair } from './keys.js';
-import { FEE_RATE, draftFee, txSize } from './envelope.js';
+import { draftFee, feeFor, txSize } from './envelope.js';
 
 export interface ApiResult {
   status: number;
@@ -17,6 +17,8 @@ export function apiClient(base: string) {
       method,
       headers: { 'content-type': 'application/json', ...headers },
       body: body ? JSON.stringify(body) : undefined,
+      // A stalled request hung a mainnet run after its funding tx was broadcast (2026-11-18).
+      signal: AbortSignal.timeout(60_000),
     });
     const text = await res.text(); // 204 No Content has no JSON body
     return { status: res.status, body: text ? JSON.parse(text) : null };
@@ -56,7 +58,7 @@ export async function createAndFund(
       for (const u of utxos) tb.addInput(u, signer.unlockP2PKH());
       return tb.addOutput({ to: wallet.lockingBytecode, amount: amt });
     };
-    const fee = BigInt(txSize(mk(total - draftFee(utxos.length)))) * FEE_RATE;
+    const fee = feeFor(txSize(mk(total - draftFee(utxos.length))));
     const prep = await mk(total - fee).send();
     console.log(`   prep tx: ${EXPLORER_TX}${prep.txid}`);
     input0 = { txid: prep.txid, vout: 0, satoshis: total - fee, lockingBytecode: binToHex(wallet.lockingBytecode) };
@@ -75,6 +77,9 @@ export async function createAndFund(
   });
   if (created.status !== 201) throw new Error(`create failed: ${JSON.stringify(created.body)}`);
   const env = created.body as CreateEnvelopeResponse;
+  // Printed before funding: if the run dies after broadcast, POST /envelopes/<id>/funded with the
+  // funding txid recovers it.
+  console.log(`   created: id ${env.id}, slug ${env.slug}`);
 
   const outs: Output[] = env.fundingTemplate.map((o) => ({
     to: hexToBin(o.lockingBytecode),
@@ -91,8 +96,9 @@ export async function createAndFund(
     for (const u of inputs) tb.addInput(u, signer.unlockP2PKH());
     return tb.addOutputs(outs).addOutput({ to: wallet.lockingBytecode, amount: change });
   };
-  const fee = BigInt(txSize(mk(inSum - outSum - draftFee(inputs.length)))) * FEE_RATE;
+  const fee = feeFor(txSize(mk(inSum - outSum - draftFee(inputs.length, outs.length + 1))));
   const sent = await mk(inSum - outSum - fee).send();
+  console.log(`   funding tx broadcast: ${sent.txid}`);
 
   // The API may look the tx up on a different Fulcrum server than the one we broadcast to, so it can
   // briefly report "not found on the network yet". Retry only that case (a wallet-broadcast tx in
