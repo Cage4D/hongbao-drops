@@ -39,6 +39,32 @@ export function Dragon({ intensity = 1, className = '', compact = false }: { int
     const io = new IntersectionObserver(([en]) => (visible = !!en?.isIntersecting));
     io.observe(el);
 
+    // The flame warp (SVG turbulence + displacement over the whole image) is the expensive part:
+    // every attribute change re-runs the filter. Update it ~12 times a second, and not at all
+    // while the page is scrolling, so scrolling stays smooth.
+    let scrollingUntil = 0;
+    const onScroll = () => (scrollingUntil = performance.now() + 180);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const WARP_EVERY_MS = 1000 / 12;
+    let lastWarp = 0;
+
+    // Embers: draw a pre-rendered glow sprite instead of using canvas shadowBlur per particle.
+    const sprite = (core: string) => {
+      const s = document.createElement('canvas');
+      s.width = s.height = 32;
+      const g = s.getContext('2d')!;
+      const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+      grad.addColorStop(0, core);
+      grad.addColorStop(0.25, core);
+      grad.addColorStop(0.45, 'rgba(0, 163, 255, 0.45)');
+      grad.addColorStop(1, 'rgba(0, 163, 255, 0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 32, 32);
+      return s;
+    };
+    const hot = sprite('#ebfcff');
+    const cool = sprite('#00e0ff');
+
     const ctx = canvas?.getContext('2d');
     type Ember = { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number };
     const embers: Ember[] = [];
@@ -47,10 +73,12 @@ export function Dragon({ intensity = 1, className = '', compact = false }: { int
       if (!visible || !canvas || !ctx) return;
       const kk = k.current;
       frame++;
-      if (turb && dmap) {
+      const now = performance.now();
+      if (turb && dmap && now > scrollingUntil && now - lastWarp >= WARP_EVERY_MS) {
+        lastWarp = now;
         const fy = 0.04 + Math.sin(time * 2.1) * 0.008;
         turb.setAttribute('baseFrequency', `${(0.012 + Math.sin(time * 0.9) * 0.002).toFixed(4)} ${fy.toFixed(4)}`);
-        if (frame % 5 === 0) turb.setAttribute('seed', String((frame / 5) % 200));
+        if (frame % 4 === 0) turb.setAttribute('seed', String(frame % 200));
         dmap.setAttribute('scale', ((12 + Math.sin(time * 3.3) * 4) * kk).toFixed(1));
       }
       const w = canvas.clientWidth, h = canvas.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -88,15 +116,10 @@ export function Dragon({ intensity = 1, className = '', compact = false }: { int
         e.y += e.vy * dt;
         const a = 1 - e.life / e.max;
         ctx.globalAlpha = a;
-        ctx.fillStyle = a > 0.6 ? '#ebfcff' : '#00e0ff';
-        ctx.shadowColor = '#00a3ff';
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
-        ctx.fill();
+        const d = e.r * 5; // sprite covers the core plus its glow
+        ctx.drawImage(a > 0.6 ? hot : cool, e.x - d / 2, e.y - d / 2, d, d);
       }
       ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
       ctx.globalCompositeOperation = 'source-over';
     };
     gsap.ticker.add(tick);
@@ -104,6 +127,7 @@ export function Dragon({ intensity = 1, className = '', compact = false }: { int
       tweens.forEach((t) => t.kill());
       gsap.ticker.remove(tick);
       window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('scroll', onScroll);
       io.disconnect();
     };
   }, []);
