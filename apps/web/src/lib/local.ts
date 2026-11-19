@@ -3,7 +3,6 @@
 import type { Theme } from '@hongbao/shared';
 import type { ClaimResult } from './claim';
 import { store } from './storage';
-import { upgradeStoredClaim } from './legacy';
 
 export const claimKey = (envelopeId: string) => `hongbao:claim:${envelopeId}`;
 export const holdKey = (envelopeId: string) => `hongbao:hold:${envelopeId}`;
@@ -18,8 +17,8 @@ export interface PassedOn {
 
 export type StoredClaim = ClaimResult & { passedOn?: PassedOn };
 
-/** The claim this device made on an envelope, if any (older saves are upgraded on read). */
-export const readClaim = (envelopeId: string) => upgradeStoredClaim(store.get<StoredClaim>(claimKey(envelopeId)));
+/** The claim this device made on an envelope, if any. */
+export const readClaim = (envelopeId: string) => store.get<StoredClaim>(claimKey(envelopeId));
 
 export interface SentDrop {
   id: string;

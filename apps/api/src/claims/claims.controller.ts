@@ -2,7 +2,6 @@ import { Body, Controller, HttpCode, Inject, Param, Post, Req } from '@nestjs/co
 import type { Request } from 'express';
 import { ClaimsService } from './claims.service.js';
 import { CONFIG, type AppConfig } from '../config/config.js';
-import { withLegacySealAlias } from '../common/legacy.js';
 
 /**
  * Client IP for rate limits and farm flags. Only a header our host sets (and overwrites) can be
@@ -40,6 +39,6 @@ export class ClaimsController {
   @Post('claims/:id/broadcast')
   @HttpCode(200)
   async broadcast(@Param('id') id: string, @Body() body: unknown) {
-    return withLegacySealAlias(await this.claims.broadcast(id, body));
+    return this.claims.broadcast(id, body);
   }
 }

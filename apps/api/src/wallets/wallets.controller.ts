@@ -3,7 +3,6 @@ import type { Request } from 'express';
 import { clientIp } from '../claims/claims.controller.js';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { WalletsService } from './wallets.service.js';
-import { withLegacySealAlias } from '../common/legacy.js';
 
 @Controller()
 export class WalletsController {
@@ -16,7 +15,6 @@ export class WalletsController {
   @Post('wallets/activity')
   @HttpCode(200)
   async activity(@Body() body: unknown, @Req() req: Request) {
-    const a = await this.wallets.activity(body, clientIp(req, this.config.CLIENT_IP_HEADER));
-    return { ...a, claimed: a.claimed.map(withLegacySealAlias) };
+    return this.wallets.activity(body, clientIp(req, this.config.CLIENT_IP_HEADER));
   }
 }
