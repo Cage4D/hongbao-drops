@@ -1,6 +1,9 @@
 <!--
-  Before submission (22 Nov 14:00 UTC), replace every ⟨TODO …⟩ with real values:
-  the BLAZE Drop numbers from /campaigns/:id/public. Never put test-network numbers where real ones belong.
+  Before submission (22 Nov 14:00 UTC):
+  1. Fill the BLAZE Drop claim rows (⟨TODO⟩) from
+     curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68/public
+  2. Put the screen-recording GIF in the marked spot below.
+  Never put test-network numbers where real ones belong.
 -->
 
 # Hongbao Drops 🧧
@@ -8,6 +11,11 @@
 **Drop a red envelope of Bitcoin Cash into any group chat as one link. The first people to open it each get a share of real BCH and a Hongbao Seal, in seconds, with no fees and nothing to sign.**
 
 ### 👉 [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
+
+<!-- ⟨TODO: SCREEN-RECORDING GIF⟩ The whole flow on a phone (open → claim → Money arrived → seal in Paytaca → pass it on).
+     Replace this comment with:
+     [![The full flow on a phone: open, claim, the money and seal in Paytaca, pass it on](docs/media/flow.gif)](⟨link to the full MP4⟩)
+     Shot list and ffmpeg command: docs/pitch-notes.md §4.7. -->
 
 <p>
   <img src="docs/media/og-lunar.png" alt="A Lunar New Year red envelope link preview: Happy New Year!, 3 of 3 shares left" width="420">
@@ -53,14 +61,26 @@ Every number links to a public blockchain transaction, so anyone can check it. N
 
 | | |
 |---|---|
+| Envelopes | 2, with 10 shares each and a Hongbao Seal on every share: [equal split](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183), [lucky split](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08) |
+| Put in | 200,000 sats (≈ $0.41) |
+| 3% sponsor fee, paid on-chain | 6,000 sats: 3,000 in output 11 of each funding transaction, to our treasury |
 | People who claimed | ⟨TODO⟩ |
 | Brand-new wallets | ⟨TODO⟩ |
-| Of those, used their BCH or passed it on | ⟨TODO⟩ |
 | Envelopes passed on | ⟨TODO⟩ |
-| **Cost per real new wallet** | ⟨TODO⟩ |
+| **Cost per brand-new wallet** | ⟨TODO⟩ |
+| Of those, used their BCH or passed it on within 7 days | Not known yet: the 7-day window closes after judging |
 | Public proof (every transaction) | [hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68](https://hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68) |
 
 Free for personal envelopes. Sponsors pay the 3% fee, collected automatically when the envelope is created. An envelope can't skip the fee: without it nobody can claim from it, and the money simply goes back after expiry.
+
+## The business
+
+- **Personal drops are free. Sponsored drops pay 3%** of the envelope (minimum 546 sats), and get their brand on it plus the dashboard above.
+- **We pay no miner fees.** On mainnet a claim costs 590 sats ([example](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5)) and a refund of one share 459 sats ([example](https://blockchair.com/bitcoin-cash/transaction/a4e3a53bb0f059baaf7ce28dd7106ec26358a0e824427948409c7677aed71c75)). Both come out of the envelope's own coins. The sender's wallet pays the funding fee: 1,281 sats for a 10-share sponsored envelope. At $207/BCH that's about a tenth of a cent per claim. So the fee is margin; hosting is our only running cost.
+- **Self-serve, and the fee can't be skipped.** A sponsor signs up, creates a campaign and funds a drop without talking to us. The funding transaction must pay the fee to our treasury, or the envelope never becomes claimable: the gate signs claims only for envelopes whose funding was verified, fee included.
+- **Next:** launch with BCH projects and merchants at Lunar New Year, 6 February 2027, when people already expect red envelopes.
+
+Details, sources and the go-to-market plan: [docs/pitch-notes.md](docs/pitch-notes.md).
 
 ## Why it's safe
 
