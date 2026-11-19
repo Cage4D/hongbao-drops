@@ -44,6 +44,27 @@ curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68
 
 Human-readable: https://hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68. Every claim, funding and refund on that page links to its transaction.
 
+### 4.2 Live traction during judging
+
+Pitch line, to fill on the day:
+
+> "During judging, **N** people opened a Hongbao on mainnet: **F** of them with a brand-new wallet. They passed **P** envelopes on to others, and **X BCH** (≈ $**U**) went straight from lockboxes into their wallets, with no fee and nothing to sign."
+
+Where the numbers come from. `since` counts only what happened from that moment on, so our own test claims from before judging are left out:
+
+```bash
+curl -s "https://hongbao-drops-api.vercel.app/stats/global?since=2026-11-22T14:00:00Z"
+```
+
+| Placeholder | Field |
+|---|---|
+| N | `claims` |
+| F | `newWalletsOnboarded` |
+| P | `passOnEnvelopes` |
+| X / U | `bchGiftedSats` ÷ 100,000,000 / `bchGiftedUsd` |
+
+Without `since`, the same URL gives the all-time mainnet totals (also on the landing page once 5 envelopes have been funded). On 19 Nov 06:30 UTC, before any sharing, those were: 10 envelopes, 9 claims, 5 brand-new wallets, 3 passed on, 27,400 sats gifted. Most of these are our own end-to-end tests, so don't use them as traction. "Used their BCH within 7 days" (`activatedNewWallets`) isn't meaningful until 7 days after a claim; say so if asked.
+
 ## Words to use
 
 - "lockbox", "leftovers return automatically", "Hongbao Seal". Avoid "UTXO", "covenant", "P2SH" on slides.

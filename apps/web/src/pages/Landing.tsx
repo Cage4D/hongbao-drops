@@ -118,6 +118,7 @@ export function Landing() {
             <Stat value={stats.claims} label="Shares opened" />
             <Stat value={stats.newWalletsOnboarded} label="New wallets" />
             <Stat value={stats.bchGiftedSats} label="BCH gifted" format={(n) => fmtBch(Math.round(n), 5)} />
+            <Stat value={stats.passOnEnvelopes} label="Passed on" />
           </div>
         )}
         {showStats === 'line' && <p className="hero-live">Live on Bitcoin Cash mainnet</p>}

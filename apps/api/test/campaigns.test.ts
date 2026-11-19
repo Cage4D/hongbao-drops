@@ -165,6 +165,15 @@ describe('campaign stats', () => {
     const g = (await t.http().get('/stats/global')).body as GlobalStats;
     expect(g).toMatchObject({ envelopes: 3, claims: 5, newWalletsOnboarded: 4, activatedNewWallets: 2, passOnEnvelopes: 1 });
     expect(g.bchGiftedSats).toBe(40_000 + 1_500);
+
+    // ?since= counts only what happened from then on: everything above happened after the epoch,
+    // nothing after a time in the future.
+    const all = (await t.http().get('/stats/global?since=2000-01-01T00:00:00Z')).body as GlobalStats;
+    expect(all).toMatchObject({ envelopes: 3, claims: 5, newWalletsOnboarded: 4, passOnEnvelopes: 1, since: '2000-01-01T00:00:00.000Z' });
+    expect(all.bchGiftedSats).toBeGreaterThan(0);
+    const none = (await t.http().get(`/stats/global?since=${new Date(Date.now() + 3600_000).toISOString()}`)).body as GlobalStats;
+    expect(none).toMatchObject({ envelopes: 0, claims: 0, newWalletsOnboarded: 0, bchGiftedSats: 0, passOnEnvelopes: 0 });
+    expect((await t.http().get('/stats/global?since=yesterday')).status).toBe(400);
   });
 
   it('counts only funded envelopes: an unfunded sponsored envelope adds nothing', async () => {

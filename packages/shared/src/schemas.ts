@@ -326,6 +326,8 @@ export interface GlobalStats {
   bchGiftedSats: number;
   bchGiftedUsd: number | null;
   passOnEnvelopes: number;
+  /** Set when the numbers count only what happened from this time on (GET /stats/global?since=…). */
+  since?: string;
   generatedAt: string;
 }
 

@@ -227,8 +227,12 @@ export class CampaignsService {
 
   // ------------------------------------------------------------------ global stats
 
-  /** Landing page + pitch numbers. Cached 30 s per instance. */
-  async globalStats(): Promise<GlobalStats> {
+  /**
+   * Landing page + pitch numbers. Cached 30 s per instance. With `since`, counts only envelopes
+   * funded and claims made from that time on (e.g. "during judging"), uncached.
+   */
+  async globalStats(since?: Date): Promise<GlobalStats> {
+    if (since) return this.globalStatsSince(since);
     if (this.globalCache && Date.now() - this.globalCache.at < 30_000) return this.globalCache.value;
     const [envelopes, claims, fresh, activated, gifted, passOn, price] = await Promise.all([
       this.db.envelope.count({ where: { fundedAt: { not: null } } }),
@@ -252,6 +256,32 @@ export class CampaignsService {
     };
     this.globalCache = { at: Date.now(), value };
     return value;
+  }
+
+  private async globalStatsSince(since: Date): Promise<GlobalStats> {
+    const claimed = { status: CLAIMED, createdAt: { gte: since } };
+    const funded = { fundedAt: { gte: since } };
+    const [envelopes, claims, fresh, activated, gifted, passOn, price] = await Promise.all([
+      this.db.envelope.count({ where: funded }),
+      this.db.claim.count({ where: claimed }),
+      this.db.claim.count({ where: { ...claimed, isNewWallet: true } }),
+      this.db.claim.count({ where: { ...claimed, isNewWallet: true, activatedWithin7d: true } }),
+      this.db.claim.aggregate({ _sum: { amountSats: true }, where: claimed }),
+      this.db.envelope.count({ where: { ...funded, parentEnvelopeId: { not: null } } }),
+      this.price.bchUsd(),
+    ]);
+    const giftedSats = gifted._sum.amountSats ?? 0n;
+    return {
+      envelopes,
+      claims,
+      newWalletsOnboarded: fresh,
+      activatedNewWallets: activated,
+      bchGiftedSats: toNum(giftedSats),
+      bchGiftedUsd: this.price.toUsd(giftedSats, price),
+      passOnEnvelopes: passOn,
+      since: since.toISOString(),
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   // ------------------------------------------------------------------ CTA clicks

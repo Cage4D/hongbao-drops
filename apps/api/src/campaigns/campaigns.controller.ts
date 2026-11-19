@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { AppError } from '../common/app-error.js';
 import type { Request, Response } from 'express';
 import { CONFIG, type AppConfig } from '../config/config.js';
 import { clientIp } from '../claims/claims.controller.js';
@@ -46,9 +47,13 @@ export class CampaignsController {
     return this.campaigns.publicStats(id);
   }
 
+  /** ?since=<ISO time> counts only what happened from then on (e.g. the judging window). */
   @Get('stats/global')
-  global() {
-    return this.campaigns.globalStats();
+  global(@Query('since') since?: string) {
+    if (since === undefined) return this.campaigns.globalStats();
+    const at = new Date(since);
+    if (Number.isNaN(at.getTime())) throw new AppError('INVALID_REQUEST', { issues: [{ path: 'since', message: 'an ISO date/time, e.g. 2026-11-22T14:00:00Z' }] });
+    return this.campaigns.globalStats(at);
   }
 
   @Post('envelopes/:id/cta-click')
