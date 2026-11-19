@@ -119,6 +119,32 @@ An envelope funded without the fee output is therefore never claimable: its coin
 - **Revenue can't be routed around:** the fee is paid on-chain in the same transaction that funds the envelope, before anyone can claim. There's no invoice to chase.
 - **Honest limit:** the code is open source, so someone could run their own copy with their own gate and treasury. What they can't copy is the brand, the network of envelopes being passed on, and wallet integrations (§4.6).
 
+### 4.5 Market evidence (sources to check before use)
+
+Each figure has its source and the exact words, so you can verify it yourself. Use the figures, not our paraphrase.
+
+**1. Digital red envelopes are a mass habit at Lunar New Year (WeChat, 2017).**
+China Daily, Shi Jing, 10 Feb 2017, citing statistics from Tencent: "46 billion red packets were sent and received during the six days from lunar New Year's Eve".
+Source: https://www.chinadaily.com.cn/a/201702/10/WS5a29190ea310fcb6fafd38cd.html
+Caveat: this is 2017 data. Tencent didn't disclose the money inside the packets, and I found no comparable official figure after 2019.
+
+**2. Hundreds of millions of people take part (WeChat, 2019).**
+China Daily, Jiang Wei and Wang Yifan, 11 Feb 2019: "823 million people received and sent WeChat red packets" over the Spring Festival period.
+Source: https://govt.chinadaily.com.cn/s/201902/11/WS5c627409498e27e338038289/post-1990-generation-dominates-wechat-red-packets.html
+
+**3. Airdrops leak to farmers (academic study of nine major airdrops).**
+Messias, Yaish, Livshits, "Airdrops: Giving Money Away Is Harder Than It Seems" (arXiv 2312.02752): "up to 66% in some cases" of tokens "are rapidly sold", a behaviour the authors say is "largely driven by 'airdrop farmers'".
+Source: https://arxiv.org/abs/2312.02752
+
+**4. A concrete example: Celestia's airdrop (researcher estimate, secondary report).**
+ForkLog, 2 Nov 2023, reporting research by the X-explore team: "Approximately 40% of the TIA tokens distributed in Celestia's airdrop were claimed by hunters".
+Source: https://forklog.com/en/news/experts-40-of-celestia-tokens-went-to-airdrop-hunters
+Caveat: an analytics team's estimate posted on X, reported by a crypto news site, not peer-reviewed. Use "an estimated 40%" if at all.
+
+**Not used:** crypto user-acquisition cost per user. The figures I found (e.g. "~$150 per exchange user") come from ad-tech vendors' blogs that sell the measurement, with no primary data behind them. Leave them out unless you find an independent source.
+
+**How we use it in the pitch:** red envelopes are already how hundreds of millions of people gift money at Lunar New Year (1, 2), and the usual way crypto projects give money away leaks a large share to farmers (3, 4). Hongbao brings the first to Bitcoin Cash and answers the second by measuring fresh → activated → not-farmed wallets and charging sponsors per real result.
+
 ## Words to use
 
 - "lockbox", "leftovers return automatically", "Hongbao Seal". Avoid "UTXO", "covenant", "P2SH" on slides.
