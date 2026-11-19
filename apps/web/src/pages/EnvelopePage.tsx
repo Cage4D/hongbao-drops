@@ -23,6 +23,8 @@ type Method = 'wallet' | 'paste' | 'hold';
 interface StoredHold {
   holdToken: string;
   heldUntil: string;
+  /** Quiz: the answer the hold was checked with, so the claim later doesn't ask again. */
+  answer?: string;
 }
 
 export function EnvelopePage() {
@@ -457,7 +459,7 @@ function ClaimPanel({
   const { cfg } = useNetwork();
   const wallet = useWallet();
   const [method, setMethod] = useState<Method>(() => (store.get<StoredHold>(holdKey(view.id)) ? 'hold' : 'wallet'));
-  const [answer, setAnswer] = useState('');
+  const [answer, setAnswer] = useState(() => store.get<StoredHold>(holdKey(view.id))?.answer ?? '');
   const [addr, setAddr] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
@@ -507,7 +509,7 @@ function ClaimPanel({
     setBusy(true);
     try {
       const h = await api.hold(view.id, undefined, quiz ? answer.trim() : undefined);
-      store.set(holdKey(view.id), h);
+      store.set(holdKey(view.id), { ...h, ...(quiz && { answer: answer.trim() }) });
       setHold(h);
     } catch (e) {
       setError(errorText(e));
