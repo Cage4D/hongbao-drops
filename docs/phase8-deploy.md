@@ -169,6 +169,20 @@ The contract allowed exactly one claim output, so the share's value had to ride 
 
 Two script bugs showed up on the way, fixed in `2638fe8`: the size-measuring draft's flat fee was too small for a 10-seal funding tx (refused at 0.99 sat/B before broadcast), and a stalled API call hung the run **after** the funding tx was broadcast. The envelope was recovered by hand (`POST /envelopes/<id>/funded` with the txid, then `/admin/demo/refill`). The failed attempts left two unfunded envelopes (seq 3 and 4, no coins), which expire on their own.
 
+### Stable demo link and daily refill (2026-11-19)
+
+Mainnet envelopes last at most 24 h, so the demo needs a new envelope every day. Two changes make that a single command:
+- **`/demo#k=…` is the permanent "Try it free" link** (`VITE_DEMO_URL`). The web page asks the public `GET /demo` which envelope is open and moves to `/<slug>`, keeping the `#k=` fragment in the browser. Every demo envelope reuses the same link key, so the link never changes and a refill needs no redeploy.
+- **`/admin/demo/refill` accepts the next envelope once the current one has under 16 h left** (it used to wait until it was used up or expired). Leftover shares of the old one refund to the demo wallet at its expiry.
+
+Daily refill (any time in the current demo's last 16 h): `pnpm --filter @hongbao/scripts demo-envelope -- --mainnet --yes-mainnet` (add `--dry-run` to check first).
+
+| Refill | Slug | Funding txid |
+|---|---|---|
+| 2026-11-19 05:58 UTC, 10 × 5,000 sats, expires ≈ 05:30 UTC Nov 20 | `b3p2sr` | `eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd` |
+
+Also on Nov 19: the API env var `ENABLE_STAMPS` was renamed to `ENABLE_SEALS`, and the stamp-to-seal request/response aliases were removed (only the `/stamps/…` image redirect stays, for seals minted before the rename).
+
 ## Still to do
 
 - ~~**Keeper scheduler (builder)**~~ **Done 2026-11-17:** cron-job.org job `8882581`, `POST /internal/keeper/tick` every minute (UTC) with `Authorization: Bearer KEEPER_TOKEN`, created by `scripts/setup-keeper-cron.sh`. The script reads the cron-job.org API key (`~/.local/share/hongbao-drops/cronjob-api-key`) and `KEEPER_TOKEN` from files and never prints them. Re-running it updates the same job, e.g. after rotating the token on the mainnet switch. Check: `scripts/setup-keeper-cron.sh --status` and `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop stays configured.
