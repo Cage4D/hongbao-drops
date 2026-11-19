@@ -185,7 +185,7 @@ Lunar New Year 2027 is **Saturday 6 February 2027** (Year of the Goat). The fest
 
 **Q&A, if a judge says "connecting my wallet didn't work":**
 
-> "Thanks, that's useful. Wallet connection runs over WizardConnect and public Nostr relays. We've traced the failures we've seen to the relay connection and the wallet's side of the protocol: a relay that doesn't answer within a few seconds, a disconnect that never arrives, and reconnect loops in an older version of the WizardConnect library inside the wallet. We've reported them to the Paytaca team. Our side detects a silent wallet, tells you, and stops showing it as connected. Nothing is lost: your share stays in the lockbox, and you can claim it right now by pasting your address in the **Address** tab, or keep it with **No wallet → Hold my share**. Want to try that now?"
+> "Thanks, that's useful. Wallet connection runs over WizardConnect and public Nostr relays. We've traced the failures we've seen to the relay connection and the wallet's side of the protocol: a relay that doesn't answer within a few seconds, a disconnect that never arrives, and reconnect loops in an older version of the WizardConnect library inside the wallet. We've written them up for the Paytaca team ⟨change to "We've reported them" once the note is sent⟩. Our side detects a silent wallet, tells you, and stops showing it as connected. Nothing is lost: your share stays in the lockbox, and you can claim it right now by pasting your address in the **Address** tab, or keep it with **No wallet → Hold my share**. Want to try that now?"
 
 Keep it factual and short. Don't blame anyone by name beyond "the wallet's side"; the recording carries the argument.
 
