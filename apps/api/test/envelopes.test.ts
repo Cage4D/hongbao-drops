@@ -272,6 +272,7 @@ describe('GET /health', () => {
   it('reports db, chain, network and price', async () => {
     const r = await t.http().get('/health');
     expect(r.body).toMatchObject({ ok: true, network: 'CHIPNET', db: true, chain: { ok: true, server: 'mock' }, priceUsd: 200 });
+    expect(r.body.limits).toBeNull(); // test networks have no per-envelope money caps
     expect(TREASURY_ADDRESS).toMatch(/^bchtest:/);
   });
 });

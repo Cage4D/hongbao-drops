@@ -62,7 +62,8 @@ export function Send() {
 
   const minShare = withSeals ? MIN_SHARE_SEAL : MIN_SHARE_PLAIN;
   const maxShares = cfg?.maxShares ?? 10;
-  const maxSatsByUsd = cfg?.network === 'MAINNET' && priceUsd ? usdToSats(0.5, priceUsd) : Infinity;
+  const maxUsd = cfg?.maxUsd ?? null;
+  const maxSatsByUsd = maxUsd != null && priceUsd ? usdToSats(maxUsd, priceUsd) : Infinity;
   const maxSats = Math.min(cfg?.maxSats ?? 200_000, maxSatsByUsd);
   const expiryChoices = EXPIRY_CHOICES.filter((c) => c.sec <= (cfg?.maxExpirySec ?? 86400));
 
@@ -89,7 +90,7 @@ export function Send() {
   const problems = useMemo(() => {
     const p: string[] = [];
     if (sats < minShare * shareCount) p.push(`${shareCount} shares need at least ${fmtSats(minShare * shareCount)} sats (${fmtSats(minShare)} each).`);
-    if (sats > maxSats) p.push(cfg?.network === 'MAINNET' ? `During the demo an envelope can hold up to $0.50 (${fmtSats(maxSats)} sats).` : `Max ${fmtSats(maxSats)} sats.`);
+    if (sats > maxSats) p.push(maxUsd != null ? `While Hongbao Drops is new, an envelope can hold up to $${maxUsd} (${fmtSats(maxSats)} sats).` : `Max ${fmtSats(maxSats)} sats.`);
     if (mode === 'QUIZ') {
       if (!question.trim()) p.push('Write the quiz question.');
       if (!answers.some((a) => a.trim())) p.push('Add at least one accepted answer.');
@@ -100,7 +101,7 @@ export function Send() {
 
   const presets = useMemo(() => {
     if (!priceUsd) return [10_000, 20_000, 50_000];
-    return [0.1, 0.25, 0.5].map((u) => Math.min(usdToSats(u, priceUsd), maxSats));
+    return [0.25, 1, 5].map((u) => Math.min(usdToSats(u, priceUsd), maxSats));
   }, [priceUsd, maxSats]);
 
   const busy = step !== null && !error && !result;

@@ -48,6 +48,14 @@ async function claimedSats(t: TestApp, sats: bigint) {
   await t.db.share.updateMany({ where: { envelopeId: env.id, NOT: { id: shares[0]!.id } }, data: { status: 'CLAIMED', sats: 0n } });
 }
 
+describe('GET /health limits', () => {
+  it('publishes the per-envelope limits on mainnet, so the site can show them', async () => {
+    const t = await mainnet({ MAX_ENVELOPE_USD: '20', MAX_SHARES: '20', MAX_ENVELOPE_SATS: '12000000' });
+    const h = (await t.http().get('/health')).body;
+    expect(h.limits).toEqual({ maxShares: 20, maxEnvelopeUsd: 20, maxEnvelopeSats: 12_000_000, maxExpirySec: 86_400 });
+  });
+});
+
 describe('mainnet budget caps', () => {
   it('MAX_SHARES = 10', async () => {
     const t = await mainnet();

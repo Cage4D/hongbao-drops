@@ -30,6 +30,15 @@ export class HealthController {
       chain,
       keeper: { lastRunAt: keeper?.value ?? null },
       priceUsd,
+      limits:
+        this.config.NETWORK === 'MAINNET'
+          ? {
+              maxShares: this.config.MAX_SHARES,
+              maxEnvelopeUsd: this.config.MAX_ENVELOPE_USD,
+              maxEnvelopeSats: this.config.MAX_ENVELOPE_SATS,
+              maxExpirySec: this.config.MAX_EXPIRY_SECONDS,
+            }
+          : null,
       time: new Date().toISOString(),
     };
   }

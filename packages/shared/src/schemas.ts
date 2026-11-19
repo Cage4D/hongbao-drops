@@ -125,6 +125,8 @@ export interface HealthResponse {
   chain: { ok: boolean; height: number | null; server: string | null };
   keeper: { lastRunAt: string | null };
   priceUsd: number | null;
+  /** Per-envelope limits this server enforces on MAINNET (null on test networks): the site shows these. */
+  limits: { maxShares: number; maxEnvelopeUsd: number; maxEnvelopeSats: number; maxExpirySec: number } | null;
   time: string;
 }
 
