@@ -10,7 +10,7 @@
 
 **Drop a red envelope of Bitcoin Cash into any group chat as one link. The first people to open it each get a share of real BCH and a Hongbao Seal, in seconds, with no fees and nothing to sign.**
 
-### 👉 [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
+### [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
 
 <!-- ⟨TODO: SCREEN-RECORDING GIF⟩ The whole flow on a phone (open → claim → Money arrived → seal in Paytaca → pass it on).
      Replace this comment with:
@@ -28,34 +28,34 @@
 
 1. **Open [hongbao-drops.vercel.app](https://hongbao-drops.vercel.app) on your phone and tap "Try it free".** It opens today's demo envelope, real BCH on mainnet, refilled every day.
 2. **Tap to open it.** Connect your Bitcoin Cash wallet, or paste your BCH address. No wallet yet? Try [Paytaca](https://www.paytaca.com) and tap **"Hold my share"**: we keep a share for you for 15 minutes while you install it.
-3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a **Hongbao Seal** showing you caught it.
+3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a Hongbao Seal showing you caught it.
 4. **Pass it on** (optional). Re-gift part of what you got as a new envelope, and see how far your drop travels.
 
-You need no BCH to try it, and claiming costs nothing. All you need is a BCH wallet to receive it, and you don't sign anything.
+Claiming is free and you don't need any BCH of your own, only a wallet to receive it.
 
 ## What just happened
 
-- The sender put BCH into a **lockbox** on the Bitcoin Cash blockchain, split into shares, one per person.
-- The link you opened carries the key to that lockbox. We approve each claim so that everyone gets one share each.
-- Your share went **straight from the lockbox to your wallet**. Hongbao never held your money.
-- Every share comes with its own **Hongbao Seal**, made at the moment the envelope was created.
-- When the envelope expires, **leftovers return automatically** to the sender. Nobody, not even the sender, can take the money back before then.
+- The sender put BCH into a lockbox on the Bitcoin Cash blockchain, split into shares, one per person.
+- The link you opened carries the key to that lockbox. We approve each claim so that each person gets one share.
+- Your share went straight from the lockbox to your wallet. Hongbao never held your money.
+- Every share comes with its own Hongbao Seal, made at the moment the envelope was created.
+- When the envelope expires, leftovers return to the sender automatically. Nobody, not even the sender, can take the money back before then.
 
 ## How Hongbao differs
 
-Gifting one friend, maybe on paper? [CashStamps](https://github.com/harvmaster/CashStamps) is perfect. Dropping into a group of 50? That's a Hongbao. One link serves a whole group, and the first N people to open it each get a share. The rules are enforced by an on-chain contract, so nobody, not even the sender, can take the money back before expiry, and unclaimed shares return to the sender automatically. On top of that come lucky and quiz modes, a Hongbao Seal NFT for every claimer, and Sponsored Drops whose cost per activated new wallet anyone can check on-chain.
+For gifting one friend, maybe on paper, [CashStamps](https://github.com/harvmaster/CashStamps) is the better fit. Hongbao is for groups: one link goes to a chat of 50, and the first N people to open it each get a share. An on-chain contract enforces the expiry and the refund, so the rules don't depend on trusting the sender or us. Hongbao also has lucky and quiz modes, a Hongbao Seal NFT for every claimer, and Sponsored Drops whose cost per activated new wallet anyone can check on-chain.
 
 ## Why sponsors pay
 
 Brands and BCH projects want new people using BCH, but airdrops get farmed and ad clicks can't be verified. A **Sponsored Drop** is a branded envelope (logo, colour, a link to the sponsor, optionally a quiz question) for a **3% fee**. In return the sponsor gets a live dashboard:
 
 - how many people claimed;
-- how many of them were **brand-new wallets**;
-- how many of those **actually used** their BCH or passed it on within 7 days;
-- how many looked like **farming** (flagged, never blocked);
+- how many of them were brand-new wallets;
+- how many of those used their BCH or passed it on within 7 days;
+- how many looked like farming (flagged, never blocked);
 - and the headline number, **cost per real new wallet**.
 
-Every number links to a public blockchain transaction, so anyone can check it. No ad network can offer that.
+Every number links to a public blockchain transaction, so anyone can check it, which ad-network click counts can't offer.
 
 **Our own "BLAZE Drop" campaign, live on mainnet:**
 
@@ -71,13 +71,11 @@ Every number links to a public blockchain transaction, so anyone can check it. N
 | Of those, used their BCH or passed it on within 7 days | Not known yet: the 7-day window closes after judging |
 | Public proof (every transaction) | [hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68](https://hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68) |
 
-Free for personal envelopes. Sponsors pay the 3% fee, collected automatically when the envelope is created. An envelope can't skip the fee: without it nobody can claim from it, and the money simply goes back after expiry.
-
 ## The business
 
 - **Personal drops are free. Sponsored drops pay 3%** of the envelope (minimum 546 sats), and get their brand on it plus the dashboard above.
 - **We pay no miner fees.** On mainnet a claim costs 590 sats ([example](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5)) and a refund of one share 459 sats ([example](https://blockchair.com/bitcoin-cash/transaction/a4e3a53bb0f059baaf7ce28dd7106ec26358a0e824427948409c7677aed71c75)). Both come out of the envelope's own coins. The sender's wallet pays the funding fee: 1,281 sats for a 10-share sponsored envelope. At $207/BCH that's about a tenth of a cent per claim. So the fee is margin; hosting is our only running cost.
-- **Self-serve, and the fee can't be skipped.** A sponsor signs up, creates a campaign and funds a drop without talking to us. The funding transaction must pay the fee to our treasury, or the envelope never becomes claimable: the gate signs claims only for envelopes whose funding was verified, fee included.
+- **Self-serve, and the fee can't be skipped.** A sponsor signs up, creates a campaign and funds a drop without talking to us. The funding transaction must pay the fee to our treasury, or the envelope never becomes claimable and its money goes back to the sender at expiry. The gate signs claims only for envelopes whose funding was verified, fee included.
 - **Next:** launch with BCH projects and merchants at Lunar New Year, 6 February 2027, when people already expect red envelopes.
 
 Details, sources and the go-to-market plan: [docs/pitch-notes.md](docs/pitch-notes.md).
@@ -118,7 +116,7 @@ Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.im
 - **Keeper** (keyless, every minute via an external cron): batch refunds once median-time-past passes expiry, reconciliation of spends made outside the API, confirmations, 7-day activation and farm flags (`SAME_FINGERPRINT`, `SAME_IP`, `IP_BURST`, `COMMON_SWEEP`, `NEVER_USED`).
 - **Also:** live updates over SSE, OG link-preview cards and seal art rendered server-side, and mainnet budget caps enforced server-side.
 
-**Trust model.** The server can't move funds without the link key. A link holder can't drain an envelope without per-claim gate signatures. Refunds go only to the refund script fixed in the contract. If the gate is down, liveness suffers, never custody.
+**Trust model.** The server can't move funds without the link key. A link holder can't drain an envelope without per-claim gate signatures. Refunds go only to the refund script fixed in the contract. If the gate is down, claims stop, but refunds are keyless and still go through.
 
 **Quality.** 263 automated tests (contract VM matrix, API on real Postgres with a mock chain), Chipnet end-to-end suites run against the production URL, and two external code reviews with every finding fixed ([review 1](docs/review-1-fixes.md), [review 2](docs/review-2-fixes.md)). Decisions and research: [docs/findings.md](docs/findings.md).
 
