@@ -177,6 +177,39 @@ Lunar New Year 2027 is **Saturday 6 February 2027** (Year of the Goat). The fest
 | **Small fee revenue:** 3% of small drops is small money | True. The fee is pure margin because miner fees are paid inside the envelope (§4.3), but the business needs volume or larger sponsor drops. The Lunar New Year launch is the test. |
 | **24-hour envelopes on mainnet** | Our own safety limit for the hackathon: a constant in the code (`MAINNET_MAX_EXPIRY`, `apps/api/src/config/config.ts`), so raising it for the festival is a one-line change plus a review of the refund timing. The per-envelope money caps are already settings. |
 
+### 4.7 Wallet connection: what to say, and the screen recording
+
+**Pitch line (say it once, calmly, while showing the recording):**
+
+> "Connecting a wallet runs over WizardConnect, the open BCH wallet-connect standard, through public Nostr relays, so it depends on those relays and on the wallet's side of the protocol. Here's the whole flow end to end on a phone: open, claim, the money in Paytaca, and passing it on. And if a connection ever stalls, you don't need it: paste your address, or hold your share for 15 minutes."
+
+**Q&A, if a judge says "connecting my wallet didn't work":**
+
+> "Thanks, that's useful. Wallet connection runs over WizardConnect and public Nostr relays. We've traced the failures we've seen to the relay connection and the wallet's side of the protocol: a relay that doesn't answer within a few seconds, a disconnect that never arrives, and reconnect loops in an older version of the WizardConnect library inside the wallet. We've reported them to the Paytaca team. Our side detects a silent wallet, tells you, and stops showing it as connected. Nothing is lost: your share stays in the lockbox, and you can claim it right now by pasting your address in the **Address** tab, or keep it with **No wallet → Hold my share**. Want to try that now?"
+
+Keep it factual and short. Don't blame anyone by name beyond "the wallet's side"; the recording carries the argument.
+
+**Screen recording (≈ 45–60 s, phone, portrait). You record it; here's the shot list:**
+
+Before you start: a Paytaca wallet holding only a little BCH (the balance is on screen), a demo envelope with shares left (`curl -s https://hongbao-drops-api.vercel.app/demo` → `sharesLeft` > 0), Do Not Disturb on, and Android's built-in screen recorder.
+
+| # | Do | The screen should show |
+|---|---|---|
+| 1 | Open the site and tap **Try it free** | The landing hero with "No BCH needed to try it…", then the closed red envelope with "N of 10 left" |
+| 2 | Tap **Open it** | The envelope opening, the share amount, the method tabs (Wallet / Address / No wallet) |
+| 3 | **Wallet** tab → **Connect wallet** → **Copy connection link** | "Link copied ✓" |
+| 4 | In Paytaca: **Apps → WizardConnect → Paste URL → Connect**, then switch back | Paytaca's connect screen, then the site with the wallet address in the nav |
+| 5 | Tap **Claim my share** | "Money arrived", the amount in sats, "· plus a Hongbao Seal" (pause 2 s here) |
+| 6 | Switch to Paytaca | The BCH balance up by the same amount, then the collectibles screen with the Hongbao Seal's name and image. Watchtower can lag until the claim confirms: if the balance hasn't moved, wait for one block or cut to it later |
+| 7 | Back on the site, tap **Pass it on** | The pass-on form with its default amount and shares |
+| 8 | Tap **Pass it on**, approve in Paytaca, switch back | "Your drop is live" and the share link: the loop closes |
+
+Optional ten-second cut-in after step 2: the **Address** tab with an address pasted, to show the no-connect path.
+
+**Where it goes:**
+- **Presentation:** right after the problem/solution slide, before the business section, as the "this is real, on mainnet" moment. Play it muted with your voice-over and keep it under a minute.
+- **README:** at the very top, under the tagline, as a GIF that links to the full video (there's a marked spot). Convert with `ffmpeg -i rec.mp4 -vf "fps=12,scale=360:-1:flags=lanczos" -loop 0 docs/media/flow.gif` and keep it under ~10 MB (GitHub shows larger files poorly). Upload the full MP4 somewhere public and link it next to the GIF.
+
 ## Words to use
 
 - "lockbox", "leftovers return automatically", "Hongbao Seal". Avoid "UTXO", "covenant", "P2SH" on slides.
