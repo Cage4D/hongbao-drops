@@ -169,6 +169,7 @@ function Footer() {
           </FooterCol>
           <FooterCol title="Sponsors">
             <Link className="flink" to="/sponsor">Sponsored drops</Link>
+            <Link className="flink" to="/#sponsors">Pricing</Link>
             <Link className="flink" to="/sponsor#dashboard">Dashboard</Link>
           </FooterCol>
           <FooterCol title="Wallet">

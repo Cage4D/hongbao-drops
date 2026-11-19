@@ -296,6 +296,47 @@ export function Landing() {
         </div>
       </section>
 
+      {/* ------------------------------------------------------------ for sponsors */}
+      <section id="sponsors" className="section has-sparks" aria-labelledby="sponsors-title">
+        <Sparks count={8} />
+        <div className="container">
+          <p className="eyebrow reveal">For sponsors</p>
+          <h2 id="sponsors-title" className="disp disp-lg reveal">
+            Pay for <span className="flame">real wallets</span>, not clicks
+          </h2>
+          <div className="plans">
+            <article className="card plan reveal">
+              <span className="tag">Personal drops</span>
+              <p className="plan-price">Free</p>
+              <p className="muted">
+                No fee from us. You only pay the Bitcoin Cash network fee to send it, well under one US cent. Opening one is
+                always free.
+              </p>
+            </article>
+            <article className="card plan plan-hot reveal" style={{ transitionDelay: '90ms' }}>
+              <span className="tag">Sponsored drops</span>
+              <p className="plan-price">
+                3% <small>of the drop · min 546 sats</small>
+              </p>
+              <ul className="plan-list">
+                <li>Your logo, colour and link on every envelope</li>
+                <li>A live dashboard: claims, brand-new wallets, who used their BCH within 7 days, suspected farming</li>
+                <li>
+                  <span>
+                    Your <strong>cost per activated new wallet</strong>, the number that matters
+                  </span>
+                </li>
+                <li>A public proof page: every number links to its transaction on the blockchain</li>
+                <li>Self-serve: set it up in minutes, no sales call</li>
+              </ul>
+              <Link to="/sponsor" className="btn btn-primary btn-block" style={{ marginTop: 20 }}>
+                Start a sponsored drop
+              </Link>
+            </article>
+          </div>
+        </div>
+      </section>
+
       {/* ------------------------------------------------------------ cta */}
       <section className="cta-band" aria-labelledby="cta-title">
         <div className="container cta-inner">
