@@ -14,7 +14,8 @@ const MAINNET = {
   BUDGET_WALLET_ADDRESS: SENDER,
 };
 
-let t: Awaited<ReturnType<typeof makeApp>> | undefined;
+type TestApp = Awaited<ReturnType<typeof makeApp>>;
+let t: TestApp | undefined;
 afterEach(async () => {
   await t?.app.close();
   t = undefined;
@@ -30,7 +31,7 @@ const body = (over: Record<string, unknown> = {}) => createBody({ senderAddress:
 const cap = (r: { status: number; body: { error?: { code: string; cap?: string } } }) => [r.status, r.body.error?.code, r.body.error?.cap];
 
 /** Create + fund a demo-wallet envelope through the API. */
-async function funded(t: NonNullable<typeof t>, totalSats: number) {
+async function funded(t: TestApp, totalSats: number) {
   const utxo = addSenderUtxo(t.provider, BigInt(totalSats) + 100_000n);
   const r = await t.http().post('/envelopes').send(body({ totalSats }));
   expect(r.status).toBe(201);
@@ -40,7 +41,7 @@ async function funded(t: NonNullable<typeof t>, totalSats: number) {
   return r.body as CreateEnvelopeResponse;
 }
 /** Make `sats` count as already given away: a funded envelope whose shares were all claimed. */
-async function claimedSats(t: NonNullable<typeof t>, sats: bigint) {
+async function claimedSats(t: TestApp, sats: bigint) {
   const env = await funded(t, 6_000);
   const shares = await t.db.share.findMany({ where: { envelopeId: env.id } });
   await t.db.share.update({ where: { id: shares[0]!.id }, data: { status: 'CLAIMED', sats } });

@@ -342,7 +342,7 @@ describe('SSE /envelopes/:id/events', () => {
     const env = await fundedEnvelope(t);
     const events = t.app.get(EventsService);
     const after = events.after.bind(events);
-    events.after = async () => Promise.reject(new Error('connection terminated'));
+    events.after = (() => Promise.reject(new Error('connection terminated'))) as unknown as typeof events.after;
     try {
       const r = await sse(`/envelopes/${env.id}/events?maxSeconds=5`, { 'x-forwarded-for': '10.30.0.3' });
       expect(r.status).toBe(200);
