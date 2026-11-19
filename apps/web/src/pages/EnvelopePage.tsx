@@ -711,7 +711,7 @@ function Success({ r, view, priceUsd }: { r: StoredClaim; view: PublicEnvelopeVi
         </span>
       </div>
       <p>
-        Sent to <span className="mono">{shortAddr(r.recipientAddress)}</span>. It's already yours: the network has it, and it shows in your wallet within seconds.
+        Sent to <span className="mono">{shortAddr(r.recipientAddress)}</span>. It's already yours: the network has it now. Some wallets only show it once it's in a block, which takes up to about 10 minutes, so give it a moment. The explorer link below shows it straight away.
         {cfg?.network === 'CHIPNET' && ' (On the test network some wallets may not show it; the explorer will.)'}
       </p>
       {r.isNewWallet && (

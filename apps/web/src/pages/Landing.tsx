@@ -16,7 +16,7 @@ const STEPS = [
   { num: '01', tag: 'Connect', title: 'Link a wallet', body: 'Scan one QR code with your Bitcoin Cash wallet. No account, no sign-up.' },
   { num: '02', tag: 'Fill', title: 'Fill the envelope', body: 'Pick an amount, how many people can open it, and a message.' },
   { num: '03', tag: 'Drop', title: 'Drop the link', body: 'Paste one link into your group chat. That link is the envelope.' },
-  { num: '04', tag: 'Open', title: 'Race to open', body: 'First come, first served. Shares land in seconds, with a Hongbao Seal.' },
+  { num: '04', tag: 'Open', title: 'Race to open', body: 'First come, first served. Shares are sent in seconds, each with a Hongbao Seal.' },
 ];
 
 const MODES = [

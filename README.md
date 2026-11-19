@@ -28,7 +28,7 @@
 
 1. **Open [hongbao-drops.vercel.app](https://hongbao-drops.vercel.app) on your phone and tap "Try it free".** It opens today's demo envelope, real BCH on mainnet, refilled every day.
 2. **Tap to open it.** Connect your Bitcoin Cash wallet, or paste your BCH address. No wallet yet? Try [Paytaca](https://www.paytaca.com) and tap **"Hold my share"**: we keep a share for you for 15 minutes while you install it.
-3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a Hongbao Seal showing you caught it.
+3. **Watch it arrive.** Your share of BCH and a Hongbao Seal are sent to your wallet within seconds. Some wallets, Paytaca included, show them once the transaction is in a block: Bitcoin Cash makes one about every 10 minutes, so it can take a few minutes to appear. That wait is the network's block time, not the app. The "See it on the explorer" link on the success screen shows it right away.
 4. **Pass it on** (optional). Re-gift part of what you got as a new envelope, and see how far your drop travels.
 
 Claiming is free and you don't need any BCH of your own, only a wallet to receive it.
