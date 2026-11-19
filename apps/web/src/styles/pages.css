@@ -501,23 +501,25 @@ fieldset.bare { border: 0; margin: 0; padding: 0; min-width: 0; }
 .blaze-qr-text { margin: 12px 0 4px; color: var(--text); font-weight: 400; }
 .blaze-qr-addr { display: block; margin-bottom: 12px; font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; word-break: break-all; user-select: all; }
 @media (max-width: 1180px) {
-  /* Two lines from here down: links, then the vote. */
+  /* Tablets and phones: two lines (links, then the vote), a little larger and with more air. */
+  .blaze { font-size: 14px; line-height: 20px; }
+  .blaze-inner { padding: 8px 16px; gap: 6px 12px; }
   .blaze-sep-mid { display: none; }
-  .blaze-row { flex: 0 0 100%; justify-content: center; }
+  .blaze-row { flex: 0 0 100%; justify-content: center; gap: 10px; }
+  .blaze-btn { height: 28px; padding: 0 11px; font-size: 13px; }
 }
-@media (max-width: 760px) {
-  .blaze { font-size: 12px; line-height: 17px; }
-  .blaze-inner { padding: 5px 10px; gap: 3px 8px; }
+@media (max-width: 1000px) {
+  /* The full address no longer fits on one line: short vote text and a shortened address. */
   .blaze-vote-long, .blaze-addr-full, .blaze-qr-long { display: none; }
   .blaze-vote-short, .blaze-addr-short, .blaze-qr-short { display: inline; }
-  .blaze-addr { font-size: 11px; padding: 1px 4px; }
-  .blaze-btn { height: 24px; padding: 0 7px; font-size: 11px; }
-  .blaze-row { gap: 6px; }
-  .blaze-qr { right: 12px; left: 12px; width: auto; margin: 0 auto; max-width: 320px; }
+  .blaze-addr { font-size: 13px; padding: 2px 6px; }
+  .blaze-qr { right: 16px; left: 16px; width: auto; margin: 0 auto; max-width: 320px; }
 }
-@media (max-width: 420px) {
-  /* Narrow phones (360-px Android screens): the vote row can't fit the address too. Copy and the
-     QR still give the full address, so drop the chip and say what Copy copies. */
+@media (max-width: 480px) {
+  /* Phones (360-px Android screens): the vote row can't fit the address too. Copy and the QR
+     still give the full address, so drop the chip and say what Copy copies. */
+  .blaze-inner { padding: 8px 12px; }
+  .blaze-row { gap: 8px; }
   .blaze-addr, .blaze-vote-to { display: none; }
   .blaze-copy-addr { display: inline; }
 }
