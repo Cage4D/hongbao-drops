@@ -4,7 +4,7 @@ Talking points for the Widget Factory slides and the judges' Q&A. The framing is
 
 ## 1. Two gifting moments, two tools
 
-"Gifting one friend, maybe on paper? CashStamps is perfect. Dropping into a group of 50? That's a Hongbao."
+"Gifting one friend, maybe on paper? CashStamps is perfect. Dropping into a group of 50? That's Hongbao."
 
 CashStamps turns each gift into its own printable wallet for one recipient: great for a card, a classroom or a meetup table. Hongbao is one link for a whole group chat, where the first N people to open it each get a share. If someone asks "isn't this the same as CashStamps?", the answer is: no, it's the group version, and we'd happily point a one-to-one gift their way.
 

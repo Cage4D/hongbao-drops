@@ -195,7 +195,7 @@ export function Landing() {
             </p>
             <p className="why-us">
               <span className="why-q">Dropping into a group of 50?</span>
-              <span className="why-a">That's a Hongbao.</span>
+              <span className="why-a">That's Hongbao.</span>
             </p>
           </div>
           <ul className="why-grid">
