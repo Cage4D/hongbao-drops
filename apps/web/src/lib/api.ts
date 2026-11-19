@@ -94,7 +94,16 @@ async function withChainRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
   }
 }
 
+/** GET /demo: the open demo envelope, if any (no amounts, no keys). */
+export interface CurrentDemo {
+  slug: string | null;
+  sharesLeft: number;
+  sharesTotal: number;
+  secondsLeft: number;
+}
+
 export const api = {
+  demo: () => req<CurrentDemo>('GET', '/demo'),
   health: () => req<HealthResponse>('GET', '/health'),
   globalStats: () => req<GlobalStats>('GET', '/stats/global'),
 

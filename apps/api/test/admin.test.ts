@@ -22,9 +22,10 @@ beforeAll(
 afterAll(async () => t.app.close());
 beforeEach(async () => resetDb(t.db)); // $200/BCH
 
-async function mainnetEnvelope(shareCount = 2, totalSats = 20_000) {
+async function mainnetEnvelope(shareCount = 2, totalSats = 20_000, hours = 0.5) {
   const utxo = addSenderUtxo(t.provider);
-  const r = await t.http().post('/envelopes').send(createBody({ senderAddress: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0', shareCount, totalSats }));
+  const expiry = Math.floor(Date.now() / 1000) + Math.round(hours * 3600);
+  const r = await t.http().post('/envelopes').send(createBody({ senderAddress: 'bitcoincash:qzkgv8c5ux8l9ngf9md77nrf258ccn9jwg2cucf9f0', shareCount, totalSats, expiry }));
   expect(r.status).toBe(201);
   const env = r.body as CreateEnvelopeResponse;
   const txid = await fundFromTemplate(t.provider, env, utxo);
@@ -84,11 +85,11 @@ describe('GET /admin/budget', () => {
 describe('/admin/demo', () => {
   it('registers one demo envelope at a time', async () => {
     expect((await t.http().get('/admin/demo').set(ADMIN)).body).toMatchObject({ envelopeId: null, needsRefill: true });
-    const first = await mainnetEnvelope(1, 10_000);
+    const first = await mainnetEnvelope(1, 10_000, 23);
     const r1 = await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: first.id });
     expect(r1.body).toMatchObject({ envelopeId: first.id, slug: first.slug, sharesLeft: 1, needsRefill: false });
 
-    const second = await mainnetEnvelope(1, 10_000);
+    const second = await mainnetEnvelope(1, 10_000, 23);
     const early = await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: second.id });
     expect([early.status, early.body.error.cap]).toEqual([422, 'DEMO_ONE_AT_A_TIME']);
 
@@ -96,6 +97,27 @@ describe('/admin/demo', () => {
     expect((await t.http().get('/admin/demo').set(ADMIN)).body).toMatchObject({ sharesLeft: 0, needsRefill: true });
     const r2 = await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: second.id });
     expect(r2.body).toMatchObject({ envelopeId: second.id, needsRefill: false });
+  });
+
+  it('takes the next demo once the current one is in its last 16 hours', async () => {
+    const first = await mainnetEnvelope(1, 10_000, 23);
+    await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: first.id });
+    const second = await mainnetEnvelope(1, 10_000, 23);
+    expect((await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: second.id })).status).toBe(422);
+    await t.db.envelope.update({ where: { id: first.id }, data: { expiry: Math.floor(Date.now() / 1000) + 15 * 3600 } });
+    const r = await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: second.id });
+    expect(r.body).toMatchObject({ envelopeId: second.id, needsRefill: false });
+  });
+
+  it('GET /demo (public) names the open demo envelope, and nothing once it is used up', async () => {
+    expect((await t.http().get('/demo')).body).toEqual({ slug: null, sharesLeft: 0, sharesTotal: 0, secondsLeft: 0 });
+    const env = await mainnetEnvelope(1, 10_000, 23);
+    await t.http().post('/admin/demo/refill').set(ADMIN).send({ envelopeId: env.id });
+    const open = (await t.http().get('/demo')).body;
+    expect(open).toMatchObject({ slug: env.slug, sharesLeft: 1, sharesTotal: 1 });
+    expect(open.secondsLeft).toBeGreaterThan(0);
+    await claim(env.id, 'judge');
+    expect((await t.http().get('/demo')).body).toMatchObject({ slug: null, sharesLeft: 0 });
   });
 
   it('refuses unfunded envelopes as demo', async () => {

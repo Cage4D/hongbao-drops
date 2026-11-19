@@ -17,6 +17,7 @@ const Send = lazy(() => import('./pages/Send').then((m) => ({ default: m.Send })
 const EnvelopePage = lazy(() => import('./pages/EnvelopePage').then((m) => ({ default: m.EnvelopePage })));
 const Sponsor = lazy(() => import('./pages/Sponsor').then((m) => ({ default: m.Sponsor })));
 const CampaignPublic = lazy(() => import('./pages/CampaignPublic').then((m) => ({ default: m.CampaignPublic })));
+const Demo = lazy(() => import('./pages/Demo').then((m) => ({ default: m.Demo })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 
 const router = createBrowserRouter([
@@ -29,6 +30,8 @@ const router = createBrowserRouter([
       { path: '/activity', element: <Activity /> },
       { path: '/c/:campaignId', element: <CampaignPublic /> },
       { path: '/e/:id', element: <EnvelopePage /> },
+      // The judges' "Try it free" link: always opens the current demo envelope.
+      { path: '/demo', element: <Demo /> },
       // Short links: /<6-char slug>#k=…
       { path: '/:slug', element: <EnvelopePage /> },
       { path: '*', element: <NotFound /> },

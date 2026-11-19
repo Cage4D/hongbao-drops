@@ -20,7 +20,7 @@ import { MediaController } from './media/media.controller.js';
 import { CampaignsService } from './campaigns/campaigns.service.js';
 import { CampaignsController } from './campaigns/campaigns.controller.js';
 import { AdminService } from './admin/admin.service.js';
-import { AdminController } from './admin/admin.controller.js';
+import { AdminController, DemoController } from './admin/admin.controller.js';
 import { WalletsService } from './wallets/wallets.service.js';
 import { WalletsController } from './wallets/wallets.controller.js';
 
@@ -36,7 +36,7 @@ export class AppModule {
     const config = opts.config ?? loadConfig();
     return {
       module: AppModule,
-      controllers: [EnvelopesController, ClaimsController, EventsController, KeeperController, MediaController, CampaignsController, AdminController, WalletsController, HealthController],
+      controllers: [EnvelopesController, ClaimsController, EventsController, KeeperController, MediaController, CampaignsController, AdminController, DemoController, WalletsController, HealthController],
       providers: [
         { provide: CONFIG, useValue: config },
         { provide: NETWORK_PROVIDER_FACTORY, useValue: opts.providerFactory ?? electrumProviderFactory(config) },

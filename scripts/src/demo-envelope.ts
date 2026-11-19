@@ -2,7 +2,10 @@
 // demo wallet, register it with POST /admin/demo/refill, and print its share link.
 //
 // Every demo envelope reuses one link key (state dir: demo-link.json), so all refills share the same
-// #k= secret. Only the slug changes. The server never sees the key (non-custodial, handoff §3).
+// #k= secret. Only the slug changes, and the web app's /demo page looks it up (GET /demo), so the
+// landing page's link (VITE_DEMO_URL = <web>/demo#k=…) never changes. The server never sees the key
+// (non-custodial, handoff §3). Mainnet envelopes last at most 24 h: run this once a day, any time in
+// the current demo's last 16 hours.
 // The admin token is read from the secrets file and never printed.
 //
 // Usage (mainnet):
@@ -89,8 +92,10 @@ console.log(`   funded: ${EXPLORER_TX}${fundingTxid} (id ${env.id}, slug ${env.s
 const reg = await call('POST', '/admin/demo/refill', { envelopeId: env.id }, auth);
 check(reg.status === 200, `registered as the demo envelope (${reg.body.sharesLeft}/${reg.body.sharesTotal} shares)`);
 
-const link = `${a.web!.replace(/\/$/, '')}/${env.slug}#k=${wif}`;
+const web = a.web!.replace(/\/$/, '');
+const link = `${web}/demo#k=${wif}`;
 writeFileSync(join(STATE_DIR, 'demo-link.txt'), `${link}\n`, { mode: 0o600 });
-console.log(`\n   Demo link (also in ${join(STATE_DIR, 'demo-link.txt')}):\n   ${link}`);
-console.log('   Set it as VITE_DEMO_URL in Vercel project hongbao-drops (Production, Sensitive), then redeploy.');
+console.log(`\n   Today's envelope: ${web}/${env.slug}`);
+console.log(`   Stable demo link (also in ${join(STATE_DIR, 'demo-link.txt')}), the same after every refill:\n   ${link}`);
+console.log('   VITE_DEMO_URL in Vercel project hongbao-drops must be this link (set once, then redeploy).');
 process.exit(0);

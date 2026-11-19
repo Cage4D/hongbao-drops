@@ -24,3 +24,14 @@ export class AdminController {
     return this.admin.refill(body);
   }
 }
+
+/** Public, no token: the stable /demo link asks which envelope to open. */
+@Controller('demo')
+export class DemoController {
+  constructor(@Inject(AdminService) private readonly admin: AdminService) {}
+
+  @Get()
+  current() {
+    return this.admin.currentDemo();
+  }
+}

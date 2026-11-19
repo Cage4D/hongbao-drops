@@ -15,6 +15,12 @@ import { validate } from '../common/validate.js';
 import { toNum } from '../common/bigint.js';
 
 const DEMO_KEY = 'demo.envelopeId';
+/**
+ * Mainnet envelopes live at most 24 h, so the demo needs a new envelope every day. The next one may
+ * be registered once the current one has less than this long left, so the daily refill has a wide
+ * window instead of one exact moment. The mainnet active and daily caps still bound what is locked.
+ */
+export const DEMO_REFILL_WINDOW_SECONDS = 16 * 3600;
 
 /**
  * The demo wallet's position (BUDGET_WALLET_ADDRESS, review-2 Q1), worked out from share and
@@ -56,6 +62,14 @@ export interface DemoStatus {
   sharesTotal: number;
   secondsLeft: number;
   needsRefill: boolean;
+}
+
+export interface PublicDemo {
+  /** null when there is no open demo envelope (used up, expired, or not refilled yet). */
+  slug: string | null;
+  sharesLeft: number;
+  sharesTotal: number;
+  secondsLeft: number;
 }
 
 @Injectable()
@@ -125,11 +139,18 @@ export class AdminService {
       sharesLeft: left,
       sharesTotal: env.shareCount,
       secondsLeft,
-      needsRefill: env.status !== 'ACTIVE' || left === 0 || secondsLeft === 0,
+      needsRefill: env.status !== 'ACTIVE' || left === 0 || secondsLeft < DEMO_REFILL_WINDOW_SECONDS,
     };
   }
 
-  /** Register a freshly funded envelope as the judge demo — only when the current one is used up. */
+  /** Public: which envelope the stable /demo link opens right now (no amounts, no keys). */
+  async currentDemo(): Promise<PublicDemo> {
+    const d = await this.demoStatus();
+    const open = d.status === 'ACTIVE' && d.sharesLeft > 0 && d.secondsLeft > 0;
+    return { slug: open ? d.slug : null, sharesLeft: open ? d.sharesLeft : 0, sharesTotal: d.sharesTotal, secondsLeft: open ? d.secondsLeft : 0 };
+  }
+
+  /** Register a freshly funded envelope as the judge demo: only when the current one is used up or near its end. */
   async refill(body: unknown): Promise<DemoStatus> {
     const { envelopeId } = validate(z.object({ envelopeId: z.string().min(1).max(40) }).strict(), body);
     const current = await this.demoStatus();
