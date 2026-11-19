@@ -56,7 +56,7 @@ export function heroCtas(demoUrl: string): { primary: HeroCta; secondary: HeroCt
     ? {
         primary: { label: 'Try it free', to: demoUrl, external: true },
         secondary: { label: 'Send your own', to: '/send', external: false },
-        note: 'No BCH needed. All you need is a BCH wallet, like Paytaca.',
+        note: 'No BCH needed to try it. All you need is a BCH wallet, like Paytaca.',
       }
     : {
         primary: { label: 'Send a drop', to: '/send', external: false },
