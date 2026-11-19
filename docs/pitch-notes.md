@@ -145,6 +145,38 @@ Caveat: an analytics team's estimate posted on X, reported by a crypto news site
 
 **How we use it in the pitch:** red envelopes are already how hundreds of millions of people gift money at Lunar New Year (1, 2), and the usual way crypto projects give money away leaks a large share to farmers (3, 4). Hongbao brings the first to Bitcoin Cash and answers the second by measuring fresh → activated → not-farmed wallets so a sponsor sees what it paid per real new wallet.
 
+### 4.6 Go-to-market: launch at Lunar New Year 2027
+
+Lunar New Year 2027 is **Saturday 6 February 2027** (Year of the Goat). The festival runs to the Lantern Festival on 20 February. That's the moment people already expect red envelopes.
+
+**Target customer:** BCH projects and merchants that want new users: wallets, apps, shops and community funds that today pay for giveaways without knowing how many real people they reached. They already hold BCH, so funding a drop needs no new rails.
+
+**Plan:**
+
+| When | What |
+|---|---|
+| 22 Nov 2026 | BCH BLAZE submission. Mainnet live, self-serve sponsor flow, our own BLAZE Drop as case study #1 (§4.1). |
+| Late Nov – Dec 2026 | Act on judge feedback. Post the community question "Would your project sponsor a drop at Lunar New Year?" (r/btc, BCH Telegram, X) and keep a list of every project that says yes. Replace the hackathon safety caps ($0.50 / 10 shares per envelope) with production limits, and move hosting to a paid plan fit for commercial use. |
+| Dec 2026 – mid Jan 2027 | Sign the first pilot sponsors from that list (goal: a handful, not a number we promise). Make a Year of the Goat envelope and seal theme. Talk to Paytaca about opening a Hongbao link straight in the wallet (§4.7). |
+| Mid Jan – 5 Feb 2027 | Sponsors create campaigns and schedule drops for the holiday. Personal drops stay free, so every sponsored envelope also teaches people they can send their own. |
+| 6 – 20 Feb 2027 | **Launch window.** Sponsored and personal drops through the New Year fortnight, and every claimer is one tap from "Pass it on". |
+| Late Feb – Mar 2027 | Publish each pilot's public proof page and its cost per activated new wallet once the 7-day windows have closed. These become the case studies for the next sponsors. |
+
+**Channels, in order:**
+1. **The pass-it-on loop.** Every claim ends with "Pass it on", which re-gifts part of the share as a new envelope, so one sponsored drop reaches beyond its first 10 people. The drop tree and `passOnEnvelopes` measure this. We've shown it working on mainnet; we have no reach data yet beyond our own tests.
+2. **The BCH community.** The projects and merchants that answer the community post, and their own audiences.
+3. **Wallet integrations.** Paytaca first: opening a Hongbao link straight in the wallet removes the connect step entirely.
+
+**Honest risks, and how the product answers them:**
+
+| Risk | Answer |
+|---|---|
+| **Farming:** one person with many wallets claims many shares | Sponsors never see a single raw "claims" number. They see three tiers: **fresh** (no on-chain history before the claim) → **activated** (used or passed on within 7 days) → **not flagged as farming** (`SAME_FINGERPRINT`, `SAME_IP`, `IP_BURST`, `COMMON_SWEEP`, `NEVER_USED`). Cost per activated new wallet is computed on the last tier only. Flags never block a claim, so real people sharing Wi-Fi still get theirs; they just don't inflate the headline. |
+| **Low activation:** people claim and never use the BCH | It's measured, not hidden: `activatedNotFarm` is the number a sponsor pays attention to. Pass it on gives every claimer an easy first use, and the Hongbao Seal gives them a reason to keep the wallet. |
+| **Wallet connection fails** (relays, wallet-side bugs) | Claimers never have to connect: they can paste an address or hold a share for 15 minutes. See §4.7 for the pitch framing. |
+| **Small fee revenue:** 3% of small drops is small money | True. The fee is pure margin because miner fees are paid inside the envelope (§4.3), but the business needs volume or larger sponsor drops. The Lunar New Year launch is the test. |
+| **24-hour envelopes on mainnet** | Our own safety cap for the hackathon, configurable. Production envelopes can run the whole festival. |
+
 ## Words to use
 
 - "lockbox", "leftovers return automatically", "Hongbao Seal". Avoid "UTXO", "covenant", "P2SH" on slides.
