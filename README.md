@@ -58,7 +58,7 @@ Every number links to a public blockchain transaction, so anyone can check it. N
 | Of those, used their BCH or passed it on | ⟨TODO⟩ |
 | Envelopes passed on | ⟨TODO⟩ |
 | **Cost per real new wallet** | ⟨TODO⟩ |
-| Public proof (every transaction) | ⟨TODO: /campaigns/:id/public link⟩ |
+| Public proof (every transaction) | [hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68](https://hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68) |
 
 Free for personal envelopes. Sponsors pay the 3% fee, collected automatically when the envelope is created. An envelope can't skip the fee: without it nobody can claim from it, and the money simply goes back after expiry.
 

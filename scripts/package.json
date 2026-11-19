@@ -18,6 +18,7 @@
     "lifecycle-e2e": "tsx src/lifecycle-e2e.ts",
     "seal-to-wallet": "tsx src/seal-to-wallet.ts",
     "demo-envelope": "tsx src/demo-envelope.ts",
+    "blaze-drop": "tsx src/blaze-drop.ts",
     "campaign-e2e": "tsx src/campaign-e2e.ts"
   },
   "dependencies": {

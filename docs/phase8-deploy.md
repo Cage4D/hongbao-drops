@@ -183,6 +183,17 @@ Daily refill (any time in the current demo's last 16 h): `pnpm --filter @hongbao
 
 Also on Nov 19: the API env var `ENABLE_STAMPS` was renamed to `ENABLE_SEALS`, and the stamp-to-seal request/response aliases were removed (only the `/stamps/…` image redirect stays, for seals minted before the rename).
 
+### BLAZE Drop campaign (2026-11-19)
+
+`blaze-drop --mainnet --yes-mainnet`: sponsor "Hongbao Drops", campaign "BLAZE Drop" (`cmwn5o8eq000107jtj6ecle68`), public page `/c/cmwn5o8eq000107jtj6ecle68`. Sponsor token and share links in `scripts/.state/mainnet/blaze-drop.json` / `blaze-drop-links.txt` (mode 600, not in the repo).
+
+| Envelope | Mode | Funding txid (3% fee to the treasury included) |
+|---|---|---|
+| `vvaxkr`, 10 × 10,000 sats, seals | EQUAL | `a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183` |
+| `tnyjwc`, 10 × 10,000 sats, seals | LUCKY | `db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08` |
+
+A third envelope was refused by `DAILY_MAINNET_SATS` (400,000 sats in any 24 h, counting yesterday evening's demo) before anything was spent. Re-run with `--envelopes 1` once that funding is 24 h old (after ≈ 20:50 UTC Nov 19) to add it to the same campaign.
+
 ## Still to do
 
 - ~~**Keeper scheduler (builder)**~~ **Done 2026-11-17:** cron-job.org job `8882581`, `POST /internal/keeper/tick` every minute (UTC) with `Authorization: Bearer KEEPER_TOKEN`, created by `scripts/setup-keeper-cron.sh`. The script reads the cron-job.org API key (`~/.local/share/hongbao-drops/cronjob-api-key`) and `KEEPER_TOKEN` from files and never prints them. Re-running it updates the same job, e.g. after rotating the token on the mainnet switch. Check: `scripts/setup-keeper-cron.sh --status` and `/health` → `keeper.lastRunAt`. The daily Vercel Cron backstop stays configured.

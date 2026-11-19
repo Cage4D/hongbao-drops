@@ -14,7 +14,7 @@ if ((process.env.NETWORK ?? 'CHIPNET') !== 'CHIPNET') {
 }
 
 /** Manual tools that may run on mainnet. Everything else (e2e suites, fund/claim/refund) can't. */
-const MAINNET_ALLOWED = ['wallet', 'inspect', 'addr-check', 'send', 'seal-to-wallet', 'demo-envelope'];
+const MAINNET_ALLOWED = ['wallet', 'inspect', 'addr-check', 'send', 'seal-to-wallet', 'demo-envelope', 'blaze-drop'];
 
 const script = basename(process.argv[1] ?? '').replace(/\.[cm]?[jt]s$/, '');
 const wantMainnet = process.argv.includes('--mainnet');
