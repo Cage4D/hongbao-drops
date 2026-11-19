@@ -87,7 +87,21 @@ Details, sources and the go-to-market plan: [docs/pitch-notes.md](docs/pitch-not
 - **Leftovers can only go back to the sender**, nowhere else.
 - **If Hongbao went offline**, claims would pause, but every unclaimed share would still return to its sender.
 
-What it can't do: someone with many wallets can claim more than once. That's why sponsors see "brand-new wallets" and "used it" separately, and why suspected farming is flagged in their dashboard.
+### What about one person with many wallets?
+
+No open gift link can fully stop someone who controls many wallets, and Hongbao doesn't pretend to. It makes farming slow, small and visible.
+
+**What's blocked:**
+- **The link is the key.** Nobody can claim without the link, so a drop shared in a private chat has to leak before a farmer can even try. The first people to open it win, and they're usually the friends it was sent to.
+- **One share per address, and one per connected wallet.** A wallet's other addresses are refused too.
+- **10 claim attempts per network (IP) per envelope every 10 minutes.** From one connection, 100 wallets would need well over an hour, while real friends claim in seconds and the envelope is empty long before.
+- **2 held shares per network per envelope**, so nobody can reserve a whole envelope without a wallet.
+- **Quiz mode:** wrong answers are limited too, and only people in the conversation know the answer.
+- **The cap:** at most 20 shares and $20 per envelope on mainnet, so even a successful farm takes little.
+
+**What isn't:** someone with many wallets behind many different networks, pasting addresses, can still take several shares.
+
+**What sponsors see instead:** every claim is checked, and suspected farming is flagged, never blocked, so real friends on the same Wi-Fi still get their share. The flags are `SAME_FINGERPRINT` (one wallet, several claims), `SAME_IP` and `IP_BURST` (one network, or many claims within seconds), `COMMON_SWEEP` (several wallets forwarding their BCH to the same address) and `NEVER_USED` (BCH never touched again). The headline number, **cost per real new wallet**, counts only wallets that were brand new, used their BCH within 7 days and weren't flagged. A farm of 100 wallets shows up as 100 claims and close to zero real new wallets, so a sponsor can see exactly what was farmed instead of paying for it blind.
 
 ### Why there's a cap on each envelope
 
@@ -104,7 +118,7 @@ What the cap is *not*:
 
 | What | Transaction |
 |---|---|
-| An envelope being sent: today's demo, 10 shares in the lockbox, each with a Hongbao Seal | [eaa86358…](https://blockchair.com/bitcoin-cash/transaction/eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd) |
+| An envelope being sent: a judges' demo envelope, 10 shares in the lockbox, each with a Hongbao Seal | [eaa86358…](https://blockchair.com/bitcoin-cash/transaction/eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd) |
 | Someone claiming a share into Paytaca: a Hongbao Seal plus 744 sats as plain BCH | [2c803874…](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5) |
 | Leftovers returning automatically: 7 unclaimed shares of a demo envelope back to the sender in one transaction, each seal plus 27,389 sats as plain BCH, sent by the keeper | [7dbc4a86…](https://blockchair.com/bitcoin-cash/transaction/7dbc4a861aaae6d82906a8607942f852d734abe53e92dbc273b4d5d78ce33d20) |
 
@@ -115,7 +129,7 @@ Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.im
 ## Technical detail
 
 **Contract.** One CashScript 0.14 contract per envelope, deployed as P2SH32 ([walkthrough](packages/contract/contracts/README.md)). Each share is its own UTXO, so claims never race each other.
-- **`claim`** requires the link key's signature *and* a gate datasig over `recipient ‖ outpoint`. One input, one output, a fee bounded by `maxFee`, and the seal NFT must pass through unchanged.
+- **`claim`** requires the link key's signature *and* a gate datasig over `recipient ‖ outpoint`. One input; output 0 carries the seal NFT unchanged (on 666 sats), and an optional output 1 pays the rest as plain BCH to the same recipient, because wallets only count token-free outputs as balance. The fee is bounded by `maxFee` and comes out of the share.
 - **`refundBatch`** is keyless and only valid after expiry (CLTV; nodes also wait for median-time-past). It pays only to the sender's script, and uses the 2026 **Layla loop opcodes** to refund many shares in one transaction.
 
 **Hongbao Seals.** The funding transaction is a CashTokens genesis: every share carries an immutable NFT (commitment = envelope ‖ share). A BCMR OP_RETURN points wallets to the metadata (`/bcmr/:category.json`), served byte-for-byte as hashed on-chain. Output 0 is an identity output to the treasury, so the BCMR authchain never moves.
@@ -124,10 +138,11 @@ Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.im
 - **Gate:** the per-envelope gate key is derived from a master seed. The gate checks eligibility (one share per address, wallet fingerprint and hold token; rate limits; quiz answers hashed) and signs only after the funding was verified on-chain, sponsor fee included.
 - **Claims:** "fresh wallet" comes from Fulcrum address history; claims are accepted at 0-conf.
 - **Keeper** (keyless, every minute via an external cron): batch refunds once median-time-past passes expiry, reconciliation of spends made outside the API, confirmations, 7-day activation and farm flags (`SAME_FINGERPRINT`, `SAME_IP`, `IP_BURST`, `COMMON_SWEEP`, `NEVER_USED`).
+- **Wallet connection:** WizardConnect over public Nostr relays (Paytaca supports it). It depends on those relays: if a connection stalls, claimers can paste an address or hold their share for 15 minutes instead. The site spaces out relay reconnects, since the library otherwise retries in a tight loop when a relay is unreachable.
 - **Also:** live updates over SSE, OG link-preview cards and seal art rendered server-side, and mainnet budget caps enforced server-side.
 
 **Trust model.** The server can't move funds without the link key. A link holder can't drain an envelope without per-claim gate signatures. Refunds go only to the refund script fixed in the contract. If the gate is down, claims stop, but refunds are keyless and still go through.
 
-**Quality.** 263 automated tests (contract VM matrix, API on real Postgres with a mock chain), Chipnet end-to-end suites run against the production URL, and two external code reviews with every finding fixed ([review 1](docs/review-1-fixes.md), [review 2](docs/review-2-fixes.md)). Decisions and research: [docs/findings.md](docs/findings.md).
+**Quality.** 270 automated tests (contract VM matrix, API on real Postgres with a mock chain), Chipnet end-to-end suites run against the production URL, and two external code reviews with every finding fixed ([review 1](docs/review-1-fixes.md), [review 2](docs/review-2-fixes.md)). Decisions and research: [docs/findings.md](docs/findings.md).
 
 **For developers:** setup, layout, testing and deployment are in [CONTRIBUTING.md](CONTRIBUTING.md).
