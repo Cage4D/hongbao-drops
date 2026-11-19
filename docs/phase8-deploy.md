@@ -181,6 +181,8 @@ Daily refill (any time in the current demo's last 16 h): `pnpm --filter @hongbao
 |---|---|---|
 | 2026-11-19 05:58 UTC, 10 × 5,000 sats, expires ≈ 05:30 UTC Nov 20 | `b3p2sr` | `eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd` |
 
+**First batch refund on mainnet (19 Nov 20:50 UTC):** the keeper returned the 7 unclaimed shares of the 18 Nov demo envelope `gcbxxe` in one transaction, `7dbc4a861aaae6d82906a8607942f852d734abe53e92dbc273b4d5d78ce33d20`: 7 inputs, 7 seal outputs on 666 sats each plus one pooled 27,389-sat BCH output to the demo wallet, 2,949 B at 1 sat/B (421 sats per share).
+
 Also on Nov 19: the API env var `ENABLE_STAMPS` was renamed to `ENABLE_SEALS`, and the stamp-to-seal request/response aliases were removed (only the `/stamps/…` image redirect stays, for seals minted before the rename).
 
 ### BLAZE Drop campaign (2026-11-19)
@@ -191,8 +193,9 @@ Also on Nov 19: the API env var `ENABLE_STAMPS` was renamed to `ENABLE_SEALS`, a
 |---|---|---|
 | `vvaxkr`, 10 × 10,000 sats, seals | EQUAL | `a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183` |
 | `tnyjwc`, 10 × 10,000 sats, seals | LUCKY | `db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08` |
+| `3tehck`, 10 × 10,000 sats, seals (added 19 Nov 21:00 UTC, once the daily cap allowed it) | EQUAL | `a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729` |
 
-A third envelope was refused by `DAILY_MAINNET_SATS` (400,000 sats in any 24 h, counting yesterday evening's demo) before anything was spent. Re-run with `--envelopes 1` once that funding is 24 h old (after ≈ 20:50 UTC Nov 19) to add it to the same campaign.
+First attempt: a third envelope was refused by `DAILY_MAINNET_SATS` (400,000 sats in any 24 h, counting yesterday evening's demo) before anything was spent. Re-run with `--envelopes 1` once that funding is 24 h old (after ≈ 20:50 UTC Nov 19) to add it to the same campaign.
 
 ## Still to do
 

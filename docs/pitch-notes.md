@@ -26,17 +26,17 @@ We have no outside sponsor yet, so we ran the sponsor flow on ourselves, on main
 
 | | Value | Source |
 |---|---|---|
-| Envelopes | 2 (one equal split, one lucky split), 10 shares each, Hongbao Seal on every share | public page |
-| Money put in | 200,000 sats (≈ $0.41) | public page `lockedSats` at launch |
-| Sponsor fee paid (3%) | 3,000 sats per envelope, 6,000 total | output 11 of each funding tx, to the treasury `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
-| Funding txids | [a6cd3583…](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183) (equal), [db974414…](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08) (lucky) | chain |
-| Claims | ⟨pending⟩ | public page `claims` |
-| Brand-new wallets | ⟨pending⟩ | `freshWallets` |
-| Passed on | ⟨pending⟩ | `passOnEnvelopes` |
-| Cost per brand-new wallet | ⟨pending⟩ | `costPerFreshWalletUsd` = (BCH given away + sponsor fee) ÷ brand-new wallets |
+| Envelopes | 3 (two equal splits, one lucky split), 10 shares each, Hongbao Seal on every share | public page |
+| Money put in | 300,000 sats (≈ $0.62) | public page `lockedSats` at launch |
+| Sponsor fee paid (3%) | 3,000 sats per envelope, 9,000 total | output 11 of each funding tx, to the treasury `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
+| Funding txids | [a6cd3583…](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183) (equal), [db974414…](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08) (lucky), [a163f085…](https://blockchair.com/bitcoin-cash/transaction/a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729) (equal, added 19 Nov 21:00 UTC) | chain |
+| Claims | 2 (19 Nov 21:04 UTC, still open) | public page `claims` |
+| Brand-new wallets | 2 of 2 | `freshWallets` |
+| Passed on | 0 so far | `passOnEnvelopes` |
+| Cost per brand-new wallet | $0.03 so far | `costPerFreshWalletUsd` = (BCH given away + sponsor fee) ÷ brand-new wallets |
 | Used their BCH within 7 days, not flagged as farming | not available before 26 Nov (the 7-day window is still open during judging) | `activatedNotFarm` |
 
-As of 19 Nov 06:19 UTC the campaign had 0 claims: the links had just been made. Fill the pending rows from the public page on the day:
+The numbers above are a snapshot from 19 Nov 21:04 UTC, while the links were still being shared. Refresh them from the public page on the day:
 
 ```bash
 curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68/public
@@ -78,7 +78,7 @@ Price used: $207.43 per BCH (the API's live price, 19 Nov 2026 06:40 UTC). Every
 | Funding, 10 shares with seals (demo, 3 inputs) | [eaa86358…](https://blockchair.com/bitcoin-cash/transaction/eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd) | 1,494 B | 1,534 sats | $0.0032 | The sender's wallet |
 | Funding, 2 shares with seals | [675ddbf8…](https://blockchair.com/bitcoin-cash/transaction/675ddbf80b9293f92c8f09fb6c7bb7ddb052f2c44c0ce205cb739cda0ab1c76b) | 540 B | 540 sats | $0.0011 | The sender's wallet |
 | Refund of 1 leftover share | [a4e3a53b…](https://blockchair.com/bitcoin-cash/transaction/a4e3a53bb0f059baaf7ce28dd7106ec26358a0e824427948409c7677aed71c75) | 459 B | 459 sats | $0.0010 | Comes out of the refunded share |
-| Refund of many shares in one tx | ⟨pending: demo envelope `gcbxxe` refunds 7 shares in one tx after 19 Nov ≈ 21:15 UTC⟩ | | | | Comes out of the refunded shares |
+| Refund of 7 shares in one tx (7 seals back + one pooled 27,389-sat BCH output) | [7dbc4a86…](https://blockchair.com/bitcoin-cash/transaction/7dbc4a861aaae6d82906a8607942f852d734abe53e92dbc273b4d5d78ce33d20) | 2,949 B | 2,949 sats (421 per share) | $0.0061 ($0.0009 per share) | Comes out of the refunded shares |
 
 Every funding also sends a 546-sat identity output to our treasury (it anchors the Hongbao Seal metadata and is never spent).
 

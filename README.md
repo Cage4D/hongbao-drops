@@ -1,6 +1,6 @@
 <!--
   Before submission (22 Nov 14:00 UTC):
-  1. Fill the BLAZE Drop claim rows (⟨TODO⟩) from
+  1. Refresh the BLAZE Drop rows (snapshot: 19 Nov 21:04 UTC) from
      curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68/public
   Never put test-network numbers where real ones belong.
 -->
@@ -60,20 +60,20 @@ Every number links to a public blockchain transaction, so anyone can check it, w
 
 | | |
 |---|---|
-| Envelopes | 2, with 10 shares each and a Hongbao Seal on every share: [equal split](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183), [lucky split](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08) |
-| Put in | 200,000 sats (≈ $0.41) |
-| 3% sponsor fee, paid on-chain | 6,000 sats: 3,000 in output 11 of each funding transaction, to our treasury |
-| People who claimed | ⟨TODO⟩ |
-| Brand-new wallets | ⟨TODO⟩ |
-| Envelopes passed on | ⟨TODO⟩ |
-| **Cost per brand-new wallet** | ⟨TODO⟩ |
+| Envelopes | 3, with 10 shares each and a Hongbao Seal on every share: [equal split](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183), [lucky split](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08), [equal split](https://blockchair.com/bitcoin-cash/transaction/a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729) |
+| Put in | 300,000 sats (≈ $0.62) |
+| 3% sponsor fee, paid on-chain | 9,000 sats: 3,000 in output 11 of each funding transaction, to our treasury |
+| People who claimed | 2 (so far, 19 Nov 21:04 UTC) |
+| Brand-new wallets | 2 of 2 |
+| Envelopes passed on | 0 (so far) |
+| **Cost per brand-new wallet** | $0.03 so far: BCH given away plus the sponsor fee, divided by brand-new wallets |
 | Of those, used their BCH or passed it on within 7 days | Not known yet: the 7-day window closes after judging |
 | Public proof (every transaction) | [hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68](https://hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68) |
 
 ## The business
 
 - **Personal drops are free. Sponsored drops pay 3%** of the envelope (minimum 546 sats), and get their brand on it plus the dashboard above.
-- **We pay no miner fees.** On mainnet a claim costs 590 sats ([example](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5)) and a refund of one share 459 sats ([example](https://blockchair.com/bitcoin-cash/transaction/a4e3a53bb0f059baaf7ce28dd7106ec26358a0e824427948409c7677aed71c75)). Both come out of the envelope's own coins. The sender's wallet pays the funding fee: 1,281 sats for a 10-share sponsored envelope. At $207/BCH that's about a tenth of a cent per claim. So the fee is margin; hosting is our only running cost.
+- **We pay no miner fees.** On mainnet a claim costs 590 sats ([example](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5)) and refunding 7 leftover shares in one transaction cost 2,949 sats, 421 per share ([example](https://blockchair.com/bitcoin-cash/transaction/7dbc4a861aaae6d82906a8607942f852d734abe53e92dbc273b4d5d78ce33d20)). Both come out of the envelope's own coins. The sender's wallet pays the funding fee: 1,281 sats for a 10-share sponsored envelope. At $207/BCH that's about a tenth of a cent per claim. So the fee is margin; hosting is our only running cost.
 - **Self-serve, and the fee can't be skipped.** A sponsor signs up, creates a campaign and funds a drop without talking to us. The funding transaction must pay the fee to our treasury, or the envelope never becomes claimable and its money goes back to the sender at expiry. The gate signs claims only for envelopes whose funding was verified, fee included.
 - **Next:** launch with BCH projects and merchants at Lunar New Year, 6 February 2027, when people already expect red envelopes.
 
@@ -106,7 +106,7 @@ What the cap is *not*:
 |---|---|
 | An envelope being sent: today's demo, 10 shares in the lockbox, each with a Hongbao Seal | [eaa86358…](https://blockchair.com/bitcoin-cash/transaction/eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd) |
 | Someone claiming a share into Paytaca: a Hongbao Seal plus 744 sats as plain BCH | [2c803874…](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5) |
-| The unclaimed share of the same envelope returning to the sender after expiry, sent by the keeper | [a4e3a53b…](https://blockchair.com/bitcoin-cash/transaction/a4e3a53bb0f059baaf7ce28dd7106ec26358a0e824427948409c7677aed71c75) |
+| Leftovers returning automatically: 7 unclaimed shares of a demo envelope back to the sender in one transaction, each seal plus 27,389 sats as plain BCH, sent by the keeper | [7dbc4a86…](https://blockchair.com/bitcoin-cash/transaction/7dbc4a861aaae6d82906a8607942f852d734abe53e92dbc273b4d5d78ce33d20) |
 
 Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.imaginary.cash/tx/e29f87de8794f42e97453477d637dd1afae2b75e6eacac496c08b95b194adc53) · [share claimed](https://chipnet.imaginary.cash/tx/41641d911704c5557e53b763b5b13f9115e02272db94a621cef2966975ded4f9) · [leftovers returned](https://chipnet.imaginary.cash/tx/744ff9d40cf9d0e4dd257f6c9852f3f6ee7da5e0a48b7b0d5c0c5bb308fc74f8).
 
