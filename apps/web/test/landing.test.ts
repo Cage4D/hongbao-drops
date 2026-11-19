@@ -14,7 +14,7 @@ describe('hero buttons', () => {
     const c = heroCtas(demo);
     expect(c.primary).toEqual({ label: 'Try it free', to: demo, external: true });
     expect(c.secondary).toEqual({ label: 'Send your own', to: '/send', external: false });
-    expect(c.note).toBe('No wallet or BCH needed. Opening takes 10 seconds.');
+    expect(c.note).toBe('No BCH needed. All you need is a BCH wallet, like Paytaca.');
   });
 });
 
