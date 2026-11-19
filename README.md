@@ -2,7 +2,6 @@
   Before submission (22 Nov 14:00 UTC):
   1. Fill the BLAZE Drop claim rows (⟨TODO⟩) from
      curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68/public
-  2. Put the screen-recording GIF in the marked spot below.
   Never put test-network numbers where real ones belong.
 -->
 
@@ -12,10 +11,10 @@
 
 ### [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
 
-<!-- ⟨TODO: SCREEN-RECORDING GIF⟩ The whole flow on a phone (open → claim → Money arrived → seal in Paytaca → pass it on).
-     Replace this comment with:
-     [![The full flow on a phone: open, claim, the money and seal in Paytaca, pass it on](docs/media/flow.gif)](⟨link to the full MP4⟩)
-     Shot list and ffmpeg command: docs/pitch-notes.md §4.7. -->
+<p align="center">
+  <a href="docs/media/flow.mp4"><img src="docs/media/flow.gif" alt="The flow on a phone, on mainnet: tap Try it free, open the red envelope, claim, Money arrived 3,744 sats, then the BCH and Hongbao Seal #13-1 in Paytaca" width="300"></a>
+  <br><sub>Real mainnet claim into Paytaca (30 s). <a href="docs/media/flow.mp4">Full 64-second video</a>, including connecting the wallet.</sub>
+</p>
 
 <p>
   <img src="docs/media/og-lunar.png" alt="A Lunar New Year red envelope link preview: Happy New Year!, 3 of 3 shares left" width="420">
