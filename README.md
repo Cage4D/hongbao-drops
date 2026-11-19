@@ -1,7 +1,6 @@
 <!--
   Before submission (22 Nov 14:00 UTC), replace every ⟨TODO …⟩ with real values:
-  the frontend URL, the BLAZE Drop numbers from /campaigns/:id/public, and the Nov 19 mainnet txids.
-  Never put test-network numbers where real ones belong.
+  the BLAZE Drop numbers from /campaigns/:id/public. Never put test-network numbers where real ones belong.
 -->
 
 # Hongbao Drops 🧧
@@ -19,12 +18,12 @@
 
 ## Try it in 30 seconds
 
-1. **Open the [demo envelope](⟨TODO: demo envelope link⟩)** on your phone.
+1. **Open [hongbao-drops.vercel.app](https://hongbao-drops.vercel.app) on your phone and tap "Try it free".** It opens today's demo envelope, real BCH on mainnet, refilled every day.
 2. **Tap to open it.** Connect your Bitcoin Cash wallet, or paste your BCH address. No wallet yet? Try [Paytaca](https://www.paytaca.com) and tap **"Hold my share"**: we keep a share for you for 15 minutes while you install it.
 3. **Watch it arrive.** Your share of BCH lands in your wallet within seconds, together with a **Hongbao Seal** showing you caught it.
 4. **Pass it on** (optional). Re-gift part of what you got as a new envelope, and see how far your drop travels.
 
-You need no BCH to start and pay no fees. You don't sign anything to receive.
+You need no BCH to try it, and claiming costs nothing. All you need is a BCH wallet to receive it, and you don't sign anything.
 
 ## What just happened
 
@@ -77,9 +76,9 @@ What it can't do: someone with many wallets can claim more than once. That's why
 
 | What | Transaction |
 |---|---|
-| An envelope being sent: shares in the lockbox, each with a Hongbao Seal | ⟨TODO: Nov 19 funding txid⟩ |
-| Someone claiming a share: BCH + Hongbao Seal to their wallet | ⟨TODO: Nov 19 claim txid⟩ |
-| Leftovers returning automatically, many shares in one go | ⟨TODO: Nov 19 refund txid⟩ |
+| An envelope being sent: today's demo, 10 shares in the lockbox, each with a Hongbao Seal | [eaa86358…](https://blockchair.com/bitcoin-cash/transaction/eaa863585532ef9190c700d98fb3001787371c86c72b6a5ad91003ddd994a4fd) |
+| Someone claiming a share into Paytaca: a Hongbao Seal plus 744 sats as plain BCH | [2c803874…](https://blockchair.com/bitcoin-cash/transaction/2c80387481aeecff19a6c826c82479a8e663a385eb81a4d776ba04e826cf34c5) |
+| The unclaimed share of the same envelope returning to the sender after expiry, sent by the keeper | [a4e3a53b…](https://blockchair.com/bitcoin-cash/transaction/a4e3a53bb0f059baaf7ce28dd7106ec26358a0e824427948409c7677aed71c75) |
 
 Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.imaginary.cash/tx/e29f87de8794f42e97453477d637dd1afae2b75e6eacac496c08b95b194adc53) · [share claimed](https://chipnet.imaginary.cash/tx/41641d911704c5557e53b763b5b13f9115e02272db94a621cef2966975ded4f9) · [leftovers returned](https://chipnet.imaginary.cash/tx/744ff9d40cf9d0e4dd257f6c9852f3f6ee7da5e0a48b7b0d5c0c5bb308fc74f8).
 
@@ -101,6 +100,6 @@ Rehearsals on the BCH test network (Chipnet): [envelope sent](https://chipnet.im
 
 **Trust model.** The server can't move funds without the link key. A link holder can't drain an envelope without per-claim gate signatures. Refunds go only to the refund script fixed in the contract. If the gate is down, liveness suffers, never custody.
 
-**Quality.** 193 automated tests (contract VM matrix, API on real Postgres with a mock chain), Chipnet end-to-end suites run against the production URL, and two external code reviews with every finding fixed ([review 1](docs/review-1-fixes.md), [review 2](docs/review-2-fixes.md)). Decisions and research: [docs/findings.md](docs/findings.md).
+**Quality.** 263 automated tests (contract VM matrix, API on real Postgres with a mock chain), Chipnet end-to-end suites run against the production URL, and two external code reviews with every finding fixed ([review 1](docs/review-1-fixes.md), [review 2](docs/review-2-fixes.md)). Decisions and research: [docs/findings.md](docs/findings.md).
 
 **For developers:** setup, layout, testing and deployment are in [CONTRIBUTING.md](CONTRIBUTING.md).
