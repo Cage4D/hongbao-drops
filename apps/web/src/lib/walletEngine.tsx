@@ -7,6 +7,7 @@
 //  - sign with broadcast:false, relay-safe serialisation, then broadcast ourselves
 //  - pairing can fail silently: show the real state and offer Reconnect
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import './relayGuard'; // before any relay connects: spaces out WizardConnect's reconnect loop
 import { useWizardConnect } from '@wizardconnect/react';
 import type { DappConnectionManager } from '@wizardconnect/dapp';
 import type { Output, TransactionBuilder } from 'cashscript';
