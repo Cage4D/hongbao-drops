@@ -143,7 +143,7 @@ Caveat: an analytics team's estimate posted on X, reported by a crypto news site
 
 **Not used:** crypto user-acquisition cost per user. The figures I found (e.g. "~$150 per exchange user") come from ad-tech vendors' blogs that sell the measurement, with no primary data behind them. Leave them out unless you find an independent source.
 
-**How we use it in the pitch:** red envelopes are already how hundreds of millions of people gift money at Lunar New Year (1, 2), and the usual way crypto projects give money away leaks a large share to farmers (3, 4). Hongbao brings the first to Bitcoin Cash and answers the second by measuring fresh → activated → not-farmed wallets and charging sponsors per real result.
+**How we use it in the pitch:** red envelopes are already how hundreds of millions of people gift money at Lunar New Year (1, 2), and the usual way crypto projects give money away leaks a large share to farmers (3, 4). Hongbao brings the first to Bitcoin Cash and answers the second by measuring fresh → activated → not-farmed wallets so a sponsor sees what it paid per real new wallet.
 
 ## Words to use
 
