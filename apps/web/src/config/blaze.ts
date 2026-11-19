@@ -1,7 +1,7 @@
 // BCH BLAZE 2026 submission banner (required for eligibility). The only place these values live.
 export const BLAZE = {
-  /** Widget Factory slides. Empty until the deck link exists: the banner then shows "link soon". */
-  presentationUrl: '',
+  /** The BLAZE presentation (PDF in a public Google Drive folder). Empty → the banner says "link soon". */
+  presentationUrl: 'https://drive.google.com/file/d/1s3yKqtfBycb0cRAPeccTe02Wrn5JKxYC/view',
   sourceUrl: 'https://github.com/Cage4D/hongbao-drops',
   /** Votes are EMBER2026 tokens, so this is the token-aware (z…) address. Use exactly as written. */
   voteAddress: 'bitcoincash:zqy9d9egnhs6h2hmk2dtxr27ecatdkutcydqw6zfyp',

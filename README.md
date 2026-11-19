@@ -9,7 +9,7 @@
 
 **Drop a red envelope of Bitcoin Cash into any group chat as one link. The first people to open it each get a share of real BCH and a Hongbao Seal, in seconds, with no fees and nothing to sign.**
 
-### [Try it](https://hongbao-drops.vercel.app) · built for BCH BLAZE 2026 (Mainnet Track)
+### [Try it](https://hongbao-drops.vercel.app) · [Presentation](https://drive.google.com/file/d/1s3yKqtfBycb0cRAPeccTe02Wrn5JKxYC/view) · built for BCH BLAZE 2026 (Mainnet Track)
 
 <p align="center">
   <a href="docs/media/flow.mp4"><img src="docs/media/flow.gif" alt="The flow on a phone, on mainnet: tap Try it free, open the red envelope, claim, Money arrived 3,744 sats, then the BCH and Hongbao Seal #13-1 in Paytaca" width="300"></a>
