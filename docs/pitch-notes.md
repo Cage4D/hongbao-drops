@@ -94,7 +94,7 @@ Every funding also sends a 546-sat identity output to our treasury (it anchors t
 | $50 (e.g. 100 people × $0.50) | $1.50 | $150 | $1,500 |
 | $200 (a project's launch drop) | $6.00 | $600 | $6,000 |
 
-Cost to serve per drop for us: $0 in miner fees (see above) plus a share of hosting. The fee is pure margin until hosting needs a paid plan. Caveats to say out loud: the mainnet demo currently caps an envelope at $0.50 and 10 shares (`MAX_ENVELOPE_USD`, `MAX_SHARES`, our own safety limits for the hackathon, configurable per deployment), and personal drops are free and bring no revenue.
+Cost to serve per drop for us: $0 in miner fees (see above) plus a share of hosting. The fee is pure margin until hosting needs a paid plan. Caveats to say out loud: on mainnet an envelope is capped at $20 and 20 shares (`MAX_ENVELOPE_USD`, `MAX_SHARES`), our own safety limit while the contract hasn't had an outside audit, and personal drops are free and bring no revenue.
 
 ### 4.4 Self-serve, and the fee can't be skipped
 
@@ -156,7 +156,7 @@ Lunar New Year 2027 is **Saturday 6 February 2027** (Year of the Goat). The fest
 | When | What |
 |---|---|
 | 22 Nov 2026 | BCH BLAZE submission. Mainnet live, self-serve sponsor flow, our own BLAZE Drop as case study #1 (§4.1). |
-| Late Nov – Dec 2026 | Act on judge feedback. Post the community question "Would your project sponsor a drop at Lunar New Year?" (r/btc, BCH Telegram, X) and keep a list of every project that says yes. Replace the hackathon safety caps ($0.50 / 10 shares per envelope) with production limits, and move hosting to a paid plan fit for commercial use. |
+| Late Nov – Dec 2026 | Act on judge feedback. Post the community question "Would your project sponsor a drop at Lunar New Year?" (r/btc, BCH Telegram, X) and keep a list of every project that says yes. After an outside review of the contract, raise the safety caps ($20 / 20 shares per envelope) to production limits, and move hosting to a paid plan fit for commercial use. |
 | Dec 2026 – mid Jan 2027 | Sign the first pilot sponsors from that list (goal: a handful, not a number we promise). Make a Year of the Goat envelope and seal theme. Talk to Paytaca about opening a Hongbao link straight in the wallet (§4.7). |
 | Mid Jan – 5 Feb 2027 | Sponsors create campaigns and schedule drops for the holiday. Personal drops stay free, so every sponsored envelope also teaches people they can send their own. |
 | 6 – 20 Feb 2027 | **Launch window.** Sponsored and personal drops through the New Year fortnight, and every claimer is one tap from "Pass it on". |

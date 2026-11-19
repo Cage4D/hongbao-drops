@@ -89,7 +89,16 @@ Details, sources and the go-to-market plan: [docs/pitch-notes.md](docs/pitch-not
 
 What it can't do: someone with many wallets can claim more than once. That's why sponsors see "brand-new wallets" and "used it" separately, and why suspected farming is flagged in their dashboard.
 
-**Limits on mainnet during the hackathon.** Every envelope, whoever sends it, can hold at most **$0.50** of BCH, split into at most **10 shares**, and lasts at most **24 hours** before leftovers go back. The contract and gate are new and not yet audited, so these caps keep what anyone could lose small while strangers try it with real money. They're our own safety limits, not limits of the design: the money caps are settings, and the 24-hour limit is one constant in the API config.
+### Why there's a cap on each envelope
+
+On mainnet, every envelope, whoever sends it (judges included), can hold **up to $20** of BCH, split into **up to 20 shares**, for **up to 24 hours** before leftovers go back. The Send page shows these limits, and they come straight from the server.
+
+**The reason is safety, not the design.** The contract, the gate and the keeper are new and haven't had an outside security audit yet. If a bug turned up while people use it with real money, the cap keeps what anyone could lose small. $20 is enough to try it properly with a group, and small enough that nobody gets hurt if something goes wrong.
+
+What the cap is *not*:
+- **Not a limit of the design.** Nothing in the contract depends on it. The money and share limits are server settings (`MAX_ENVELOPE_USD`, `MAX_SHARES`), and the 24-hour limit is one constant in the API config.
+- **Not about our budget.** Envelopes you fund with your own BCH don't count against our demo budget, and you can't block anyone else's.
+- **Not permanent.** Once the contract has been reviewed, the limits go up for real sponsored drops.
 
 ## See it on the blockchain (mainnet)
 
