@@ -89,6 +89,8 @@ Details, sources and the go-to-market plan: [docs/pitch-notes.md](docs/pitch-not
 
 What it can't do: someone with many wallets can claim more than once. That's why sponsors see "brand-new wallets" and "used it" separately, and why suspected farming is flagged in their dashboard.
 
+**Limits on mainnet during the hackathon.** Every envelope, whoever sends it, can hold at most **$0.50** of BCH, split into at most **10 shares**, and lasts at most **24 hours** before leftovers go back. The contract and gate are new and not yet audited, so these caps keep what anyone could lose small while strangers try it with real money. They're our own safety limits, not limits of the design: the money caps are settings, and the 24-hour limit is one constant in the API config.
+
 ## See it on the blockchain (mainnet)
 
 | What | Transaction |
