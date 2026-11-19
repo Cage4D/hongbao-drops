@@ -175,7 +175,7 @@ Lunar New Year 2027 is **Saturday 6 February 2027** (Year of the Goat). The fest
 | **Low activation:** people claim and never use the BCH | It's measured, not hidden: `activatedNotFarm` is the number a sponsor pays attention to. Pass it on gives every claimer an easy first use, and the Hongbao Seal gives them a reason to keep the wallet. |
 | **Wallet connection fails** (relays, wallet-side bugs) | Claimers never have to connect: they can paste an address or hold a share for 15 minutes. See §4.7 for the pitch framing. |
 | **Small fee revenue:** 3% of small drops is small money | True. The fee is pure margin because miner fees are paid inside the envelope (§4.3), but the business needs volume or larger sponsor drops. The Lunar New Year launch is the test. |
-| **24-hour envelopes on mainnet** | Our own safety cap for the hackathon, configurable. Production envelopes can run the whole festival. |
+| **24-hour envelopes on mainnet** | Our own safety limit for the hackathon: a constant in the code (`MAINNET_MAX_EXPIRY`, `apps/api/src/config/config.ts`), so raising it for the festival is a one-line change plus a review of the refund timing. The per-envelope money caps are already settings. |
 
 ## Words to use
 
