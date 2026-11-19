@@ -96,6 +96,29 @@ Every funding also sends a 546-sat identity output to our treasury (it anchors t
 
 Cost to serve per drop for us: $0 in miner fees (see above) plus a share of hosting. The fee is pure margin until hosting needs a paid plan. Caveats to say out loud: the mainnet demo currently caps an envelope at $0.50 and 10 shares (`MAX_ENVELOPE_USD`, `MAX_SHARES`, our own safety limits for the hackathon, configurable per deployment), and personal drops are free and bring no revenue.
 
+### 4.4 Self-serve, and the fee can't be skipped
+
+**From sign-up to a live dashboard without talking to us.** Everything runs on the sponsor page (`/sponsor`):
+1. **Sign up:** name, optional logo, brand colour and a call-to-action link. `POST /sponsors` returns a sponsor token once. There's no approval step, only a rate limit of 5 sign-ups per IP per hour ([campaigns.service.ts:48-60](../apps/api/src/campaigns/campaigns.service.ts)).
+2. **Create a campaign** with that token (`POST /campaigns`, [campaigns.service.ts:74](../apps/api/src/campaigns/campaigns.service.ts)).
+3. **Send a sponsored drop:** the campaign's "New drop" button opens `/send?campaign=<id>` ([Sponsor.tsx:281](../apps/web/src/pages/Sponsor.tsx)). The sender form says "Sponsored drops add a 3% fee (min 546 sats)" ([Send.tsx:436](../apps/web/src/pages/Send.tsx)) and the sponsor funds it from any BCH wallet.
+4. **Watch the dashboard:** claims, brand-new wallets, used within 7 days, suspected farming, cost per activated new wallet, a CSV export, and a public proof page `/c/<id>` to share ([Sponsor.tsx:192-287](../apps/web/src/pages/Sponsor.tsx), [campaigns.service.ts:91-97](../apps/api/src/campaigns/campaigns.service.ts)).
+
+Our own BLAZE Drop (§4.1) was set up exactly this way, through the public API, with no manual step on our side.
+
+**Why the 3% can't be routed around.** It's a chain of four checks:
+1. **The fee is fixed when the envelope is created.** A valid sponsor token (and a campaign belonging to it) sets `feeBps` to `SPONSOR_FEE_BPS` = 300, and the fee is `max(ceil(3% × total), 546 sats)`, stored with the envelope ([envelopes.service.ts:125-144](../apps/api/src/envelopes/envelopes.service.ts), stored at line 186). A wrong token or someone else's campaign is refused (lines 132, 135).
+2. **The funding template includes the fee output to our treasury** ([envelopes.service.ts:241-242](../apps/api/src/envelopes/envelopes.service.ts), placed right after the shares by [packages/contract/src/funding.ts:83](../packages/contract/src/funding.ts)).
+3. **The funding check refuses a transaction without it.** If the output after the shares doesn't pay at least the fee, token-free, to the treasury script, the result is `FUNDING_MISMATCH` ([funding-verifier.ts:97-104](../apps/api/src/envelopes/funding-verifier.ts)). Only a transaction that passes is recorded and turns the envelope `ACTIVE` ([envelopes.service.ts:298-334](../apps/api/src/envelopes/envelopes.service.ts)).
+4. **The gate signs claims only for active envelopes.** `loadClaimable` refuses `PENDING_FUNDING` with `NOT_FUNDED` ([claims.service.ts:61-65](../apps/api/src/claims/claims.service.ts)), and every claim and hold goes through it (lines 142, 209). The contract itself requires the gate's signature on every claim (`checkDataSig(gateSig, recipient + outpoint, gatePk)`, [Hongbao.cash:40](../packages/contract/contracts/Hongbao.cash)), so nobody can claim an envelope the gate won't sign for.
+
+An envelope funded without the fee output is therefore never claimable: its coins just go back to the sender at expiry. A sponsor could send an ordinary personal drop instead. That's free, but it carries no brand, isn't in any campaign and has no dashboard, so the things a sponsor pays for always come with the fee.
+
+**Why this is defensible:**
+- **Scales without a sales team:** sign-up, campaign, funding and reporting are all self-serve, and our marginal cost per drop is zero miner fees (§4.3).
+- **Revenue can't be routed around:** the fee is paid on-chain in the same transaction that funds the envelope, before anyone can claim. There's no invoice to chase.
+- **Honest limit:** the code is open source, so someone could run their own copy with their own gate and treasury. What they can't copy is the brand, the network of envelopes being passed on, and wallet integrations (§4.6).
+
 ## Words to use
 
 - "lockbox", "leftovers return automatically", "Hongbao Seal". Avoid "UTXO", "covenant", "P2SH" on slides.
