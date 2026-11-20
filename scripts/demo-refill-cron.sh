@@ -2,7 +2,7 @@
 # Keeps the judges' demo envelope ("Try it free") funded on mainnet, unattended.
 #
 # Safe to run as often as you like (cron every 30 min, and once at Windows logon): it only spends
-# when the current demo envelope is used up, expired, or has under REFILL_BELOW_SECONDS left, so in
+# when the current demo envelope is used up, expired, or has under REFILL_BELOW_SECONDS left (14 h), so in
 # practice it refills about once a day. Each refill is one demo-envelope run (10 x 5,000 sats ≈ $0.10;
 # unclaimed shares return to the demo wallet at expiry). The wallet key never leaves this machine.
 #
@@ -13,7 +13,7 @@ set -uo pipefail
 
 REPO="/home/cage4d/Codebase/hongbao-drops"
 API="https://hongbao-drops-api.vercel.app"
-REFILL_BELOW_SECONDS=10800          # refill when under 3 h are left
+REFILL_BELOW_SECONDS=50400          # refill when under 14 h are left (evening, while the PC is on; API allows 16 h)
 STOP_AFTER="2026-12-01T00:00:00Z"   # no automatic spending after this
 LOG_DIR="$HOME/.local/share/hongbao-drops"
 LOG="$LOG_DIR/refill.log"
