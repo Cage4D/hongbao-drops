@@ -59,7 +59,7 @@ export default function ConnectModal() {
       ) : (
         <div className="connect">
           <header className="connect-head">
-            <p className="eyebrow">Step 1 · Connect with WizardConnect</p>
+            <p className="eyebrow">Connect with WizardConnect</p>
             <h2 className="disp disp-md">
               Link your <span className="flame">wallet</span>
             </h2>
