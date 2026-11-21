@@ -59,7 +59,7 @@ export default function ConnectModal() {
       ) : (
         <div className="connect">
           <header className="connect-head">
-            <p className="eyebrow">Step 1 · Connect</p>
+            <p className="eyebrow">Step 1 · Connect with WizardConnect</p>
             <h2 className="disp disp-md">
               Link your <span className="flame">wallet</span>
             </h2>
@@ -111,9 +111,14 @@ export default function ConnectModal() {
           ) : (
             <div className="connect-desktop">
               <p>
-                In your Bitcoin Cash wallet, tap <strong>Scan</strong> and point it at this code.
+                This connects over <strong>WizardConnect</strong>. Open your wallet's WizardConnect screen and scan this code. In
+                Paytaca: <strong>Apps → WizardConnect → Scan QR Code</strong>.
               </p>
-              <div className="qr-box">{qr ? <img src={qr} alt="Connection QR code. Scan it with your Bitcoin Cash wallet." /> : <div className="qr-wait"><span className="spinner" /></div>}</div>
+              <div className="qr-box">{qr ? <img src={qr} alt="WizardConnect QR code. Scan it from your wallet's WizardConnect screen." /> : <div className="qr-wait"><span className="spinner" /></div>}</div>
+              <p className="small muted">
+                Wallet on this computer? Use <strong>Copy link</strong> below, then <strong>Paste URL</strong> on the same WizardConnect
+                screen.
+              </p>
             </div>
           )}
 
