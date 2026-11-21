@@ -12,8 +12,8 @@
 ### [Try it](https://hongbao-drops.vercel.app) · [Presentation](https://drive.google.com/file/d/1s3yKqtfBycb0cRAPeccTe02Wrn5JKxYC/view) · built for BCH BLAZE 2026 (Mainnet Track)
 
 <p align="center">
-  <a href="docs/media/flow.mp4"><img src="docs/media/flow.gif" alt="The flow on a phone, on mainnet: tap Try it free, open the red envelope, claim, Money arrived 3,744 sats, then the BCH and Hongbao Seal #13-1 in Paytaca" width="300"></a>
-  <br><sub>Real mainnet claim into Paytaca (30 s). <a href="docs/media/flow.mp4">Full 64-second video</a>, including connecting the wallet.</sub>
+  <a href="docs/media/flow.mp4"><img src="docs/media/flow.gif" alt="A real claim on mainnet: tap Try it free, open the red envelope (10 of 10 left), claim into Paytaca, Money arrived 3,744 sats with a Hongbao Seal and a welcome to a brand-new wallet, then Paytaca shows 0.00003744 BCH received" width="720"></a>
+  <br><sub>A real claim on mainnet, from "Try it free" to the BCH in Paytaca (37 s). <a href="docs/media/flow.mp4">Watch it as a video</a>.</sub>
 </p>
 
 <p>
