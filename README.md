@@ -1,6 +1,6 @@
 <!--
   Before submission (22 Nov 14:00 UTC):
-  1. BLAZE Drop rows are final (campaign ended 20 Nov). Source:
+  1. BLAZE Drop rows: snapshot 21 Nov 16:10 UTC (last envelope open until 21 Nov 22:09 UTC). Source:
      curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68/public
   Never put test-network numbers where real ones belong.
 -->
@@ -56,19 +56,20 @@ Brands and BCH projects want new people using BCH, but airdrops get farmed and a
 
 Every number links to a public blockchain transaction, so anyone can check it, which ad-network click counts can't offer.
 
-**Our own "BLAZE Drop" campaign on mainnet (19–20 Nov, links shared with friends; ended):**
+**Our own "BLAZE Drop" campaign on mainnet (19–21 Nov, links shared with friends; snapshot 21 Nov 16:10 UTC):**
 
 | | |
 |---|---|
-| Envelopes | 3, with 10 shares each and a Hongbao Seal on every share: [equal split](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183), [lucky split](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08), [equal split](https://blockchair.com/bitcoin-cash/transaction/a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729) |
-| Put in | 300,000 sats (≈ $0.62) |
-| 3% sponsor fee, paid on-chain | 9,000 sats: 3,000 in output 11 of each funding transaction, to our treasury |
-| People who claimed | 2 |
-| Brand-new wallets | 2 of 2 |
-| Envelopes passed on | 0 |
-| **Cost per brand-new wallet** | $0.03: BCH given away plus the sponsor fee, divided by brand-new wallets |
+| Envelopes | 4: three with 10 shares each and a Hongbao Seal on every share: [equal split](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183), [lucky split](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08), [equal split](https://blockchair.com/bitcoin-cash/transaction/a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729), plus a 3-share envelope for a second round of friends ([funding](https://blockchair.com/bitcoin-cash/transaction/828706d545475a1e56c3a8e8fcf2afe3ba6f2eb03d35b517596dc9973afec225)) |
+| Put in | 330,000 sats (≈ $0.65) |
+| 3% sponsor fee, paid on-chain | 9,900 sats, inside each funding transaction, to our treasury |
+| People who claimed | 3 |
+| Brand-new wallets | 3 of 3 |
+| Envelopes passed on | 1 |
+| Cost per brand-new wallet | $0.03: BCH given away plus the sponsor fee, divided by brand-new wallets |
 | Unclaimed, returned to the sponsor automatically at expiry | 268,248 sats in 3 keeper transactions: [7d7621ee…](https://blockchair.com/bitcoin-cash/transaction/7d7621ee9247f59f6bb428ae9ccd23ccbb1d5de01de6023feafd7474032bb09a), [6257ca5b…](https://blockchair.com/bitcoin-cash/transaction/6257ca5bd762f7a951bcb63dcdb5c4ba4bcb169a2a93ee4946bb9f86503be0fb), [8f854a29…](https://blockchair.com/bitcoin-cash/transaction/8f854a29b69ba5e2a2a76a0feeee42be0d3a33062bcf65651baa39eaeb3416d4) |
-| Of those, used their BCH or passed it on within 7 days | Not known yet: the 7-day window closes after judging |
+| Of those, used their BCH or passed it on within 7 days, not flagged as farming | 1 so far (passed it on); the 7-day window is still open for the other 2 |
+| **Cost per real new wallet** | **$0.08** so far: everything spent, divided by real new wallets |
 | Public proof (every transaction) | [hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68](https://hongbao-drops.vercel.app/c/cmwn5o8eq000107jtj6ecle68) |
 
 ## The business

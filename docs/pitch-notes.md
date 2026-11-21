@@ -26,18 +26,19 @@ We have no outside sponsor yet, so we ran the sponsor flow on ourselves, on main
 
 | | Value | Source |
 |---|---|---|
-| Envelopes | 3 (two equal splits, one lucky split), 10 shares each, Hongbao Seal on every share | public page |
-| Money put in | 300,000 sats (≈ $0.62) | public page `lockedSats` at launch |
-| Sponsor fee paid (3%) | 3,000 sats per envelope, 9,000 total | output 11 of each funding tx, to the treasury `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
-| Funding txids | [a6cd3583…](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183) (equal), [db974414…](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08) (lucky), [a163f085…](https://blockchair.com/bitcoin-cash/transaction/a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729) (equal, added 19 Nov 21:00 UTC) | chain |
-| Claims | 2 of 30 shares (final: all three envelopes expired on 20 Nov) | public page `claims` |
-| Brand-new wallets | 2 of 2 | `freshWallets` |
-| Passed on | 0 | `passOnEnvelopes` |
-| Unclaimed, refunded automatically | 268,248 sats: [7d7621ee…](https://blockchair.com/bitcoin-cash/transaction/7d7621ee9247f59f6bb428ae9ccd23ccbb1d5de01de6023feafd7474032bb09a), [6257ca5b…](https://blockchair.com/bitcoin-cash/transaction/6257ca5bd762f7a951bcb63dcdb5c4ba4bcb169a2a93ee4946bb9f86503be0fb), [8f854a29…](https://blockchair.com/bitcoin-cash/transaction/8f854a29b69ba5e2a2a76a0feeee42be0d3a33062bcf65651baa39eaeb3416d4) | `refundedSats`, `refundTxids` |
+| Envelopes | 4: three of 10 shares (two equal splits, one lucky split) and one of 3 shares for a second round of friends, Hongbao Seal on every share | public page |
+| Money put in | 330,000 sats (≈ $0.65) | public page `lockedSats` at launch |
+| Sponsor fee paid (3%) | 3,000 sats per 10-share envelope, 900 for the 3-share one, 9,900 total | the output right after the shares in each funding tx, to the treasury `bitcoincash:qzrxax7vr0cw0s3ptldqj8302mwnfgeg4uayplk6rf` |
+| Funding txids | [a6cd3583…](https://blockchair.com/bitcoin-cash/transaction/a6cd35837022184f937114123806f10421c2cac9465ba11e62c0a7ee038de183) (equal), [db974414…](https://blockchair.com/bitcoin-cash/transaction/db9744140ba5336d7e890baa10bee08d3168b37632e0435cef878c5bb53f8e08) (lucky), [a163f085…](https://blockchair.com/bitcoin-cash/transaction/a163f085a44879a2b773d32fde417d188a203b36f8bffa2bdb6e01e9488a7729) (equal, added 19 Nov 21:00 UTC), [828706d5…](https://blockchair.com/bitcoin-cash/transaction/828706d545475a1e56c3a8e8fcf2afe3ba6f2eb03d35b517596dc9973afec225) (3 shares, 20 Nov 22:46 UTC) | chain |
+| Claims | 3 of 33 shares (21 Nov 16:10 UTC; the 3-share envelope is open until 21 Nov 22:09 UTC) | public page `claims` |
+| Brand-new wallets | 3 of 3 | `freshWallets` |
+| Passed on | 1 | `passOnEnvelopes` |
+| Unclaimed, refunded automatically | 268,248 sats from the first three envelopes: [7d7621ee…](https://blockchair.com/bitcoin-cash/transaction/7d7621ee9247f59f6bb428ae9ccd23ccbb1d5de01de6023feafd7474032bb09a), [6257ca5b…](https://blockchair.com/bitcoin-cash/transaction/6257ca5bd762f7a951bcb63dcdb5c4ba4bcb169a2a93ee4946bb9f86503be0fb), [8f854a29…](https://blockchair.com/bitcoin-cash/transaction/8f854a29b69ba5e2a2a76a0feeee42be0d3a33062bcf65651baa39eaeb3416d4) | `refundedSats`, `refundTxids` |
 | Cost per brand-new wallet | $0.03 | `costPerFreshWalletUsd` = (BCH given away + sponsor fee) ÷ brand-new wallets |
-| Used their BCH within 7 days, not flagged as farming | not available before 26 Nov (the 7-day window is still open during judging) | `activatedNotFarm` |
+| Used their BCH within 7 days, not flagged as farming | 1 so far (passed it on); the window is still open for the other 2 | `activatedNotFarm` |
+| **Cost per real new wallet** | **$0.08** so far | `costPerActivatedNewWalletUsd` = everything spent ÷ real new wallets |
 
-Final numbers. The links went only to a few friends, so read it as proof the whole sponsor flow works end to end on mainnet (fee paid on-chain, claims measured, leftovers refunded automatically), not as a reach figure. Source:
+The links went only to a few friends, so read it as proof the whole sponsor flow works end to end on mainnet (fee paid on-chain, claims measured, leftovers refunded automatically), not as a reach figure. Source:
 
 ```bash
 curl -s https://hongbao-drops-api.vercel.app/campaigns/cmwn5o8eq000107jtj6ecle68/public
